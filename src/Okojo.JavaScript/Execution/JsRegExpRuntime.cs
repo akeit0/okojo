@@ -152,6 +152,36 @@ internal static class JsRegExpRuntime
         int RangeCount
     );
 
+    /// <summary>
+    ///     Raw match step anchored exactly at <paramref name="startIndex"/>
+    ///     (sticky semantics regardless of flags) with no lastIndex traffic.
+    ///     Powers the RegExp[Symbol.split] fast path, which positions every
+    ///     attempt explicitly and never lets user code observe the internal
+    ///     splitter's lastIndex between iterations.
+    /// </summary>
+    internal static RegExpEngineStep? IntrinsicExecStepAt(
+        JsRealm realm,
+        JsRegExpObject rx,
+        string input,
+        int startIndex
+    )
+    {
+        if (
+            !RegExpEngine.Default.TryMatchRanges(
+                rx.CompiledPattern,
+                input,
+                startIndex,
+                out var index,
+                out var length,
+                out var ranges,
+                out var rangeCount
+            )
+        )
+            return null;
+
+        return new RegExpEngineStep(index, length, ranges, rangeCount);
+    }
+
     internal static RegExpMatchResult? ExecMatchResult(
         JsRealm realm,
         JsRegExpObject rx,
@@ -305,7 +335,8 @@ internal static class JsRegExpRuntime
 
     internal static bool Test(JsRealm realm, JsRegExpObject rx, string input)
     {
-        return !Exec(realm, rx, input).IsNull;
+        // test only needs existence of a match; skip building the result array.
+        return IntrinsicExecStep(realm, rx, input) is not null;
     }
 
     private static long GetLastIndex(JsRealm realm, JsRegExpObject rx)

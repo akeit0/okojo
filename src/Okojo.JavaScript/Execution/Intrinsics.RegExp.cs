@@ -6,6 +6,22 @@ namespace Okojo.JavaScript.Execution;
 
 public partial class Intrinsics
 {
+    private JsHostFunction? _regExpPrototypeExec;
+
+    /// <summary>
+    ///     True when <paramref name="receiver"/> resolves 'exec' to this
+    ///     realm's original RegExp.prototype.exec builtin, enabling raw-step
+    ///     fast paths that would otherwise be observable overrides.
+    /// </summary>
+    internal bool IsDefaultRegExpExec(JsRealm realm, JsObject receiver)
+    {
+        if (_regExpPrototypeExec is null)
+            return false;
+        if (!receiver.TryGetPropertyAtom(realm, AtomTable.IdExec, out var value, out _))
+            return false;
+        return value.TryGetObject(out var obj) && ReferenceEquals(obj, _regExpPrototypeExec);
+    }
+
     private JsHostFunction CreateRegExpConstructor()
     {
         return new(
@@ -770,6 +786,7 @@ public partial class Intrinsics
             "exec",
             1
         );
+        _regExpPrototypeExec = execFn;
 
         var testFn = new JsHostFunction(
             Realm,
@@ -1583,6 +1600,109 @@ public partial class Intrinsics
                 uint lengthA = 0;
                 var p = 0;
                 var q = 0;
+
+                // R8-regexp fast path: default species construction already
+                // happened above; with a plain regexp receiver still bound to
+                // the builtin exec, per-position splitting can use raw engine
+                // steps instead of building an observable match object at
+                // every position (no user code runs between attempts).
+                if (
+                    splitterValue.TryGetObject(out var fastSplitterObj)
+                    && fastSplitterObj is JsRegExpObject fastSplitter
+                    && realm.Intrinsics.IsDefaultRegExpExec(realm, fastSplitterObj)
+                )
+                {
+                    if (text.Length == 0)
+                    {
+                        if (
+                            JsRegExpRuntime.IntrinsicExecStepAt(realm, fastSplitter, text, 0)
+                            is not null
+                        )
+                            goto done;
+                        goto add_tail;
+                    }
+
+                    // Trivially empty pattern (empty source or bare non-
+                    // capturing group): zero-length match at every position,
+                    // so segments are the individual code points; skip the
+                    // engine entirely.
+                    var splitPatternSource = fastSplitter.Pattern;
+                    if (splitPatternSource.Length == 0 || splitPatternSource is "(?:)")
+                    {
+                        while (q < text.Length)
+                        {
+                            var next = AdvanceStringIndex(text, q, unicodeMatching);
+                            if (q != p)
+                            {
+                                FreshArrayOperations.DefineElement(
+                                    result,
+                                    lengthA++,
+                                    JsValue.FromString(text[p..q])
+                                );
+                                if (lengthA == limit)
+                                    goto done;
+                                p = q;
+                            }
+                            q = next;
+                        }
+                        goto add_tail;
+                    }
+
+                    while (q < text.Length)
+                    {
+                        var step = JsRegExpRuntime.IntrinsicExecStepAt(
+                            realm,
+                            fastSplitter,
+                            text,
+                            q
+                        );
+                        if (step is null)
+                        {
+                            q = AdvanceStringIndex(text, q, unicodeMatching);
+                            continue;
+                        }
+
+                        var e = step.Value.Index + step.Value.Length;
+                        if (e > text.Length)
+                            e = text.Length;
+                        if (e == p)
+                        {
+                            q = AdvanceStringIndex(text, q, unicodeMatching);
+                            continue;
+                        }
+
+                        FreshArrayOperations.DefineElement(
+                            result,
+                            lengthA++,
+                            JsValue.FromString(text[p..q])
+                        );
+                        if (lengthA == limit)
+                            goto done;
+
+                        p = e;
+
+                        var ranges = step.Value.Ranges;
+                        for (var i = 1; i < step.Value.RangeCount; i++)
+                        {
+                            var capture = ranges[i];
+                            FreshArrayOperations.DefineElement(
+                                result,
+                                lengthA++,
+                                capture.Success
+                                    ? JsValue.FromString(
+                                        text.Substring(capture.Index, capture.Length)
+                                    )
+                                    : JsValue.Undefined
+                            );
+                            if (lengthA == limit)
+                                goto done;
+                        }
+
+                        q = p;
+                    }
+                    goto add_tail;
+                }
+
                 if (text.Length == 0)
                 {
                     var z = RegExpExecGeneric(realm, splitterValue, text);

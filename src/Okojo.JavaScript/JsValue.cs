@@ -172,6 +172,24 @@ public readonly struct JsValue : IEquatable<JsValue>
         return new(Tag.JsTagString, 0, value);
     }
 
+    // Single-character string cache (mirrors V8's single_character_string
+    // table). Benign race on first use: competing stores hold equal values.
+    private static readonly JsString[] SingleCharacterStrings = new JsString[128];
+
+    public static JsValue FromLatin1Char(char value)
+    {
+        if ((uint)value < (uint)SingleCharacterStrings.Length)
+        {
+            ref var cached = ref SingleCharacterStrings[value];
+            if (cached.StringLikeObject is not null)
+                return new(Tag.JsTagString, 0, cached.StringLikeObject);
+            var created = new JsString(value.ToString());
+            cached = created;
+            return new(Tag.JsTagString, 0, created.StringLikeObject);
+        }
+        return FromString(value.ToString());
+    }
+
     public static JsValue FromString(JsString value)
     {
         return new(Tag.JsTagString, 0, value.StringLikeObject);

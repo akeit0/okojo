@@ -1086,7 +1086,7 @@ public partial class Intrinsics
                             FreshArrayOperations.DefineElement(
                                 result,
                                 count,
-                                JsValue.FromString(flatText[i].ToString())
+                                JsValue.FromLatin1Char(flatText[i])
                             );
                         result.SetLength(count);
                         return result;
@@ -1146,22 +1146,16 @@ public partial class Intrinsics
                     var splitStart = 0;
                     while (resultIndex < limit)
                     {
-                        var matchValue = JsRegExpRuntime.Exec(realm, splitter, flatText);
-                        if (matchValue.IsNull || !matchValue.TryGetObject(out var matchObj))
+                        // Raw engine step: split only needs index/length of the
+                        // next match, so skip building the exec result object.
+                        var step = JsRegExpRuntime.IntrinsicExecStep(realm, splitter, flatText);
+                        if (step is null)
                             break;
 
-                        if (
-                            !matchObj.TryGetPropertyByAtom(IdIndex, out var matchIndexValue)
-                            || !matchIndexValue.IsNumber
-                        )
-                            break;
+                        int matchIndex = step.Value.Index;
+                        var matchedLength = step.Value.Length;
 
-                        var matchIndex = (int)matchIndexValue.NumberValue;
-                        var matched = matchObj.TryGetElement(0, out var matchedValue)
-                            ? realm.ToJsStringSlowPath(matchedValue)
-                            : string.Empty;
-
-                        if (matched.Length == 0)
+                        if (matchedLength == 0)
                         {
                             if (matchIndex == splitStart)
                             {
@@ -1189,10 +1183,10 @@ public partial class Intrinsics
                             return result;
                         }
 
-                        var endIndex = matchIndex + matched.Length;
+                        var endIndex = matchIndex + matchedLength;
                         splitStart = endIndex;
 
-                        if (matched.Length == 0)
+                        if (matchedLength == 0)
                         {
                             if (endIndex >= text.Length)
                                 break;
