@@ -7,7 +7,7 @@ namespace Okojo.JavaScript.Execution;
 /// Appends ECMAScript ToString(value) characters into an interpolated string
 /// handler without intermediate materialization where possible: slice and
 /// flat-rope strings are appended from their existing char window, and
-/// integral doubles (indices, counts) format into a stack buffer via
+/// integral doubles (indices, counts, zero) format into a stack buffer via
 /// long.TryFormat instead of allocating a decimal string. Everything else
 /// falls back to <see cref="RealmExtensions.ToJsStringSlowPath" />.
 /// </summary>
@@ -40,13 +40,8 @@ internal static class JsValueStringAppender
 
     private static void AppendNumber(ref DefaultInterpolatedStringHandler handler, double number)
     {
-        if (number == 0d)
-        {
-            // ECMAScript keeps the sign of negative zero.
-            handler.AppendLiteral(double.IsNegative(number) ? "-0" : "0");
-            return;
-        }
-
+        // ECMAScript ToString(-0) is "0": IsIntegralSafe covers zero and the
+        // long cast drops the sign, so the fast path renders it correctly.
         if (NumberFormatting.IsIntegralSafe(number))
         {
             Span<char> buffer = stackalloc char[20];

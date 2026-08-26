@@ -4,6 +4,7 @@ using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
+using Okojo.Numerics;
 using Okojo.Text.RegularExpressions;
 using BclRegex = System.Text.RegularExpressions.Regex;
 
@@ -18,8 +19,40 @@ using BclRegex = System.Text.RegularExpressions.Regex;
 //       dotnet RegExpProbe.dll js --iterations 5
 
 return args.Length > 0 && args[0] == "js" ? RunJs(args)
+    : args.Length > 0 && args[0] == "numfmt" ? RunNumFmt(args)
     : args.Length > 0 && args[0] == "shape" ? RunShapes(args)
     : RunLib(args);
+
+// Emits "<hexBits>\t<formatted>" per line for differential testing vs Node.
+static int RunNumFmt(string[] args)
+{
+    var count = GetOption(args, "--count", 10000);
+    Span<char> buffer = stackalloc char[64];
+    var rng = new Random(42);
+    var bits = new byte[8];
+
+    for (var i = 0; i < count; i++)
+    {
+        double value;
+        if (i < NumFmtCases.All.Length)
+            value = NumFmtCases.All[i];
+        else
+        {
+            rng.NextBytes(bits);
+            value = BitConverter.ToDouble(bits);
+            if (double.IsNaN(value))
+                value = 0;
+        }
+
+        NumberFormatting.TryFormat(value, buffer, out var written);
+        Console.WriteLine(
+            BitConverter.DoubleToInt64Bits(value).ToString("X16")
+                + "\t"
+                + new string(buffer.Slice(0, written))
+        );
+    }
+    return 0;
+}
 
 static int RunJs(string[] args)
 {
@@ -331,4 +364,43 @@ static int GetOption(string[] args, string name, int fallback)
 static class ProbeState
 {
     internal static int Sink;
+}
+
+static class NumFmtCases
+{
+    internal static readonly double[] All =
+    [
+        0d,
+        -0d,
+        1d,
+        -1d,
+        0.1,
+        0.2,
+        0.3,
+        1d / 3,
+        2d / 3,
+        5e-324,
+        2.2250738585072014e-308,
+        1.7976931348623157e308,
+        -1.7976931348623157e308,
+        9007199254740991d,
+        -9007199254740991d,
+        9007199254740992d,
+        1e21,
+        1e20,
+        9.999999999999999e20,
+        1e-6,
+        1e-7,
+        0.000001,
+        123456789012345678901d,
+        1.5e300,
+        1e15,
+        1e16,
+        1234567890123456789d,
+        3.141592653589793,
+        2.718281828459045,
+        1.0000000000000002,
+        0.30000000000000004,
+        1e-323,
+    ];
 }
