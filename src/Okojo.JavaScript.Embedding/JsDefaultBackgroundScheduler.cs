@@ -18,6 +18,17 @@ internal sealed class JsDefaultBackgroundScheduler : IBackgroundScheduler
 
     public Task WaitHandleAsync(WaitHandle handle, CancellationToken cancellationToken)
     {
-        return Task.Run(() => handle.WaitOne(), cancellationToken);
+        return Task.Run(() =>
+        {
+            if (!cancellationToken.CanBeCanceled)
+            {
+                handle.WaitOne();
+                return;
+            }
+
+            WaitHandle[] waits = [handle, cancellationToken.WaitHandle];
+            if (WaitHandle.WaitAny(waits) == 1)
+                cancellationToken.ThrowIfCancellationRequested();
+        });
     }
 }
