@@ -1,0 +1,41 @@
+using static Okojo.JavaScript.Execution.JsRealm;
+
+namespace Okojo.JavaScript.Execution;
+
+// Array.prototype.some: dense fast phase plus generic resume (one file per builtin).
+public partial class Intrinsics
+{
+    private static bool RunSome(
+        JsRealm realm,
+        JsObject obj,
+        long length,
+        JsFunction callback,
+        JsValue callbackThis
+    )
+    {
+        long k = 0;
+        if (TryOpenDenseRange(obj, length, out var dense, out var store))
+        {
+            for (; k < length; k++)
+            {
+                if (!DenseWindowValid(dense, store, k))
+                    break;
+                var element = store[(int)k];
+                if (element.IsTheHole && !TryGetArrayLikeIndex(realm, obj, k, out element))
+                    continue;
+                if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))
+                    return true;
+            }
+        }
+
+        for (; k < length; k++)
+        {
+            if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
+                continue;
+            if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))
+                return true;
+        }
+
+        return false;
+    }
+}

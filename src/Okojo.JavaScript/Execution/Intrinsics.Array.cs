@@ -353,8 +353,6 @@ public partial class Intrinsics
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
                 RunForEach(realm, obj, length, callback, callbackThis);
                 return JsValue.Undefined;
-
-                return JsValue.Undefined;
             },
             "forEach",
             1
@@ -374,8 +372,6 @@ public partial class Intrinsics
                 return RunEvery(realm, obj, length, callback, callbackThis)
                     ? JsValue.True
                     : JsValue.False;
-
-                return JsValue.True;
             },
             "every",
             1
@@ -582,37 +578,14 @@ public partial class Intrinsics
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.reduce");
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.reduce");
-                var hasAccumulator = args.Length > 1;
-                var accumulator = hasAccumulator ? args[1] : JsValue.Undefined;
-
-                long k = 0;
-                if (!hasAccumulator)
-                {
-                    while (k < length && !TryGetArrayLikeIndex(realm, obj, k, out accumulator))
-                        k++;
-                    if (k >= length)
-                        throw new JsRuntimeException(
-                            JsErrorKind.TypeError,
-                            "Reduce of empty array with no initial value"
-                        );
-                    k++;
-                }
-
-                for (; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    Span<JsValue> callbackArgs =
-                    [
-                        accumulator,
-                        element,
-                        FromLength(k),
-                        JsValue.FromObject(obj),
-                    ];
-                    accumulator = realm.InvokeFunction(callback, JsValue.Undefined, callbackArgs);
-                }
-
-                return accumulator;
+                return RunReduce(
+                    realm,
+                    obj,
+                    length,
+                    callback,
+                    args.Length > 1,
+                    args.Length > 1 ? args[1] : JsValue.Undefined
+                );
             },
             "reduce",
             1
@@ -628,37 +601,14 @@ public partial class Intrinsics
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.reduceRight");
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.reduceRight");
-                var hasAccumulator = args.Length > 1;
-                var accumulator = hasAccumulator ? args[1] : JsValue.Undefined;
-
-                var k = length - 1;
-                if (!hasAccumulator)
-                {
-                    while (k >= 0 && !TryGetArrayLikeIndex(realm, obj, k, out accumulator))
-                        k--;
-                    if (k < 0)
-                        throw new JsRuntimeException(
-                            JsErrorKind.TypeError,
-                            "Reduce of empty array with no initial value"
-                        );
-                    k--;
-                }
-
-                for (; k >= 0; k--)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    Span<JsValue> callbackArgs =
-                    [
-                        accumulator,
-                        element,
-                        FromLength(k),
-                        JsValue.FromObject(obj),
-                    ];
-                    accumulator = realm.InvokeFunction(callback, JsValue.Undefined, callbackArgs);
-                }
-
-                return accumulator;
+                return RunReduceRight(
+                    realm,
+                    obj,
+                    length,
+                    callback,
+                    args.Length > 1,
+                    args.Length > 1 ? args[1] : JsValue.Undefined
+                );
             },
             "reduceRight",
             1
@@ -672,7 +622,8 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.reverse");
                 var length = GetArrayLikeLengthLong(realm, obj);
-                ReverseArrayLike(realm, obj, length);
+                if (!TryReverseDense(obj, length))
+                    ReverseArrayLike(realm, obj, length);
                 return obj;
             },
             "reverse",
@@ -701,6 +652,8 @@ public partial class Intrinsics
                     start = 0;
                 if (end < start)
                     end = start;
+                if (TryFillDense(obj, start, end, value))
+                    return obj;
 
                 for (var k = start; k < end; k++)
                     SetArrayLikeIndexOrThrow(realm, obj, k, value);
@@ -734,6 +687,8 @@ public partial class Intrinsics
                         : length;
                 if (length == 0)
                     return obj;
+                if (TryCopyWithinDense(obj, length, to, from, end))
+                    return obj;
                 CopyWithinArrayLike(realm, obj, length, to, from, end);
                 return obj;
             },
@@ -765,6 +720,8 @@ public partial class Intrinsics
                         "Invalid array length",
                         "ARRAY_LENGTH_INVALID"
                     );
+                if (TrySliceDense(realm, obj, length, start, end, out var slicedResult))
+                    return slicedResult;
                 return SliceArrayLike(realm, obj, length, start, end);
             },
             "slice",
@@ -807,15 +764,20 @@ public partial class Intrinsics
                         "Invalid array length",
                         "ARRAY_LENGTH_INVALID"
                     );
-                ExecuteSplice(
-                    realm,
-                    obj,
-                    length,
-                    start,
-                    deleteCount,
-                    args.Length <= 2 ? [] : args[2..],
-                    out var deleted
-                );
+                var spliceItems = args.Length <= 2 ? [] : args[2..];
+                if (
+                    TrySpliceDense(
+                        realm,
+                        obj,
+                        length,
+                        start,
+                        deleteCount,
+                        spliceItems,
+                        out var denseDeleted
+                    )
+                )
+                    return denseDeleted;
+                ExecuteSplice(realm, obj, length, start, deleteCount, spliceItems, out var deleted);
                 return deleted;
             },
             "splice",
