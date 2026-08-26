@@ -30,6 +30,9 @@ public sealed class JsArray : JsObject
 
     public uint Length { get; private set; }
 
+    /// <summary>Exposes length writability for dense fast paths (push/pop/shift/unshift).</summary>
+    internal bool LengthIsWritable => lengthWritable;
+
     internal void SetLength(uint length)
     {
         this.Length = length;

@@ -216,6 +216,9 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.push");
+                if (TryPushDense(obj, args, out var pushed))
+                    return pushed;
+
                 var start = GetArrayLikeLengthLong(realm, obj);
                 const long maxSafeInteger = 9007199254740991L;
                 if (start > maxSafeInteger - args.Length)
@@ -246,7 +249,11 @@ public partial class Intrinsics
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
+                var args = info.Arguments;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.pop");
+                if (TryPopDense(obj, out var popped))
+                    return popped;
+
                 var length = GetArrayLikeLengthLong(realm, obj);
                 if (length == 0)
                 {
@@ -272,7 +279,11 @@ public partial class Intrinsics
             {
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
+                var args = info.Arguments;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.shift");
+                if (TryShiftDense(obj, out var shifted))
+                    return shifted;
+
                 var length = GetArrayLikeLengthLong(realm, obj);
                 if (length == 0)
                 {
@@ -302,8 +313,11 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.unshift");
-                var length = GetArrayLikeLengthLong(realm, obj);
+                if (TryUnshiftDense(obj, args, out var unshifted))
+                    return unshifted;
+
                 var insertCount = (uint)args.Length;
+                var length = GetArrayLikeLengthLong(realm, obj);
                 if (insertCount != 0 && length > MaxSafeIntegerLength - insertCount)
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
@@ -337,13 +351,8 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.forEach");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (long k = 0; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    InvokeArrayCallback(realm, callback, callbackThis, element, k, obj);
-                }
+                RunForEach(realm, obj, length, callback, callbackThis);
+                return JsValue.Undefined;
 
                 return JsValue.Undefined;
             },
@@ -362,18 +371,9 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.every");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (long k = 0; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    if (
-                        !ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return JsValue.False;
-                }
+                return RunEvery(realm, obj, length, callback, callbackThis)
+                    ? JsValue.True
+                    : JsValue.False;
 
                 return JsValue.True;
             },
@@ -392,20 +392,9 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.some");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (long k = 0; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    if (
-                        ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return JsValue.True;
-                }
-
-                return JsValue.False;
+                return RunSome(realm, obj, length, callback, callbackThis)
+                    ? JsValue.True
+                    : JsValue.False;
             },
             "some",
             1
@@ -422,22 +411,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.map");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-                var result = realm.CreateArrayObject();
-                var resultLength = RequireArrayStorageLength(length);
-
-                for (long k = 0; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    FreshArrayOperations.DefineElement(
-                        result,
-                        (uint)k,
-                        InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                    );
-                }
-
-                result.SetLength(resultLength);
-                return result;
+                return RunMap(realm, obj, length, callback, callbackThis);
             },
             "map",
             1
@@ -454,24 +428,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.filter");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-                var result = realm.CreateArrayObject();
-                long to = 0;
-
-                for (long k = 0; k < length; k++)
-                {
-                    if (!TryGetArrayLikeIndex(realm, obj, k, out var element))
-                        continue;
-                    if (
-                        !ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        continue;
-                    DefineFreshArrayLikeIndex(result, to++, element);
-                }
-
-                result.SetLength((uint)to);
-                return result;
+                return RunFilter(realm, obj, length, callback, callbackThis);
             },
             "filter",
             1
@@ -488,19 +445,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.find");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (long k = 0; k < length; k++)
-                {
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (
-                        ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return element;
-                }
-
-                return JsValue.Undefined;
+                return RunFind(realm, obj, length, callback, callbackThis);
             },
             "find",
             1
@@ -517,19 +462,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.findIndex");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (long k = 0; k < length; k++)
-                {
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (
-                        ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return FromLength(k);
-                }
-
-                return JsValue.FromInt32(-1);
+                return FromLength(RunFindIndex(realm, obj, length, callback, callbackThis));
             },
             "findIndex",
             1
@@ -546,19 +479,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.findLast");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (var k = length - 1; k >= 0; k--)
-                {
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (
-                        ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return element;
-                }
-
-                return JsValue.Undefined;
+                return RunFindLast(realm, obj, length, callback, callbackThis);
             },
             "findLast",
             1
@@ -575,19 +496,7 @@ public partial class Intrinsics
                 var length = GetArrayLikeLengthLong(realm, obj);
                 var callback = RequireArrayCallback(args, "Array.prototype.findLastIndex");
                 var callbackThis = args.Length > 1 ? args[1] : JsValue.Undefined;
-
-                for (var k = length - 1; k >= 0; k--)
-                {
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (
-                        ToBoolean(
-                            InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)
-                        )
-                    )
-                        return FromLength(k);
-                }
-
-                return JsValue.FromInt32(-1);
+                return FromLength(RunFindLastIndex(realm, obj, length, callback, callbackThis));
             },
             "findLastIndex",
             1
@@ -610,16 +519,9 @@ public partial class Intrinsics
                     args.Length > 1 ? realm.ToIntegerOrInfinity(args[1]) : 0d,
                     length
                 );
-                for (var k = start; k < length; k++)
-                {
-                    var element = TryGetArrayLikeIndex(realm, obj, k, out var value)
-                        ? value
-                        : JsValue.Undefined;
-                    if (JsValueSameValueZeroComparer.Instance.Equals(element, searchElement))
-                        return JsValue.True;
-                }
-
-                return JsValue.False;
+                return RunIncludes(realm, obj, length, start, searchElement)
+                    ? JsValue.True
+                    : JsValue.False;
             },
             "includes",
             1
@@ -641,17 +543,7 @@ public partial class Intrinsics
                     args.Length > 1 ? realm.ToIntegerOrInfinity(args[1]) : 0d,
                     length
                 );
-
-                for (var k = start; k < length; k++)
-                {
-                    if (!HasArrayLikeIndex(realm, obj, k))
-                        continue;
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (StrictEquals(element, searchElement))
-                        return FromLength(k);
-                }
-
-                return JsValue.FromInt32(-1);
+                return FromLength(RunIndexOf(realm, obj, length, start, searchElement));
             },
             "indexOf",
             1
@@ -674,17 +566,7 @@ public partial class Intrinsics
                     args.Length > 1
                         ? NormalizeLastIndex(realm.ToIntegerOrInfinity(args[1]), length)
                         : length - 1;
-
-                for (var k = start; k >= 0; k--)
-                {
-                    if (!HasArrayLikeIndex(realm, obj, k))
-                        continue;
-                    GetArrayLikeIndex(realm, obj, k, out var element);
-                    if (StrictEquals(element, searchElement))
-                        return FromLength(k);
-                }
-
-                return JsValue.FromInt32(-1);
+                return FromLength(RunLastIndexOf(realm, obj, start, searchElement));
             },
             "lastIndexOf",
             1
