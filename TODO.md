@@ -29,7 +29,8 @@
 - [x] canonical compiler coverage baseline: language, built-ins, and intl402 non-annexB sweeps passed in the pre-cutover gates; keep those caches stable while optimizing.
 - [x] Test262Runner uses one canonical compiler path; the obsolete compiler switch and split pass caches are removed.
 - [x] dromaeo-object-regexp split fast paths: raw-step RegExp[Symbol.split] loop, trivially-empty-pattern shortcut, single-character string cache, builtin `test` without result construction (5.8x on the benchmark workload; see docs/OKOJO_REGEXP_SPLIT_PERF_NOTE.md)
-  - [ ] lead-literal scan-ahead for sticky split steps (skip non-candidate positions via IndexOf instead of per-position engine calls)
+  - [ ] regexp VM per-op cost: lead-literal scan-ahead for sticky split steps, and interpreter hot-loop tuning vs Jint 4.16.1's QuickJS-libregexp port (Okojo ~4x behind on dromaeo-object-regexp Execute)
+  - [ ] allocation reduction on hot Execute lanes vs Jint 4.16.1 (base64 43MB vs 1.6MB, regexp 351MB vs 81MB per quick-run op)
   - [ ] general "matches empty at every position" pattern recognition beyond `(?:)` / empty source
   - [ ] reduce RegExpEngine.Exec per-call allocations (CaptureRange[] + capture substrings) for match-all loops
 - [ ] explicit-resource-management: the current compiler/runtime seam for top-level-module `await using` is still awkward; give module async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow

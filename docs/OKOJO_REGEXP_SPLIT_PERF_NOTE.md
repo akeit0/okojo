@@ -2,10 +2,15 @@
 
 Scope: close the Okojo-vs-Jint gap on `dromaeo-object-regexp-modern`
 (Okojo_Execute 2036us/op -> 354us/op quick-run, allocations 1.65GB -> 351MB).
-Jint delegates regex to compiled BCL `System.Text.RegularExpressions`; Okojo
-uses its spec-compatible backtracking VM, so parity is not the goal. The
-workload's real cost turned out to be per-position JS glue around the VM, not
-the VM itself.
+The benchmark now pins **Jint 4.16.1**, which replaced its BCL
+`System.Text.RegularExpressions` bridge with a QuickJS-libregexp port
+(`Jint/Runtime/RegExp`: bytecode compiler + interpreter). Earlier comparisons
+against Jint 4.2.2 measured the BCL path; 4.16.1's interpreter lands at
+roughly the same speed on this workload (~79us quick-run vs our ~314us), so
+the remaining gap is per-op VM cost and allocations, not the engine class.
+Jint delegates regex to its own ported VM; Okojo uses its spec-compatible
+backtracking VM, so parity of architecture is the goal. The workload's real
+cost turned out to be per-position JS glue around the VM, not the VM itself.
 
 ## Findings (tools/RegExpProbe)
 
