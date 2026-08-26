@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
@@ -3754,7 +3755,8 @@ public class ClassTests
         );
 
         realm.Execute(script);
-        new JsAgentRunner(realm.Agent).PumpUntilIdle();
+        using var pump = new HostPump(realm.Agent);
+        pump.PumpUntilIdle();
         var resultAtom = realm.Atoms.InternNoCheck("result");
         Assert.That(
             realm.GlobalObject.TryGetPropertyAtom(realm, resultAtom, out var resultValue, out _),

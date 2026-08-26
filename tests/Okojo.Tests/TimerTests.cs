@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -15,6 +16,7 @@ public class TimerTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -48,6 +50,7 @@ public class TimerTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -77,6 +80,7 @@ public class TimerTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -112,6 +116,7 @@ public class TimerTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -142,6 +147,7 @@ public class TimerTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()

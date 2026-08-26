@@ -12,7 +12,6 @@ public sealed class JsRuntime : IDisposable
     private readonly List<JsAgent> agents = new();
     private readonly object agentsGate = new();
     private readonly object runtimeIdentity = new();
-    private readonly WorkerMessaging workerMessaging;
     private readonly IReadOnlyList<IRealmApiModule> realmApiModules;
     private volatile bool disposed;
     private int nextAgentId = 1;
@@ -41,11 +40,15 @@ public sealed class JsRuntime : IDisposable
             Options.WorkerScriptSourceLoader
             ?? new WorkerScriptSourceLoaderFromModuleSourceLoader(ModuleSourceLoader);
         SourceMapRegistry = Options.Host.SourceMapRegistry;
-        workerMessaging = new(
-            Options.LowLevelHost.MessageSerializer,
-            Options.LowLevelHost.WorkerHost,
-            Options.LowLevelHost.WorkerMessageQueueKey
-        );
+        var workerMessaging =
+            Options.LowLevelHost.MessageSerializer is { } messageSerializer
+            && Options.LowLevelHost.WorkerHost is { } workerHost
+                ? new WorkerMessaging(
+                    messageSerializer,
+                    workerHost,
+                    Options.LowLevelHost.WorkerMessageQueueKey
+                )
+                : null;
         var moduleFactories = Options.Core.RealmApiModuleFactories;
         var modules = new List<IRealmApiModule>(moduleFactories.Count);
         for (var i = 0; i < moduleFactories.Count; i++)
@@ -144,7 +147,7 @@ public sealed class JsRuntime : IDisposable
         return new();
     }
 
-    /// <summary>Creates a default runtime with standard engine and host defaults.</summary>
+    /// <summary>Creates a runtime with only the engine's core services.</summary>
     public static JsRuntime Create()
     {
         return new(new(), null, null, null, true);
@@ -286,27 +289,48 @@ public sealed class JsRuntime : IDisposable
             Options.ClrAccessEnabled,
             Options.ClrAccessProvider,
             Options.Host.AtomicsWaitPolicy,
-            Options.LowLevelHost.BackgroundScheduler,
             Options.LowLevelHost.MessageSerializer,
             CreateWorkerAgent
         );
-        var hostJobs = new HostJobQueue(
-            TimeProvider,
-            Options.LowLevelHost.HostTaskScheduler,
-            () => agent.IsTerminated,
-            agent.SignalJobsAvailable,
-            agent.RunPromiseJobs
-        );
-        agent.AttachHostJobQueue(
-            () => hostJobs.PendingJobCount,
-            hostJobs.GetJobCount,
-            hostJobs.Enqueue,
-            hostJobs.Enqueue,
-            hostJobs.RunJobs,
-            hostJobs.RunOneHostJob,
-            hostJobs.PumpJobs,
-            hostJobs.Clear
-        );
+        if (Options.LowLevelHost.HostTaskScheduler is { } hostTaskScheduler)
+        {
+            var hostJobs = new HostJobQueue(
+                TimeProvider,
+                hostTaskScheduler,
+                () => agent.IsTerminated,
+                agent.SignalJobsAvailable,
+                agent.RunPromiseJobs
+            );
+            agent.AttachHostJobQueue(
+                () => hostJobs.PendingJobCount,
+                hostJobs.GetJobCount,
+                hostJobs.Enqueue,
+                hostJobs.Enqueue,
+                hostJobs.RunJobs,
+                hostJobs.RunOneHostJob,
+                hostJobs.PumpJobs,
+                hostJobs.Clear
+            );
+        }
+        else
+        {
+            agent.AttachHostJobQueue(
+                static () => 0,
+                static _ => 0,
+                static (_, _, _) =>
+                    throw new InvalidOperationException(
+                        "A host task scheduler must be configured before enqueueing host jobs."
+                    ),
+                static (_, _, _) =>
+                    throw new InvalidOperationException(
+                        "A host task scheduler must be configured before enqueueing host tasks."
+                    ),
+                static _ => 0,
+                static () => false,
+                () => _ = agent.RunPromiseJobs(),
+                static () => { }
+            );
+        }
         agent.Initialize();
         return agent;
     }

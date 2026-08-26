@@ -9,6 +9,17 @@ namespace Okojo.Tests;
 public class RuntimeApiRefineTests
 {
     [Test]
+    public void Create_Does_Not_Install_Host_Implementations()
+    {
+        using var engine = JsRuntime.Create();
+
+        Assert.That(engine.Options.AtomicsWaitPolicy, Is.Null);
+        Assert.That(engine.Options.LowLevelHost.HostTaskScheduler, Is.Null);
+        Assert.That(engine.Options.LowLevelHost.MessageSerializer, Is.Null);
+        Assert.That(engine.Options.LowLevelHost.WorkerHost, Is.Null);
+    }
+
+    [Test]
     public void Create_FromOptions_UsesHostConfiguration()
     {
         var timeProvider = new FakeTimeProvider();

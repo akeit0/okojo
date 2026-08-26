@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -257,6 +258,7 @@ public class WebRuntimeGlobalsTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -289,6 +291,7 @@ public class WebRuntimeGlobalsTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -317,6 +320,7 @@ public class WebRuntimeGlobalsTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseWebRuntimeGlobals()
             .Build()
@@ -353,6 +357,7 @@ public class WebRuntimeGlobalsTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseAnimationFrameInterval(TimeSpan.FromMilliseconds(16))
             .UseBrowserGlobals()
@@ -387,6 +392,7 @@ public class WebRuntimeGlobalsTests
         var fakeTime = new FakeTimeProvider();
         var realm = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(fakeTime)
             .UseAnimationFrameInterval(TimeSpan.FromMilliseconds(16))
             .UseBrowserGlobals()

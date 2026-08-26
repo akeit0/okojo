@@ -1,3 +1,4 @@
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -345,7 +346,7 @@ public class WeakCollectionsTests
     [Test]
     public void Agent_Can_Explicitly_Collect_Weak_Target_And_Run_Finalization_Cleanup_Job()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseThreadPoolHosting().Build();
         var realm = engine.DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
@@ -398,7 +399,7 @@ public class WeakCollectionsTests
     [Test]
     public void FinalizationRegistry_Cleanup_Callback_Throw_Is_Reported_To_Host_Hook()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseThreadPoolHosting().Build();
         var realm = engine.DefaultRealm;
         var observed = JsValue.Undefined;
         realm.FinalizationRegistryCleanupError += value => observed = value;

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -46,6 +47,7 @@ public partial class ExecutionCheckTests
         var fakeTime = new FakeTimeProvider();
         var runtime = JsRuntime.Create(builder =>
             builder
+                .UseThreadPoolHosting()
                 .UseTimeProvider(fakeTime)
                 .UseWebRuntimeGlobals()
                 .UseAgent(agent =>

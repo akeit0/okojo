@@ -205,7 +205,7 @@ public class CompilerBindingCollectorTests
         var references = result.References.ToArray();
 
         Assert.That(
-            references.Select(static reference => reference.Name).ToArray(),
+            references.Select(reference => program.GetString(reference.NameId)).ToArray(),
             Does.Contain("outer")
         );
     }
@@ -228,7 +228,7 @@ public class CompilerBindingCollectorTests
         Assert.That(outer.IsCaptured, Is.True);
         Assert.That(outer.StorageKind, Is.EqualTo(CompilerPlannedStorageKind.ContextSlot));
         Assert.That(
-            collected.References.ToArray().Select(reference => reference.Name),
+            collected.References.ToArray().Select(reference => ast.GetString(reference.NameId)),
             Does.Contain("outer")
         );
     }

@@ -19,7 +19,6 @@ public sealed partial class JsAgent : IDisposable
 
     private readonly JsBreakpointRegistry breakpointRegistry = new();
     private readonly Dictionary<string, Symbol> globalSymbolRegistry = new(StringComparer.Ordinal);
-    private readonly AutoResetEvent jobsAvailable = new(false);
     private readonly object jobsGate = new();
 
     private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache = new(
@@ -57,12 +56,14 @@ public sealed partial class JsAgent : IDisposable
     private readonly Action<Assembly[]> addClrAssemblies;
     private Func<int> getPendingHostJobCount = static () => 0;
     private Func<string, int> getHostJobCount = static _ => 0;
-    private Action<string, Action<object?>, object?> enqueueHostJob = static (_, _, _) => { };
-    private Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask = static (
-        _,
-        _,
-        _
-    ) => { };
+    private Action<string, Action<object?>, object?> enqueueHostJob = static (_, _, _) =>
+        throw new InvalidOperationException(
+            "A host task scheduler must be configured before enqueueing host jobs."
+        );
+    private Action<HostTaskQueueKey, Action<object?>, object?> enqueueHostTask = static (_, _, _) =>
+        throw new InvalidOperationException(
+            "A host task scheduler must be configured before enqueueing host tasks."
+        );
     private Func<string, int> runHostJobs = static _ => 0;
     private Func<bool> runOneHostJob = static () => false;
     private Action pumpHostJobs = static () => { };
@@ -93,9 +94,8 @@ public sealed partial class JsAgent : IDisposable
         Action<Assembly[]> addClrAssemblies,
         bool isClrAccessEnabled,
         IClrAccessProvider? clrAccessProvider,
-        IAtomicsWaitPolicy atomicsWaitPolicy,
-        IBackgroundScheduler backgroundScheduler,
-        IHostMessageSerializer messageSerializer,
+        IAtomicsWaitPolicy? atomicsWaitPolicy,
+        IHostMessageSerializer? messageSerializer,
         Func<Action<JsAgentOptions>?, JsAgent> createWorkerAgent
     )
     {
@@ -114,7 +114,6 @@ public sealed partial class JsAgent : IDisposable
         IsClrAccessEnabled = isClrAccessEnabled;
         ClrAccessProvider = clrAccessProvider;
         AtomicsWaitPolicy = atomicsWaitPolicy;
-        BackgroundScheduler = backgroundScheduler;
         MessageSerializer = messageSerializer;
         this.createWorkerAgent = createWorkerAgent;
         Options = options.Clone();
@@ -172,9 +171,8 @@ public sealed partial class JsAgent : IDisposable
     internal IReadOnlyList<IRealmApiModule> RealmApiModules { get; }
     public bool IsClrAccessEnabled { get; }
     internal IClrAccessProvider? ClrAccessProvider { get; }
-    internal IAtomicsWaitPolicy AtomicsWaitPolicy { get; }
-    internal IBackgroundScheduler BackgroundScheduler { get; }
-    internal IHostMessageSerializer MessageSerializer { get; }
+    internal IAtomicsWaitPolicy? AtomicsWaitPolicy { get; }
+    internal IHostMessageSerializer? MessageSerializer { get; }
     public JsAgentKind Kind { get; }
     public int Id { get; }
     public JsAgent? ParentAgent { get; }
@@ -292,7 +290,11 @@ public sealed partial class JsAgent : IDisposable
 
     internal ModuleLinker ModuleLinker { get; }
 
-    internal WaitHandle JobsAvailableWaitHandle => jobsAvailable;
+    /// <summary>
+    ///     Raised when work is enqueued for this agent. The host owns how this notification
+    ///     wakes its event loop; the callback must not execute JavaScript inline.
+    /// </summary>
+    public event Action? JobsAvailable;
 
     public void Dispose()
     {
@@ -305,8 +307,6 @@ public sealed partial class JsAgent : IDisposable
                 return;
             disposed = true;
         }
-
-        jobsAvailable.Dispose();
     }
 
     internal JsRealm CreateRealm(JsRealmOptions? options = null)
@@ -1080,7 +1080,12 @@ public sealed partial class JsAgent : IDisposable
         if (terminated || target.terminated)
             return;
 
-        var clonedPayload = MessageSerializer.CloneCrossAgentPayload(payload);
+        var serializer =
+            MessageSerializer
+            ?? throw new InvalidOperationException(
+                "A host message serializer must be configured before posting messages."
+            );
+        var clonedPayload = serializer.CloneCrossAgentPayload(payload);
         target.EnqueueHostTask(
             queueKey,
             SPostMessageTask,
@@ -1252,7 +1257,7 @@ public sealed partial class JsAgent : IDisposable
         if (disposed)
             return;
 
-        jobsAvailable.Set();
+        JobsAvailable?.Invoke();
     }
 
     private readonly struct PendingJob(Action<object?> callback, object? state)

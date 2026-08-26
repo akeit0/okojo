@@ -33,9 +33,11 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
 
 - `Okojo.JavaScript` owns ECMAScript values, object model, parser, compiler,
   bytecode, VM, realms, agents, Promise jobs, and module semantics.
-- `Okojo.JavaScript.Embedding` owns `JsRuntime`, builders, host task queues,
-  default pumping, worker lifecycle, serialization implementation, and runtime
-  composition.
+- `Okojo.JavaScript.Embedding` owns `JsRuntime`, builders, host integration
+  contracts, and runtime composition. It does not install a scheduler, event
+  loop, worker implementation, or message serializer.
+- `Okojo.Hosting` owns optional .NET host implementations such as thread-pool
+  scheduling, host pumps, worker helpers, and the default message serializer.
 - Hosting, Reflection, WebAssembly, WebPlatform, Browser, and Node remain
   optional consumers. Host policy must not move into the engine.
 - Engine-independent text, numeric, and globalization libraries must not depend

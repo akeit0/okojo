@@ -1,3 +1,4 @@
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -9,10 +10,10 @@ public class WorkerAgentThreadTests
     [Test]
     public void WorkerRunner_ProcessesPostedMessage_OnWorkerThread()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
 
         using var cts = new CancellationTokenSource();
         using var received = new ManualResetEventSlim(false);
@@ -54,9 +55,9 @@ public class WorkerAgentThreadTests
     [Test]
     public void WorkerRunner_StopsOnCancellation_WhenIdle()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
 
         using var cts = new CancellationTokenSource();
         var thread = new Thread(() => runner.Run(cts.Token));
@@ -74,10 +75,10 @@ public class WorkerAgentThreadTests
     [Test]
     public void WorkerRunner_PostMessage_OrderIsFifo()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
         using var cts = new CancellationTokenSource();
 
         var done = new ManualResetEventSlim(false);
@@ -123,9 +124,9 @@ public class WorkerAgentThreadTests
     [Test]
     public void WorkerRunner_StopsWhenAgentTerminated()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
         using var cts = new CancellationTokenSource();
 
         var thread = new Thread(() => runner.Run(cts.Token));

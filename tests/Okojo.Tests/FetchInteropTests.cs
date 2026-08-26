@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -25,7 +26,7 @@ public class FetchInteropTests
     [Test]
     public async Task FetchSupportsDataUrlTextAndJson()
     {
-        var options = new JsRuntimeOptions().UseFetch();
+        var options = new JsRuntimeOptions().UseFetch().UseThreadPoolHosting();
         var realm = JsRuntime.Create(options).DefaultRealm;
 
         var text = await realm.EvalAsync(
@@ -91,9 +92,9 @@ public class FetchInteropTests
             })
         );
 
-        var options = new JsRuntimeOptions().UseWebPlatform(builder =>
-            builder.UseFetch(fetch => fetch.HttpClient = httpClient)
-        );
+        var options = new JsRuntimeOptions()
+            .UseWebPlatform(builder => builder.UseFetch(fetch => fetch.HttpClient = httpClient))
+            .UseThreadPoolHosting();
         var realm = JsRuntime.Create(options).DefaultRealm;
 
         var result = await realm.EvalAsync(
@@ -130,6 +131,7 @@ public class FetchInteropTests
         var realm = JsRuntime
             .Create(
                 new JsRuntimeOptions()
+                    .UseThreadPoolHosting()
                     .UseWebRuntimeGlobals()
                     .UseFetch(fetch => fetch.HttpClient = httpClient)
             )

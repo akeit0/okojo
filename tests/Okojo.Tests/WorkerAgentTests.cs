@@ -1,3 +1,4 @@
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -56,7 +57,11 @@ public class WorkerAgentTests
     [Test]
     public void HelperStyle_GetReportAsync_Does_Not_Recurse()
     {
-        var engine = JsRuntime.CreateBuilder().UseWebRuntimeGlobals().Build();
+        var engine = JsRuntime
+            .CreateBuilder()
+            .UseThreadPoolHosting()
+            .UseWebRuntimeGlobals()
+            .Build();
         var realm = engine.DefaultRealm;
 
         _ = realm.Eval(
@@ -127,7 +132,7 @@ public class WorkerAgentTests
     [Test]
     public void PostMessage_DeliversOnlyWhenTargetAgentPumps()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
 
@@ -146,7 +151,7 @@ public class WorkerAgentTests
     [Test]
     public void PostMessage_UsesStructuredCloneSubset()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
 

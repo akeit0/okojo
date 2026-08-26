@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Time.Testing;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -14,6 +15,7 @@ public class AgentJobQueueTests
         var realm = JsRuntime
             .CreateBuilder()
             .UseTimeProvider(fakeTime)
+            .UseThreadPoolHosting()
             .UseWebRuntimeGlobals()
             .Build()
             .DefaultRealm;
@@ -42,6 +44,7 @@ public class AgentJobQueueTests
         var engine = JsRuntime
             .CreateBuilder()
             .UseTimeProvider(fakeTime)
+            .UseThreadPoolHosting()
             .UseWebRuntimeGlobals()
             .Build();
         var mainRealm = engine.MainRealm;
@@ -137,6 +140,7 @@ public class AgentJobQueueTests
         using var engine = JsRuntime
             .CreateBuilder()
             .UseLowLevelHost(host => host.UseTaskScheduler(scheduler))
+            .UseWorkerGlobals()
             .Build();
         var worker = engine.CreateWorkerAgent();
         var order = new List<string>();
@@ -163,7 +167,7 @@ public class AgentJobQueueTests
     [Test]
     public void RunJobs_NamedHostQueue_ExecutesOnlyThatQueue()
     {
-        var realm = JsRuntime.Create().DefaultRealm;
+        var realm = JsRuntime.CreateBuilder().UseThreadPoolHosting().Build().DefaultRealm;
 
         realm.Agent.EnqueuePromiseJob(() =>
             realm.Global["order"] = realm.Global["order"].AsString() + "p"
@@ -201,7 +205,7 @@ public class AgentJobQueueTests
     [Test]
     public void PumpJobs_DrainsPriorityJobsQueuedDuringPromiseCheckpoint()
     {
-        using var engine = JsRuntime.Create();
+        using var engine = JsRuntime.CreateBuilder().UseThreadPoolHosting().Build();
         var agent = engine.MainAgent;
         var order = new List<string>();
 

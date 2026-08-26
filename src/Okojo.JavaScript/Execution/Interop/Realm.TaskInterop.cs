@@ -635,27 +635,6 @@ namespace Okojo.JavaScript.Execution
             );
         }
 
-        private void AttachPromiseValueTaskSource<T>(
-            JsPromiseObject promise,
-            PumpedPromiseValueTaskSource<T> source
-        )
-        {
-            AttachPromiseValueTaskSourceCore(
-                promise,
-                source,
-                static (realm, resolved, state) =>
-                {
-                    var converted = (T)
-                        HostValueConverter.ConvertFromJsValue(realm, resolved, typeof(T))!;
-                    ((PumpedPromiseValueTaskSource<T>)state).TrySetResult(converted);
-                },
-                static (reason, state) =>
-                    ((PumpedPromiseValueTaskSource<T>)state).TrySetException(
-                        new PromiseRejectedException(reason)
-                    )
-            );
-        }
-
         private void AttachPromiseValueTaskSourceCore(
             JsPromiseObject promise,
             object source,
@@ -1062,20 +1041,47 @@ namespace Okojo.JavaScript.Execution
             CancellationToken cancellationToken
         )
         {
-            var jobSignal = WaitForJobsAsync(cancellationToken);
-            var completed = await Task.WhenAny(target, jobSignal).ConfigureAwait(false);
-            if (!ReferenceEquals(completed, target))
-                await jobSignal.ConfigureAwait(false);
+            using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken
+            );
+            var jobSignal = WaitForJobsAsync(waitCancellation.Token);
+            try
+            {
+                var completed = await Task.WhenAny(target, jobSignal).ConfigureAwait(false);
+                if (!ReferenceEquals(completed, target))
+                    await jobSignal.ConfigureAwait(false);
+            }
+            finally
+            {
+                waitCancellation.Cancel();
+                try
+                {
+                    await jobSignal.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { }
+            }
         }
 
         private async Task WaitForJobsAsync(CancellationToken cancellationToken)
         {
-            await Agent
-                .BackgroundScheduler.WaitHandleAsync(
-                    Agent.JobsAvailableWaitHandle,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            if (Agent.PendingJobCount != 0)
+                return;
+
+            var signal = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
+            void OnJobsAvailable() => signal.TrySetResult();
+
+            Agent.JobsAvailable += OnJobsAvailable;
+            try
+            {
+                if (Agent.PendingJobCount == 0)
+                    await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Agent.JobsAvailable -= OnJobsAvailable;
+            }
         }
 
         private void CompletePromiseFromTask(

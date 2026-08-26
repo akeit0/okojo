@@ -15,7 +15,9 @@ namespace Okojo.Node;
 /// </summary>
 public sealed class NodeRuntimeBuilder
 {
-    private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime.CreateBuilder();
+    private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime
+        .CreateBuilder()
+        .UseThreadPoolHosting();
     private readonly NodeTerminalOptions terminalOptions = new();
     private bool installNodeGlobals = true;
 

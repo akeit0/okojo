@@ -16,8 +16,7 @@ public sealed class JsRuntimeHostOptions
     public TimeProvider? TimeProvider { get; private set; }
     public IModuleSourceLoader? ModuleSourceLoader { get; private set; }
     public IWorkerScriptSourceLoader? WorkerScriptSourceLoader { get; private set; }
-    public IAtomicsWaitPolicy AtomicsWaitPolicy { get; private set; } =
-        DefaultAtomicsWaitPolicy.Shared;
+    public IAtomicsWaitPolicy? AtomicsWaitPolicy { get; private set; }
 
     public JsRuntimeHostOptions UseTimeProvider(TimeProvider timeProvider)
     {

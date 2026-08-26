@@ -130,13 +130,6 @@ public sealed class JsRuntimeBuilder
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public JsRuntimeBuilder UseBackgroundScheduler(IBackgroundScheduler scheduler)
-    {
-        options.LowLevelHost.UseBackgroundScheduler(scheduler);
-        return this;
-    }
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
     public JsRuntimeBuilder UseHostTaskScheduler(IHostTaskScheduler hostTaskScheduler)
     {
         options.LowLevelHost.UseTaskScheduler(hostTaskScheduler);

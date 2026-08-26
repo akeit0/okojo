@@ -1,4 +1,9 @@
-namespace Okojo.JavaScript.Embedding;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+
+namespace Okojo.Hosting;
 
 internal sealed class JsDefaultHostMessageSerializer : IHostMessageSerializer
 {

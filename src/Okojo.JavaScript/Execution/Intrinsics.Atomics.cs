@@ -579,12 +579,6 @@ public partial class Intrinsics
         double timeout
     )
     {
-        if (!realm.Agent.AtomicsWaitPolicy.CanSuspend(realm))
-            throw new JsRuntimeException(
-                JsErrorKind.TypeError,
-                "Atomics.wait cannot be called in this context"
-            );
-
         var byteIndex = GetTypedArrayByteIndex(view, index);
         var buffer = view.Buffer;
         var syncRoot = buffer.GetSharedSyncRoot();
@@ -597,6 +591,15 @@ public partial class Intrinsics
 
             if (timeout <= 0 || double.IsNaN(timeout))
                 return JsValue.FromString("timed-out");
+
+            if (
+                realm.Agent.AtomicsWaitPolicy is not { } waitPolicy
+                || !waitPolicy.CanSuspend(realm)
+            )
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Atomics.wait cannot be called in this context"
+                );
 
             waiter = buffer.AddSharedWaiterLocked(realm, byteIndex);
         }

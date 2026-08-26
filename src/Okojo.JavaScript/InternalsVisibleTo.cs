@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.Node")] // Lockstep Node profile: CommonJS compilation, nextTick, abstract operations, and dense/typed-array fast paths.
 [assembly: InternalsVisibleTo("okojonode")] // Node CLI evaluation uses the compiler directly.
 [assembly: InternalsVisibleTo("Okojo.Diagnostics")]
+[assembly: InternalsVisibleTo("Okojo.Hosting")] // Host-owned worker/message adapters use engine internals.
 [assembly: InternalsVisibleTo("OkojoBytecodeTool")]
 [assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
 [assembly: InternalsVisibleTo("Test262Runner")]

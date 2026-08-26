@@ -41,9 +41,10 @@ public sealed class NodeRuntime : IDisposable
         BuiltIns = new(this, this.terminalOptions);
         moduleFormatResolver = new(this.moduleLoader.LoadRawSource);
         requireCacheObject = new(MainRealm);
-        webRuntimeApiModule = CreateWebRuntimeApiModule(
+        var hostTaskScheduler =
             Runtime.Options.LowLevelHost.HostTaskScheduler
-        );
+            ?? throw new InvalidOperationException("Node runtime requires a host task scheduler.");
+        webRuntimeApiModule = CreateWebRuntimeApiModule(hostTaskScheduler);
         if (installNodeGlobals)
             InstallNodeGlobals(MainRealm);
     }

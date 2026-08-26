@@ -30,7 +30,7 @@ public sealed class JsRuntimeOptions
     public TimeProvider? TimeProvider => Host.TimeProvider;
     public IModuleSourceLoader? ModuleSourceLoader => Host.ModuleSourceLoader;
     public IWorkerScriptSourceLoader? WorkerScriptSourceLoader => Host.WorkerScriptSourceLoader;
-    public IAtomicsWaitPolicy AtomicsWaitPolicy => Host.AtomicsWaitPolicy;
+    public IAtomicsWaitPolicy? AtomicsWaitPolicy => Host.AtomicsWaitPolicy;
     internal JsRuntimeLowLevelHostOptions HostServices => LowLevelHost;
 
     public bool ClrAccessEnabled => Core.ClrAccessEnabled;
@@ -122,13 +122,6 @@ public sealed class JsRuntimeOptions
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public JsRuntimeOptions UseBackgroundScheduler(IBackgroundScheduler scheduler)
-    {
-        LowLevelHost.UseBackgroundScheduler(scheduler);
-        return this;
-    }
-
-    [EditorBrowsable(EditorBrowsableState.Never)]
     public JsRuntimeOptions UseHostTaskScheduler(IHostTaskScheduler hostTaskScheduler)
     {
         LowLevelHost.UseTaskScheduler(hostTaskScheduler);
@@ -180,10 +173,12 @@ public sealed class JsRuntimeOptions
         clone.Core = Core.Clone();
         clone.Agent = Agent.Clone();
         clone.Host = Host.Clone();
-        clone.LowLevelHost.UseBackgroundScheduler(LowLevelHost.BackgroundScheduler);
-        clone.LowLevelHost.UseTaskScheduler(LowLevelHost.HostTaskScheduler);
-        clone.LowLevelHost.UseMessageSerializer(LowLevelHost.MessageSerializer);
-        clone.LowLevelHost.UseWorkerHost(LowLevelHost.WorkerHost);
+        if (LowLevelHost.HostTaskScheduler is { } hostTaskScheduler)
+            clone.LowLevelHost.UseTaskScheduler(hostTaskScheduler);
+        if (LowLevelHost.MessageSerializer is { } messageSerializer)
+            clone.LowLevelHost.UseMessageSerializer(messageSerializer);
+        if (LowLevelHost.WorkerHost is { } workerHost)
+            clone.LowLevelHost.UseWorkerHost(workerHost);
         clone.LowLevelHost.UseWorkerMessageQueue(LowLevelHost.WorkerMessageQueueKey);
         return clone;
     }

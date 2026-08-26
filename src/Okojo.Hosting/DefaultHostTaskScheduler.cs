@@ -1,4 +1,6 @@
-namespace Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Embedding;
+
+namespace Okojo.Hosting;
 
 internal sealed class DefaultHostTaskScheduler : IHostTaskScheduler
 {

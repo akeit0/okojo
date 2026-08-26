@@ -996,7 +996,7 @@ public class JsArrayBufferObject : JsObject
         public Dictionary<uint, List<SharedWaiter>> WaitersByByteIndex { get; } = new();
     }
 
-    internal sealed class SharedWaiter(JsRealm realm, IAtomicsWaitPolicy policy) : IDisposable
+    internal sealed class SharedWaiter(JsRealm realm, IAtomicsWaitPolicy? policy) : IDisposable
     {
         private readonly object gate = new();
         private readonly AtomicsWaitSignal signal = new();
@@ -1046,7 +1046,12 @@ public class JsArrayBufferObject : JsObject
             if (timeout is null)
                 return;
 
-            var registration = policy.ScheduleTimeout(realm, timeout.Value, OnTimeout);
+            var registration = (
+                policy
+                ?? throw new InvalidOperationException(
+                    "An Atomics wait timeout policy is required for a finite waitAsync timeout."
+                )
+            ).ScheduleTimeout(realm, timeout.Value, OnTimeout);
             var disposeRegistration = false;
             lock (gate)
             {
@@ -1062,7 +1067,12 @@ public class JsArrayBufferObject : JsObject
 
         public bool Wait(TimeSpan? timeout)
         {
-            if (!policy.Wait(realm, signal, timeout))
+            var waitPolicy =
+                policy
+                ?? throw new InvalidOperationException(
+                    "An Atomics wait policy is required for a blocking Atomics.wait."
+                );
+            if (!waitPolicy.Wait(realm, signal, timeout))
                 TryTimeout();
             return Notified;
         }

@@ -63,12 +63,13 @@ internal static class Test262RunnerPump
     {
         if (runnerTime is not null)
         {
-            if (!agent.JobsAvailableWaitHandle.WaitOne(0) && !runnerTime.AdvanceForAsyncPump())
+            if (agent.PendingJobCount == 0 && !runnerTime.AdvanceForAsyncPump())
                 Thread.Yield();
 
             return;
         }
 
-        agent.JobsAvailableWaitHandle.WaitOne(idleWaitMilliseconds);
+        if (agent.PendingJobCount == 0)
+            Thread.Sleep(idleWaitMilliseconds);
     }
 }

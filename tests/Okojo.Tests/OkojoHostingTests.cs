@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Time.Testing;
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -29,7 +30,7 @@ public class HostingTests
     [Test]
     public void ThreadPoolHosting_And_AgentThreadHost_Process_Worker_PostMessage()
     {
-        var options = new JsRuntimeOptions().UseThreadPoolHosting();
+        var options = new JsRuntimeOptions().UseThreadPoolHosting().UseWorkerGlobals();
         using var engine = JsRuntime.Create(options);
         var worker = engine.CreateWorkerAgent();
 
@@ -151,7 +152,7 @@ public class HostingTests
     [Test]
     public void CreateWorkerRuntime_Can_Start_Background_Host()
     {
-        var options = new JsRuntimeOptions().UseThreadPoolHosting();
+        var options = new JsRuntimeOptions().UseThreadPoolHosting().UseWorkerGlobals();
         using var engine = JsRuntime.Create(options);
         using var worker = engine.CreateWorkerRuntime(options =>
         {
@@ -403,6 +404,7 @@ public class HostingTests
         var timeProvider = new FakeTimeProvider();
         using var engine = JsRuntime
             .CreateBuilder()
+            .UseThreadPoolHosting()
             .UseTimeProvider(timeProvider)
             .UseWebRuntimeGlobals()
             .Build();

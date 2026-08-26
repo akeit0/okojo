@@ -8,22 +8,11 @@ namespace Okojo.JavaScript.Embedding;
 /// </summary>
 public sealed class JsRuntimeLowLevelHostOptions
 {
-    public IBackgroundScheduler BackgroundScheduler { get; private set; } =
-        JsDefaultBackgroundScheduler.Shared;
-    public IHostTaskScheduler HostTaskScheduler { get; private set; } =
-        DefaultHostTaskScheduler.Shared;
-    public IHostMessageSerializer MessageSerializer { get; private set; } =
-        JsDefaultHostMessageSerializer.Shared;
-    public IWorkerHost WorkerHost { get; private set; } = DefaultWorkerHost.Shared;
+    public IHostTaskScheduler? HostTaskScheduler { get; private set; }
+    public IHostMessageSerializer? MessageSerializer { get; private set; }
+    public IWorkerHost? WorkerHost { get; private set; }
     public HostTaskQueueKey WorkerMessageQueueKey { get; private set; } =
         InternalHostTaskQueueDefaults.Default;
-
-    public JsRuntimeLowLevelHostOptions UseBackgroundScheduler(IBackgroundScheduler scheduler)
-    {
-        ArgumentNullException.ThrowIfNull(scheduler);
-        BackgroundScheduler = scheduler;
-        return this;
-    }
 
     public JsRuntimeLowLevelHostOptions UseTaskScheduler(IHostTaskScheduler hostTaskScheduler)
     {
@@ -58,7 +47,6 @@ public sealed class JsRuntimeLowLevelHostOptions
     {
         return new()
         {
-            BackgroundScheduler = BackgroundScheduler,
             HostTaskScheduler = HostTaskScheduler,
             MessageSerializer = MessageSerializer,
             WorkerHost = WorkerHost,

@@ -1,4 +1,7 @@
-namespace Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+
+namespace Okojo.Hosting;
 
 internal sealed class DefaultWorkerHost : IWorkerHost
 {
@@ -20,7 +23,7 @@ internal sealed class DefaultWorkerHost : IWorkerHost
         {
             if (scriptType == WorkerScriptType.Module)
             {
-                _ = agent.EvaluateModule(realm, scriptEntry, ownerReferrer);
+                _ = agent.Modules.Evaluate(realm, scriptEntry, ownerReferrer);
             }
             else
             {
@@ -34,19 +37,16 @@ internal sealed class DefaultWorkerHost : IWorkerHost
             Agent = agent,
             Realm = realm,
             Eval = source => realm.Eval(source),
-            LoadModule = (ownerRealm, specifier) =>
+            LoadModule = (callerRealm, specifier) =>
             {
                 var moduleNs = agent.EvaluateModule(
                     realm,
                     specifier,
-                    ownerRealm.CurrentModuleResolvedId
+                    callerRealm.CurrentModuleResolvedId
                 );
-                return ownerRealm.BridgeFromOtherRealm(moduleNs);
+                return callerRealm.BridgeFromOtherRealm(moduleNs);
             },
-            Pump = callerRealm =>
-            {
-                workerPump.PumpUntilIdleWith(new(callerRealm.Agent));
-            },
+            Pump = callerRealm => workerPump.PumpUntilIdleWith(new(callerRealm.Agent)),
             Terminate = agent.Terminate,
         };
     }

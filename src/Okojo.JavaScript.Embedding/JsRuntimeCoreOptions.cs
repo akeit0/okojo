@@ -58,7 +58,14 @@ public sealed class JsRuntimeCoreOptions
     )
     {
         ArgumentNullException.ThrowIfNull(createModule);
-        realmApiModuleFactories.Add(workerMessaging => createModule(workerMessaging!));
+        realmApiModuleFactories.Add(workerMessaging =>
+            createModule(
+                workerMessaging
+                    ?? throw new InvalidOperationException(
+                        "Worker messaging services must be configured before installing this module."
+                    )
+            )
+        );
         return this;
     }
 

@@ -1,4 +1,7 @@
-namespace Okojo.JavaScript.Embedding;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Execution;
+
+namespace Okojo.Hosting;
 
 internal sealed class DefaultAtomicsWaitPolicy : IAtomicsWaitPolicy
 {

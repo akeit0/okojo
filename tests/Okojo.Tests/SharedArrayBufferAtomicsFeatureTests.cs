@@ -1,3 +1,4 @@
+using Okojo.Hosting;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -171,7 +172,11 @@ public class SharedArrayBufferAtomicsFeatureTests
     public void Atomics_WaitAsync_Uses_Public_Host_Timeout_Policy()
     {
         var policy = new ControlledAtomicsWaitPolicy(canSuspend: true);
-        using var runtime = JsRuntime.CreateBuilder().UseAtomicsWaitPolicy(policy).Build();
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseAtomicsWaitPolicy(policy)
+            .UseThreadPoolHosting()
+            .Build();
         var realm = runtime.DefaultRealm;
 
         _ = realm.Eval(
@@ -489,7 +494,7 @@ public class SharedArrayBufferAtomicsFeatureTests
 
     private static Thread StartWorkerRunner(JsAgent worker, CancellationTokenSource cts)
     {
-        var runner = new JsAgentRunner(worker);
+        var runner = new HostPump(worker);
         var thread = new Thread(() => runner.Run(cts.Token));
         thread.Start();
         return thread;
