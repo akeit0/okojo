@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -40,6 +41,10 @@ public readonly ref struct CallInfo
         {
             if (obj is JsHostObject host && host.Data is T hostData)
                 return hostData;
+            if (obj is JsUserDataObject userData && userData.UserData is T userValue)
+                return userValue;
+            if (obj is JsUserDataObject<T> typedUserData && typedUserData.UserData is T typedValue)
+                return typedValue;
             if (obj is T direct)
                 return direct;
 

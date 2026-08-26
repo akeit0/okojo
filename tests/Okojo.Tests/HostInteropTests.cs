@@ -1497,6 +1497,38 @@ public class HostInteropTests
     }
 
     [Test]
+    public void CallInfoGetThisReadsUserDataObjects()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var sample = new ManualHostBindingSample();
+        var function = new JsHostFunction(
+            realm,
+            (in info) =>
+                ReferenceEquals(info.GetThis<ManualHostBindingSample>(), sample)
+                    ? JsValue.True
+                    : JsValue.False,
+            "test",
+            0
+        );
+
+        var untypedWrapper = new JsUserDataObject(realm) { UserData = sample };
+        var typedWrapper = new JsUserDataObject<ManualHostBindingSample>(realm)
+        {
+            UserData = sample,
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                function.Call(realm, JsValue.FromObject(untypedWrapper), []).IsTrue,
+                Is.True
+            );
+            Assert.That(function.Call(realm, JsValue.FromObject(typedWrapper), []).IsTrue, Is.True);
+        });
+    }
+
+    [Test]
     public void HostWrappingUsesDistinctWrappersAcrossRealms()
     {
         var engine = JsRuntime.Create();
