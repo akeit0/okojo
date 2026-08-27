@@ -1647,11 +1647,25 @@ public sealed partial class JsRealm
                                 {
                                     var key = acc.Int32Value;
                                     if (key >= 0)
+                                    {
+                                        if (
+                                            obj is JsArray array
+                                            && array.TryGetDenseElement(
+                                                (uint)key,
+                                                out var denseValue
+                                            )
+                                        )
+                                        {
+                                            acc = denseValue;
+                                            break;
+                                        }
+
                                         if (obj.TryGetElement((uint)key, out var value))
                                         {
                                             acc = value;
                                             break;
                                         }
+                                    }
                                 }
 
                                 acc = LoadKeyedPropertySlowPath(this, obj, acc);
@@ -1943,6 +1957,19 @@ public sealed partial class JsRealm
                                     acc = new(res);
                                     break;
                                 }
+
+                            if (
+                                op == JsOpCode.Sub
+                                && Intrinsics.TryGetDateSubtraction(
+                                    slotRef,
+                                    acc,
+                                    out var dateDifference
+                                )
+                            )
+                            {
+                                acc = dateDifference;
+                                break;
+                            }
 
                             if (slotRef.IsFloat64)
                             {

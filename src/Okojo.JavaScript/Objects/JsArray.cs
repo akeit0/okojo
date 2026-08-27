@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Okojo.JavaScript.Objects;
@@ -184,6 +185,26 @@ public sealed class JsArray : JsObject
         if (!IsExtensible && !HasOwnElement(index))
             return false;
         return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryGetDenseElement(uint index, out JsValue value)
+    {
+        var dense = Dense;
+        if (
+            dense is not null
+            && index < (uint)Length
+            && index < (uint)dense.Length
+            && (IndexedProperties is null || !IndexedProperties.ContainsKey(index))
+        )
+        {
+            value = dense[index];
+            if (!value.IsTheHole)
+                return true;
+        }
+
+        value = JsValue.Undefined;
+        return false;
     }
 
     internal override bool TryGetElementWithReceiver(

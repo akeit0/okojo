@@ -95,4 +95,51 @@ public class VmOptimizationTests
         Assert.That(result.IsInt32, Is.True);
         Assert.That(result.Int32Value, Is.EqualTo(1));
     }
+
+    [Test]
+    public void DenseKeyedLoadFastPathPreservesHolesAndDescriptors()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            const array = [10, 20];
+            array.length = 4;
+            Array.prototype[2] = 30;
+            const inherited = array[2];
+            const own = array[0];
+            let getterCalls = 0;
+            Object.defineProperty(array, "0", {
+              get() { getterCalls++; return 99; },
+              configurable: true
+            });
+            const accessor = array[0];
+            delete Array.prototype[2];
+            [own, inherited, accessor, getterCalls].join(":");
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("10:30:99:1"));
+    }
+
+    [Test]
+    public void DateSubtractionFastPathPreservesConversionGuards()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            const left = new Date(1000);
+            const right = new Date(250);
+            const normal = left - right;
+            const originalValueOf = Date.prototype.valueOf;
+            Date.prototype.valueOf = function() { return 5; };
+            const mutatedPrototype = left - right;
+            Date.prototype.valueOf = originalValueOf;
+            left.valueOf = function() { return 9; };
+            const ownOverride = left - right;
+            [normal, mutatedPrototype, ownOverride].join(":");
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("750:0:-241"));
+    }
 }

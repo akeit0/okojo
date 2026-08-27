@@ -942,7 +942,14 @@ public sealed partial class JsRealm
         if (newFp + HeaderSize + registerWindowSize > fullStack.Length)
             throw new StackOverflowException();
 
-        PrepareBytecodeRegisterWindow(fullStack, newFp, argOffset, argCount, registerWindowSize);
+        PrepareBytecodeRegisterWindow(
+            fullStack,
+            newFp,
+            argOffset,
+            argCount,
+            registerWindowSize,
+            clearUnusedRegisters: newFp != StackTop
+        );
         if (newFp != StackTop)
             StackTop = newFp;
         func.Script.ArmBreakpoints();
@@ -1641,7 +1648,8 @@ public sealed partial class JsRealm
         int frameFp,
         int bytecodeArgOffset,
         int bytecodeArgCount,
-        int registerWindowSize
+        int registerWindowSize,
+        bool clearUnusedRegisters = true
     )
     {
         var finalArgOffset = frameFp + HeaderSize;
@@ -1649,9 +1657,10 @@ public sealed partial class JsRealm
             fullStack
                 .Slice(bytecodeArgOffset, bytecodeArgCount)
                 .CopyTo(fullStack[finalArgOffset..]);
-        fullStack
-            .Slice(finalArgOffset + bytecodeArgCount, registerWindowSize - bytecodeArgCount)
-            .Fill(JsValue.Undefined);
+        if (clearUnusedRegisters)
+            fullStack
+                .Slice(finalArgOffset + bytecodeArgCount, registerWindowSize - bytecodeArgCount)
+                .Fill(JsValue.Undefined);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1717,7 +1726,8 @@ public sealed partial class JsRealm
             newFp,
             bytecodeArgOffset,
             bytecodeArgCount,
-            registerWindowSize
+            registerWindowSize,
+            clearUnusedRegisters: false
         );
         PushFrame(
             targetBytecode,

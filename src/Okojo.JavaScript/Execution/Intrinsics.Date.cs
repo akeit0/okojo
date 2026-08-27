@@ -12,6 +12,11 @@ public partial class Intrinsics
     private const double MsPerMinute = 60d * MsPerSecond;
     private const double MsPerHour = 60d * MsPerMinute;
     private const double MsPerDay = 24d * MsPerHour;
+    private JsHostFunction dateToPrimitiveFunction = null!;
+    private int dateToPrimitiveSlot = -1;
+    private JsHostFunction dateValueOfFunction = null!;
+    private int dateValueOfSlot = -1;
+    private StaticNamedPropertyLayout datePrototypeFastPathShape = null!;
 
     [GeneratedRegex(
         @"^(?<year>[+-]?\d{4,6})-(?<month>\d{2})-(?<day>\d{2})(?:T(?<hour>\d{2}):(?<minute>\d{2})(?::(?<second>\d{2})(?:\.(?<millisecond>\d{1,3}))?)?(?<offset>Z|[+-]\d{2}:\d{2})?)?$",
@@ -1018,6 +1023,17 @@ public partial class Intrinsics
         ];
         DatePrototype.DefineNewPropertiesNoCollision(Realm, protoDefs);
 
+        dateValueOfFunction = valueOfFn;
+        dateToPrimitiveFunction = toPrimitiveFn;
+        if (
+            !DatePrototype.Shape.TryGetSlotInfo(IdValueOf, out var valueOfSlotInfo)
+            || !DatePrototype.Shape.TryGetSlotInfo(IdSymbolToPrimitive, out var toPrimitiveSlotInfo)
+        )
+            throw new InvalidOperationException("Date conversion builtins were not installed.");
+        dateValueOfSlot = valueOfSlotInfo.Slot;
+        dateToPrimitiveSlot = toPrimitiveSlotInfo.Slot;
+        datePrototypeFastPathShape = DatePrototype.Shape;
+
         Span<PropertyDefinition> ctorDefs =
         [
             PropertyDefinition.Mutable(IdNow, JsValue.FromObject(nowFn)),
@@ -1190,6 +1206,39 @@ public partial class Intrinsics
                 $"{methodName} called on incompatible receiver"
             );
         return date.TimeValue;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryGetDateSubtraction(
+        in JsValue leftValue,
+        in JsValue rightValue,
+        out JsValue result
+    )
+    {
+        if (
+            leftValue.Obj is not JsDateObject left
+            || rightValue.Obj is not JsDateObject right
+            || !ReferenceEquals(left.Realm, Realm)
+            || !ReferenceEquals(right.Realm, Realm)
+            || !ReferenceEquals(left.Prototype, DatePrototype)
+            || !ReferenceEquals(right.Prototype, DatePrototype)
+            || !ReferenceEquals(left.NamedPropertyLayout, Realm.EmptyShape)
+            || !ReferenceEquals(right.NamedPropertyLayout, Realm.EmptyShape)
+            || !ReferenceEquals(DatePrototype.Prototype, Realm.ObjectPrototype)
+            || !ReferenceEquals(DatePrototype.NamedPropertyLayout, datePrototypeFastPathShape)
+            || !ReferenceEquals(DatePrototype.SlotsArray[dateValueOfSlot].Obj, dateValueOfFunction)
+            || !ReferenceEquals(
+                DatePrototype.SlotsArray[dateToPrimitiveSlot].Obj,
+                dateToPrimitiveFunction
+            )
+        )
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(left.TimeValue - right.TimeValue);
+        return true;
     }
 
     private static JsValue SetDateLike(
