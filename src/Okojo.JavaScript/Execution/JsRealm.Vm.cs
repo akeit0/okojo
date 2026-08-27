@@ -2216,6 +2216,9 @@ public sealed partial class JsRealm
                 CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall
             );
 
+        if (callee is JsHostFunction { ConstructsOwnThis: true })
+            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
+
         var intrinsics = callee.Realm.Intrinsics;
         if (ReferenceEquals(callee, intrinsics.ArrayBufferConstructor))
             return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);

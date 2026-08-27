@@ -33,7 +33,7 @@ public partial class Intrinsics
 
     private JsHostFunction CreateDateConstructor()
     {
-        return new(
+        var constructor = new JsHostFunction(
             Realm,
             (in info) =>
             {
@@ -64,6 +64,8 @@ public partial class Intrinsics
             7,
             true
         );
+        constructor.ConstructsOwnThis = true;
+        return constructor;
     }
 
     private void InstallDateConstructorBuiltins()

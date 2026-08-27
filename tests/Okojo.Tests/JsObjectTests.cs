@@ -126,6 +126,28 @@ public class JsObjectTests
     }
 
     [Test]
+    public void TestNamedPropertyIcFastPathPreservesDataLoadAndStore()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function t() {
+                const o = { x: 1 };
+                let i = 0;
+                while (i < 4) {
+                    o.x = o.x + 1;
+                    i = i + 1;
+                }
+                return o.x;
+            }
+            t();
+            """
+        );
+
+        Assert.That(result.NumberValue, Is.EqualTo(5));
+    }
+
+    [Test]
     public void TestDefaultNamedPropertyFlagsAreOpen()
     {
         var realm = JsRuntime.Create().DefaultRealm;

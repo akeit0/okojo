@@ -1558,11 +1558,11 @@ public sealed partial class JsRealm
                                         receiverIsObject,
                                         obj!,
                                         atom,
-                                        out var ic
+                                        out var cachedSlotInfo
                                     )
                                 )
                                 {
-                                    acc = obj!.GetNamedByCachedSlotInfo(this, ic.SlotInfo);
+                                    acc = obj!.GetNamedByCachedSlotInfo(this, cachedSlotInfo);
                                     break;
                                 }
 
@@ -1686,11 +1686,15 @@ public sealed partial class JsRealm
                                         receiverIsObject,
                                         obj!,
                                         atom,
-                                        out var ic
+                                        out var cachedSlotInfo
                                     )
                                 )
                                 {
-                                    var ok = obj!.SetNamedByCachedSlotInfo(this, ic.SlotInfo, acc);
+                                    var ok = obj!.SetNamedByCachedSlotInfo(
+                                        this,
+                                        cachedSlotInfo,
+                                        acc
+                                    );
                                     if (!ok && currentFunc.IsStrict)
                                         ThrowTypeError(
                                             "ASSIGN_READONLY",
@@ -1921,25 +1925,49 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                            if (slotRef.IsNumber && acc.IsNumber)
+                            if (slotRef.IsFloat64)
                             {
-                                num1 = slotRef.FastNumberValue;
-                                num2 = acc.FastNumberValue;
-                                num1 = op switch
+                                num1 = slotRef.FastFloat64Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
                                 {
-                                    JsOpCode.Add => num1 + num2,
-                                    JsOpCode.Sub => num1 - num2,
-                                    JsOpCode.Mul => num1 * num2,
-                                    JsOpCode.Div => num1 / num2,
-                                    JsOpCode.Mod => num1 % num2,
-                                    JsOpCode.Exp => NumberExponentiate(num1, num2),
-                                    _ => 0, // throw makes no sense, and throw or eliminating default cause deoptimization, so just return 0 which will be ignored anyway.
-                                };
-                                acc = new(num1);
+                                    acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
+                                    break;
+                                }
+                            }
+                            else if (slotRef.IsInt32)
+                            {
+                                num1 = slotRef.Int32Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
                                 break;
                             }
 
-                            acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
+                            num1 = op switch
+                            {
+                                JsOpCode.Add => num1 + num2,
+                                JsOpCode.Sub => num1 - num2,
+                                JsOpCode.Mul => num1 * num2,
+                                JsOpCode.Div => num1 / num2,
+                                JsOpCode.Mod => num1 % num2,
+                                JsOpCode.Exp => NumberExponentiate(num1, num2),
+                                _ => 0, // throw makes no sense, and throw or eliminating default cause deoptimization, so just return 0 which will be ignored anyway.
+                            };
+                            acc = new(num1);
                             break;
                         }
 

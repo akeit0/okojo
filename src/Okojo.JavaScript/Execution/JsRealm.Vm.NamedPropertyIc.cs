@@ -12,12 +12,12 @@ public sealed partial class JsRealm
         bool receiverIsObject,
         JsObject obj,
         int atom,
-        out OkojoNamedPropertyIcEntry ic
+        out SlotInfo slotInfo
     )
     {
         if (namedPropertyIcEntries is null || !receiverIsObject || obj.UsesDynamicNamedProperties)
         {
-            ic = default;
+            slotInfo = SlotInfo.Invalid;
             return false;
         }
 
@@ -26,8 +26,15 @@ public sealed partial class JsRealm
             throw new InvalidOperationException("Named property feedback slot is out of range.");
 #endif
 
-        ic = namedPropertyIcEntries[icSlot];
-        return ReferenceEquals(obj.Shape, ic.Shape)
+        ref readonly var ic = ref namedPropertyIcEntries[icSlot];
+        if (!ReferenceEquals(obj.Shape, ic.Shape))
+        {
+            slotInfo = SlotInfo.Invalid;
+            return false;
+        }
+
+        slotInfo = ic.SlotInfo;
+        return true
 #if DEBUG
             && ic.NameAtom == atom
 #endif

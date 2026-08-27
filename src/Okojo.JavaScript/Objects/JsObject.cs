@@ -906,11 +906,23 @@ public class JsObject
 
     internal JsValue GetNamedByCachedSlotInfo(JsRealm realm, SlotInfo slotInfo)
     {
+        if ((slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == 0)
+            return SlotsArray[slotInfo.Slot];
+
         return GetNamedValueBySlotInfo(realm, JsValue.FromObject(this), slotInfo);
     }
 
     internal bool SetNamedByCachedSlotInfo(JsRealm realm, SlotInfo slotInfo, in JsValue value)
     {
+        if (
+            (slotInfo.Flags & (JsShapePropertyFlags.BothAccessor | JsShapePropertyFlags.Writable))
+            == JsShapePropertyFlags.Writable
+        )
+        {
+            SlotsArray[slotInfo.Slot] = value;
+            return true;
+        }
+
         return SetNamedValueBySlotInfo(realm, this, slotInfo, value);
     }
 

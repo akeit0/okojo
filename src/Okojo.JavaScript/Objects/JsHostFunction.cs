@@ -5,6 +5,7 @@ public delegate JsValue JsHostFunctionBody(scoped in CallInfo info);
 public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
 {
     internal readonly JsHostFunctionBody BodyField;
+    internal bool ConstructsOwnThis { get; set; }
 
     internal JsHostFunction(
         JsRealm realm,
