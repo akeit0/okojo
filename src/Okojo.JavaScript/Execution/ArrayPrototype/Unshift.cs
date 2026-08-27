@@ -19,6 +19,9 @@ public partial class Intrinsics
 
         var length = target.Length;
         var store = target.Dense!;
+        if (length > (uint)store.Length)
+            return false;
+
         if (length == 0)
         {
             result = JsValue.Undefined;
@@ -53,10 +56,12 @@ public partial class Intrinsics
             return false;
 
         var length = target.Length;
+        if (length > (uint)target.Dense!.Length)
+            return false;
         var newLength = length + items.Length;
         if (newLength > MaxSafeIntegerLength || newLength > uint.MaxValue)
             return false;
-        if (DenseArrayFastPath.RangeHasHole(target.Dense!.AsSpan(0, (int)length)))
+        if (DenseArrayFastPath.RangeHasHole(target.Dense.AsSpan(0, (int)length)))
             return false;
 
         DenseArrayFastPath.EnsureCapacity(target, newLength);

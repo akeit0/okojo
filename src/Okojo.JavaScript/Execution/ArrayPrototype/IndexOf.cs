@@ -56,7 +56,7 @@ public partial class Intrinsics
                 if (!DenseWindowValid(dense, store, k))
                     break;
                 var element = store[(int)k];
-                if (element.IsTheHole)
+                if (element.IsTheHole && !TryGetArrayLikeIndex(realm, obj, k, out element))
                     continue;
                 if (StrictEquals(element, searchElement))
                     return k;

@@ -57,11 +57,15 @@ public partial class Intrinsics
             return true;
         }
 
-        var tail = target.Dense![length - 1];
+        var store = target.Dense!;
+        if (length > (uint)store.Length)
+            return false;
+
+        var tail = store[length - 1];
         if (tail.IsTheHole)
             return false;
 
-        target.Dense![length - 1] = JsValue.TheHole;
+        store[length - 1] = JsValue.TheHole;
         target.SetLength(length - 1);
         result = tail;
         return true;

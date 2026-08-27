@@ -24,11 +24,12 @@ public partial class Intrinsics
             length <= int.MaxValue
             && obj is JsArray candidate
             && candidate.IndexedProperties is null
-            && candidate.Dense is not null
+            && candidate.Dense is { } candidateStore
+            && length <= candidateStore.Length
         )
         {
             array = candidate;
-            store = candidate.Dense;
+            store = candidateStore;
             return true;
         }
 
@@ -42,14 +43,18 @@ public partial class Intrinsics
         System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining
     )]
     internal static bool DenseWindowValid(JsArray array, JsValue[] store, long index) =>
-        (ulong)index < array.Length && ReferenceEquals(store, array.Dense);
+        (ulong)index < (ulong)array.Length
+        && (ulong)index < (ulong)store.Length
+        && ReferenceEquals(store, array.Dense);
 
     /// <summary>True when every slot in [0, count) can be read densely right now.</summary>
     [System.Runtime.CompilerServices.MethodImpl(
         System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining
     )]
     internal static bool DenseRangeFullyValid(JsArray dense, JsValue[] store, long count) =>
-        (ulong)count <= dense.Length && ReferenceEquals(store, dense.Dense);
+        (ulong)count <= (ulong)dense.Length
+        && (ulong)count <= (ulong)store.Length
+        && ReferenceEquals(store, dense.Dense);
 
     /// <summary>
     /// Write-extending fast paths (push/unshift/splice) store at indices that

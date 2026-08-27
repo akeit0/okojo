@@ -14,23 +14,27 @@ public partial class Intrinsics
         JsValue callbackThis
     )
     {
+        long k = length - 1;
         if (
             TryOpenDenseRange(obj, length, out var dense, out var store)
             && DenseRangeFullyValid(dense, store, length)
         )
         {
-            for (var k = length - 1; k >= 0; k--)
+            for (; k >= 0; k--)
             {
+                if (!DenseWindowValid(dense, store, k))
+                    break;
                 var element = store[(int)k];
                 if (element.IsTheHole)
                     GetArrayLikeIndex(realm, obj, k, out element);
                 if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))
                     return element;
             }
-            return JsValue.Undefined;
+            if (k < 0)
+                return JsValue.Undefined;
         }
 
-        for (var k = length - 1; k >= 0; k--)
+        for (; k >= 0; k--)
         {
             GetArrayLikeIndex(realm, obj, k, out var element);
             if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))
@@ -48,23 +52,27 @@ public partial class Intrinsics
         JsValue callbackThis
     )
     {
+        long k = length - 1;
         if (
             TryOpenDenseRange(obj, length, out var dense, out var store)
             && DenseRangeFullyValid(dense, store, length)
         )
         {
-            for (var k = length - 1; k >= 0; k--)
+            for (; k >= 0; k--)
             {
+                if (!DenseWindowValid(dense, store, k))
+                    break;
                 var element = store[(int)k];
                 if (element.IsTheHole)
                     GetArrayLikeIndex(realm, obj, k, out element);
                 if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))
                     return k;
             }
-            return -1;
+            if (k < 0)
+                return -1;
         }
 
-        for (var k = length - 1; k >= 0; k--)
+        for (; k >= 0; k--)
         {
             GetArrayLikeIndex(realm, obj, k, out var element);
             if (ToBoolean(InvokeArrayCallback(realm, callback, callbackThis, element, k, obj)))

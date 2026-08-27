@@ -31,6 +31,7 @@ public partial class Intrinsics
         var highest = Math.Max(to + count, Math.Max(end, from));
         if (
             highest > length
+            || !DenseArrayFastPath.HasStorageForLength(target, highest)
             || DenseArrayFastPath.RangeHasHole(store.AsSpan(0, (int)highest))
             || !ReceiverChainFreeOfElements(obj)
         )
@@ -47,6 +48,7 @@ public partial class Intrinsics
             || length > int.MaxValue
             || !TryOpenDenseRange(obj, length, out var target, out var store)
             || !DenseRangeFullyValid(target, store, length)
+            || DenseArrayFastPath.RangeHasHole(store.AsSpan(0, (int)length))
         )
             return false;
 

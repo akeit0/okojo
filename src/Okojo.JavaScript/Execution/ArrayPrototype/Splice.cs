@@ -29,6 +29,8 @@ public partial class Intrinsics
             return false;
 
         var store = target.Dense!;
+        if (length > (uint)store.Length)
+            return false;
         if (DenseArrayFastPath.RangeHasHole(store.AsSpan(0, (int)length)))
             return false;
 

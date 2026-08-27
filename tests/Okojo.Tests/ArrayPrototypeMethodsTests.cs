@@ -1893,4 +1893,80 @@ public class ArrayPrototypeMethodsTests
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(0));
     }
+
+    [Test]
+    public void ArrayPrototype_DensePaths_FallBack_For_Unbacked_Length_And_Prototype_Holes()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            const sparse = new Array(4);
+            let callbackCount = 0;
+            const mapped = sparse.map(function() { callbackCount++; });
+            const every = sparse.every(function() { callbackCount++; return false; });
+            const some = sparse.some(function() { callbackCount++; return true; });
+            const filtered = sparse.filter(function() { callbackCount++; return true; });
+            let reduceThrows = false;
+            try {
+              sparse.reduce(function(a, b) { return a + b; });
+            } catch (e) {
+              reduceThrows = e instanceof TypeError;
+            }
+            const joined = sparse.join("|");
+            const index = sparse.indexOf(undefined);
+            const popped = sparse.pop();
+            const shifted = new Array(4).shift();
+            const filled = new Array(4).fill(9);
+
+            Array.prototype[1] = 7;
+            const inherited = new Array(3);
+            const inheritedReduce = inherited.reduce(function(a, b) { return a + b; }, 0);
+            const inheritedIndex = inherited.indexOf(7);
+            const reversed = [0];
+            reversed.length = 2;
+            reversed.reverse();
+            const reverseOk = reversed[0] === 7 && reversed[1] === 0;
+            delete Array.prototype[1];
+
+            Object.defineProperty(Array.prototype, "0", {
+              value: 100,
+              writable: false,
+              configurable: true
+            });
+            const concatenated = [101].concat();
+            const descriptor = Object.getOwnPropertyDescriptor(concatenated, "0");
+            const concatOk = concatenated[0] === 101 && descriptor.writable && descriptor.enumerable && descriptor.configurable;
+            delete Array.prototype[0];
+
+            const altered = ["Skateboard", "Barefoot"];
+            const seen = [];
+            altered.findLast(function(value) {
+              if (seen.length === 0) {
+                altered.push("Motorcycle");
+                altered[0] = "Magic Carpet";
+              }
+              seen.push(value);
+            });
+
+            callbackCount === 0 &&
+            mapped.length === 4 &&
+            every === true &&
+            some === false &&
+            filtered.length === 0 &&
+            reduceThrows &&
+            joined === "|||" &&
+            index === -1 &&
+            popped === undefined &&
+            shifted === undefined &&
+            filled.join("|") === "9|9|9|9" &&
+            inheritedReduce === 7 &&
+            inheritedIndex === 1 &&
+            reverseOk &&
+            concatOk &&
+            seen.join("|") === "Barefoot|Magic Carpet";
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
 }

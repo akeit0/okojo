@@ -19,10 +19,19 @@ public partial class Intrinsics
         {
             if (!hasAccumulator)
             {
-                while (k < length && DenseWindowValid(dense, store, k) && store[(int)k].IsTheHole)
+                while (k < length)
+                {
+                    if (DenseWindowValid(dense, store, k) && !store[(int)k].IsTheHole)
+                    {
+                        accumulator = store[(int)k];
+                        break;
+                    }
+
+                    if (TryGetArrayLikeIndex(realm, obj, k, out accumulator))
+                        break;
+
                     k++;
-                while (k < length && !TryGetArrayLikeIndex(realm, obj, k, out accumulator))
-                    k++;
+                }
                 if (k >= length)
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,

@@ -87,6 +87,15 @@ public sealed class JsArray : JsObject
             return true;
         }
 
+        if (Dense is not null && index < (uint)Dense.Length && !Dense[index].IsTheHole)
+        {
+            Dense[index] = value;
+            var updateNext = index + 1;
+            if (updateNext > Length)
+                Length = updateNext;
+            return true;
+        }
+
         if (
             Prototype is not null
             && TrySetInheritedElementDescriptor(

@@ -28,6 +28,10 @@ internal static class DenseArrayFastPath
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool HasStorageForLength(JsArray array, long length) =>
+        length >= 0 && array.Dense is { } store && length <= store.Length;
+
     /// <summary>
     /// Presence-preserving relocations (shift/unshift/splice moves) must not
     /// start resolving holes through the prototype chain, so callers bail to
