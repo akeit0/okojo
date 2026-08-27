@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.JavaScript.Bytecode;
 
@@ -1010,7 +1011,10 @@ public sealed class BytecodeBuilder : IDisposable
             SwitchOnSmiTargets: switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
             PrivateFieldDebugKeys: privateFieldDebugKeys,
             PrivateFieldDebugNameIndices: privateFieldDebugNameIndices,
-            LocalDebugInfos: localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray()
+            LocalDebugInfos: localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
+            PrototypeNamedPropertyIcEntries: namedPropertyFeedbackSlotCount == 0
+                ? null
+                : new OkojoPrototypeNamedPropertyIcEntry[namedPropertyFeedbackSlotCount]
         );
     }
 
@@ -1603,6 +1607,15 @@ public struct OkojoNamedPropertyIcEntry
     public StaticNamedPropertyLayout? Shape;
     public SlotInfo SlotInfo;
     public int NameAtom;
+}
+
+public struct OkojoPrototypeNamedPropertyIcEntry
+{
+    public StaticNamedPropertyLayout? ReceiverShape;
+    public SlotInfo SlotInfo;
+    public int NameAtom;
+    public JsObject? Holder;
+    public StaticNamedPropertyLayout? HolderShape;
 }
 
 public enum GlobalBindingIcKind : byte

@@ -437,6 +437,16 @@ public partial class Intrinsics
             1
         );
 
+        cosFn.LeafBodyField = TryLeafCos;
+        imulFn.LeafBodyField = TryLeafImul;
+        logFn.LeafBodyField = TryLeafLog;
+        log2Fn.LeafBodyField = TryLeafLog2;
+        log10Fn.LeafBodyField = TryLeafLog10;
+        powFn.LeafBodyField = TryLeafPow;
+        sinFn.LeafBodyField = TryLeafSin;
+        sqrtFn.LeafBodyField = TryLeafSqrt;
+        truncFn.LeafBodyField = TryLeafTrunc;
+
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Const(
@@ -503,6 +513,188 @@ public partial class Intrinsics
     private static double MathArg(JsRealm realm, ReadOnlySpan<JsValue> args, int index)
     {
         return realm.ToNumberSlowPath(ArgValue(args, index));
+    }
+
+    private static bool TryGetNumberArg(ReadOnlySpan<JsValue> args, int index, out double value)
+    {
+        if ((uint)index >= (uint)args.Length || !args[index].IsNumber)
+        {
+            value = default;
+            return false;
+        }
+
+        value = args[index].FastNumberValue;
+        return true;
+    }
+
+    private static bool TryLeafCos(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Cos(value));
+        return true;
+    }
+
+    private static bool TryLeafImul(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out _) || !TryGetNumberArg(args, 1, out _))
+        {
+            result = default;
+            return false;
+        }
+
+        result = JsValue.FromInt32(
+            unchecked((int)(ToUint32(realm, args[0]) * ToUint32(realm, args[1])))
+        );
+        return true;
+    }
+
+    private static bool TryLeafLog(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Log(value));
+        return true;
+    }
+
+    private static bool TryLeafLog2(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Log2(value));
+        return true;
+    }
+
+    private static bool TryLeafLog10(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Log10(value));
+        return true;
+    }
+
+    private static bool TryLeafPow(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (
+            !TryGetNumberArg(args, 0, out var baseValue)
+            || !TryGetNumberArg(args, 1, out var exponentValue)
+        )
+        {
+            result = default;
+            return false;
+        }
+
+        if (exponentValue == 0)
+        {
+            result = new(1d);
+            return true;
+        }
+
+        if (baseValue is 1 or -1 && double.IsInfinity(exponentValue))
+        {
+            result = new(double.NaN);
+            return true;
+        }
+
+        result = new(Math.Pow(baseValue, exponentValue));
+        return true;
+    }
+
+    private static bool TryLeafSin(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Sin(value));
+        return true;
+    }
+
+    private static bool TryLeafSqrt(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Sqrt(value));
+        return true;
+    }
+
+    private static bool TryLeafTrunc(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!TryGetNumberArg(args, 0, out var value))
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(Math.Truncate(value));
+        return true;
     }
 
     private static int Clz32(JsRealm realm, ReadOnlySpan<JsValue> args)

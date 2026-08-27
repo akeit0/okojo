@@ -1093,6 +1093,9 @@ public sealed partial class JsRealm
             var atomizedStringConstants = currentFunc.Script.AtomizedStringConstants;
             ref var registerRef = ref fullStack[fp + HeaderSize];
             var namedPropertyIcEntries = currentFunc.Script.NamedPropertyIcEntries;
+            var prototypeNamedPropertyIcEntries = currentFunc
+                .Script
+                .PrototypeNamedPropertyIcEntries;
 
             while (true)
             {
@@ -1566,6 +1569,23 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
+                                if (
+                                    prototypeNamedPropertyIcEntries is not null
+                                    && prototypeNamedPropertyIcEntries[icSlot].Holder is not null
+                                    && TryGetNamedPropertyFromPrototypeIc(
+                                        prototypeNamedPropertyIcEntries,
+                                        icSlot,
+                                        receiverIsObject,
+                                        obj!,
+                                        atom,
+                                        out var prototypeValue
+                                    )
+                                )
+                                {
+                                    acc = prototypeValue;
+                                    break;
+                                }
+
                                 var found = receiverIsObject
                                     ? obj!.TryGetPropertyAtom(
                                         this,
@@ -1582,14 +1602,13 @@ public sealed partial class JsRealm
                                     );
                                 acc = value;
 
-                                if (
-                                    found
-                                    && CanCacheNamedPropertyResult(receiverIsObject, obj, slotInfo)
-                                )
-                                    UpdateNamedPropertyIc(
+                                if (found)
+                                    UpdateNamedPropertyIcAfterGet(
                                         namedPropertyIcEntries,
+                                        prototypeNamedPropertyIcEntries,
                                         icSlot,
-                                        obj,
+                                        receiverIsObject,
+                                        obj!,
                                         atom,
                                         slotInfo
                                     );

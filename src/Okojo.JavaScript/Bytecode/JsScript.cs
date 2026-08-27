@@ -30,7 +30,8 @@ public sealed record JsScript
         bool[]? TopLevelLexicalConstFlags = null,
         long[]? PrivateFieldDebugKeys = null,
         int[]? PrivateFieldDebugNameIndices = null,
-        JsLocalDebugInfo[]? LocalDebugInfos = null
+        JsLocalDebugInfo[]? LocalDebugInfos = null,
+        OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries = null
     )
     {
         this.Bytecode = Bytecode;
@@ -61,6 +62,7 @@ public sealed record JsScript
         this.PrivateFieldDebugKeys = PrivateFieldDebugKeys;
         this.PrivateFieldDebugNameIndices = PrivateFieldDebugNameIndices;
         this.LocalDebugInfos = LocalDebugInfos;
+        this.PrototypeNamedPropertyIcEntries = PrototypeNamedPropertyIcEntries;
     }
 
     public byte[] Bytecode { get; init; }
@@ -75,6 +77,7 @@ public sealed record JsScript
     internal int[]? TdzReadDebugPcs { get; init; }
     internal int[]? TdzReadDebugNameIndices { get; init; }
     internal OkojoNamedPropertyIcEntry[]? NamedPropertyIcEntries { get; init; }
+    internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries { get; init; }
     internal GlobalBindingIcEntry[]? GlobalBindingIcEntries { get; init; }
     public int[]? DebugPcOffsets { get; init; }
     public int[]? DebugSourceOffsets { get; init; }

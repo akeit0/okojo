@@ -1,10 +1,19 @@
+using System.Runtime.CompilerServices;
+
 namespace Okojo.JavaScript.Objects;
 
 public delegate JsValue JsHostFunctionBody(scoped in CallInfo info);
+internal delegate bool JsHostFunctionLeafBody(
+    JsRealm realm,
+    JsValue thisValue,
+    ReadOnlySpan<JsValue> args,
+    out JsValue result
+);
 
 public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
 {
     internal readonly JsHostFunctionBody BodyField;
+    internal JsHostFunctionLeafBody? LeafBodyField;
     internal bool ConstructsOwnThis { get; set; }
 
     internal JsHostFunction(
@@ -104,6 +113,24 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
     public JsValue Invoke(scoped in CallInfo info)
     {
         return BodyField(in info);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryInvokeLeaf(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        var leafBody = LeafBodyField;
+        if (leafBody is null)
+        {
+            result = default;
+            return false;
+        }
+
+        return leafBody(realm, thisValue, args, out result);
     }
 
     internal override bool TryGetPropertyAtomWithReceiverValue(

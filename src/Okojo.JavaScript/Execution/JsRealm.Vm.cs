@@ -1456,6 +1456,24 @@ public sealed partial class JsRealm
             );
         }
 
+        if (!isConstruct && callee is JsHostFunction hostFunction)
+        {
+            var thisValue =
+                receiverReg < 0 ? JsValue.Undefined : Unsafe.Add(ref registers, receiverReg);
+            if (
+                hostFunction.TryInvokeLeaf(
+                    this,
+                    thisValue,
+                    Stack.AsSpan(argOffset, argCount),
+                    out var leafResult
+                )
+            )
+            {
+                acc = leafResult;
+                return false;
+            }
+        }
+
         return TryDispatchVmStackInvocationSlow(
             callee,
             receiverReg,

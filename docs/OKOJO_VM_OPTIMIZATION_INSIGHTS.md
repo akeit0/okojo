@@ -186,6 +186,31 @@ Twice, correct edits appeared ineffective because a build was skipped or a
 copy raced (AGENTS-known Okojo.dll lock issue). Rule: if behavior does not
 change after an edit, rebuild --no-incremental before doubting the edit.
 
+### 3.6 Prototype data ICs need a cold side table; leaf calls need a strict fallback
+
+The accepted prototype-property experiment caches only a direct
+receiver-to-prototype own data property for plain objects and arrays. The
+guard checks receiver shape, prototype/holder identity, holder shape, and
+static data-slot flags; accessors, dynamic objects, proxies, and deeper chains
+use the existing lookup path. Prototype metadata lives in a parallel feedback
+array so the existing own-property IC entry remains 16 bytes. An early version
+that enlarged that hot entry regressed `named-get` by 6-9%.
+
+The accepted host-call experiment adds numeric-only leaf bodies for the hot
+Math functions. Non-number arguments return to the existing host-call path,
+so coercion and user-code re-entry remain unchanged.
+
+Seven-round alternating pgo-off A/B medians against commit `5ff3c4c`:
+
+| case | base | attempt | delta |
+| ---- | ---: | ------: | ----: |
+| prototype-get | 5.191 ms | 4.488 ms | -13.6% |
+| math-call | 1.230 ms | 0.854 ms | -30.6% |
+| named-get | 4.756 ms | 4.786 ms | +0.6% |
+
+The pgo-on sanity run also completed without semantic failures; pgo-off
+remains the decision configuration.
+
 ## 4. Measurement methodology
 
 | rule | detail |
