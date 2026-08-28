@@ -312,7 +312,7 @@ removes for free.
 Evidence: working-tree attempt; numbers from the user-supplied
 VsJintBenchmarks before/after run and the Tier1 code-size report.
 
-### A22 / V2 + A16 write-barrier elimination and in-place numeric results - ACCEPTED (artifact level; bench-ab pending)
+### A22 / V2 + A16 write-barrier elimination and in-place numeric results - ACCEPTED
 
 Joint attempt (2026-08-28) implementing proposals V2 (A22) and A16 (P3),
 extended by user direction: arithmetic arms write numeric results in place
@@ -356,6 +356,14 @@ Arm evidence (tiered-off FullOpts; snapshots
 Tests: focused Arithmetic/Assignment/NumberPrototype 60/60; full suite
 2,165 passed, 4 skipped.
 
+Benchmark confirmation (user-supplied BDN before/after, pgo-off): no
+regressions; improved beyond noise - arith 1.240 -> 1.136 us (-8.4%),
+smi-sum-loop 2,229 -> 2,123 us (-4.8%), named-get 3,281 -> 3,055 us
+(-6.9%), indexing 14,587 -> 13,084 us (-10.3%), for-loop-sum, closure-heavy,
+math-call, pure-function-call, object, many-object within noise. All
+Okojo:Jint ratios improved or held (arith 0.42 -> 0.39, indexing
+0.38 -> 0.35, named-get 0.70 -> 0.63).
+
 Bench-ab/BDN intentionally not run yet (user instruction: artifact first).
 Single probe medians, non-decisional: smi-sum-loop tiered-off
 2436.8 -> 2079.5 us, pgo-off 2302.7 -> 2155.8 us.
@@ -372,6 +380,44 @@ Knowledge produced:
    settled it. Scalar-typed byrefs are the only safe field-write route.
 
 Evidence: snapshot `20260828-181117-0001-v2-a16-barrier-numeric/notice.md`.
+
+### A14 / P1 arithmetic de-fusion (Add/Sub/Mul) - ACCEPTED
+
+Implemented 2026-08-28 with three granularity variants compared against
+HEAD (5-round bench-ab medians, pgo-off, plus FullOpts/Tier1 code size):
+
+| variant | arith | smi-sum | for-loop-sum | named-get | Tier1 asm | IL |
+|---|---|---|---|---|---|---|
+| C: {Add,Sub,Mul} + {Div,Mod,Exp} fused | -1.7% | -2.3% | -0.9% | -1.1% | +622 B | +244 |
+| A: Add/Sub/Mul split, DME fused (chosen) | -4.1% | -1.0% | -14.6% | -4.2% | +1,906 B | +801 |
+| B: all six split | +0.5% | -1.2% | -8.7% | -3.2% | +3,164 B | +1,254 |
+
+- B rejected: dominated by A (larger and slower; arith regressed via
+  layout perturbation, insights 1.11).
+- C rejected: wins near noise for its size cost.
+- A accepted on user decision weighing bench against code size (user
+  rule: asm/IL size is part of total performance; small bench wins alone
+  do not justify landing). A's wins reproduced across two independent
+  runs (arith -7.5%/-4.1%, for-loop-sum -16.5%/-14.6%,
+  named-get -6.7%/-4.2%). The +1.9KB Tier1 cost is mostly duplicated
+  cold/slow-path code; the hot int fast paths shrink because the
+  `cmp edx,59/60/68` re-dispatch chain and inner switches are gone
+  (opcodes 59/60/68 now have dedicated arm targets).
+
+Implementation notes:
+
+- Straight-line operand resolution duplicated per arm; NO
+  `AggressiveInlining` helper - the user rule "cannot trust
+  AggressiveInlining in the large Run method" (insights 1.5).
+- Sub keeps its Date-subtraction check; slow-path calls pass the
+  opcode as a literal for devirtualization.
+- F5 (cloned slow tails) got WORSE, not collapsed: 9 slow-path call
+  sites vs 3. Accepted anyway on medians; a shared cold slow-path entry
+  is future work if code size matters.
+- Full suite 2,165 passed, 4 skipped.
+
+Snapshots: `0002-a14-variant-c-asm` (C), `0003-a14-variant-a-asm` (A,
+accepted), `0004-a14-variant-b-asm` (B).
 
 ## Attempt Log Status
 
@@ -390,8 +436,9 @@ Evidence: snapshot `20260828-181117-0001-v2-a16-barrier-numeric/notice.md`.
 | T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
 | T2 opcode/pair profiler | PREPARED (`OkojoVmProfile=true` + `--profile-opcodes`; gates superinstruction selection) |
 | A18 `SkipLocalsInit` entry probe | ACCEPTED (prologue clear removed; Tier1 -223 B; suite green) |
-| A22 Star/Mov write-barrier elimination | ACCEPTED (artifact level; bench-ab pending; hot Star path barrier-free) |
-| A16 numeric result canonicalization | ACCEPTED (integer NaN test + in-place result writes; suite green) |
+| A22 Star/Mov write-barrier elimination | ACCEPTED (BDN-confirmed: arith -8.4%, indexing -10.3%, smi -4.8%, named-get -6.9%; hot Star path barrier-free) |
+| A16 numeric result canonicalization | ACCEPTED (integer NaN test + in-place result writes; BDN-confirmed, no regressions) |
+| A14 arithmetic arm de-fusion | ACCEPTED (variant A: A/S/M split, DME fused; bench-ab 5 rounds; for-loop-sum -14.6%, arith -4.1%; +1.9KB Tier1) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
 | A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
 | C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in insights 1.16) |

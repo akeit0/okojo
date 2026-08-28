@@ -2065,8 +2065,251 @@ public sealed partial class JsRealm
                             break;
 
                         case JsOpCode.Add:
+                        {
+                            AssertValidOperandScale(operandScale);
+                            operandOffset = 0;
+                            reg = ReadScaledUnsignedOperand(
+                                ref pc,
+                                ref operandOffset,
+                                operandScale
+                            );
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
+                            pc = ref Unsafe.Add(ref pc, operandOffset);
+
+                            if (slotRef.IsInt32 && acc.IsInt32)
+                            {
+                                longNum = (long)slotRef.Int32Value + acc.Int32Value;
+                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
+                                {
+                                    acc = JsValue.FromInt32((int)longNum);
+                                    break;
+                                }
+
+                                // acc is Int32 here, so its Obj half is already
+                                // null: write the float bits in place.
+                                Unsafe.As<JsValue, double>(ref acc) = longNum;
+                                break;
+                            }
+
+                            if (slotRef.IsFloat64)
+                            {
+                                num1 = slotRef.FastFloat64Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Add,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else if (slotRef.IsInt32)
+                            {
+                                num1 = slotRef.Int32Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Add,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                acc = HandleArithmeticNonNumberSlowPath(
+                                    this,
+                                    JsOpCode.Add,
+                                    slotRef,
+                                    acc
+                                );
+                                break;
+                            }
+
+                            Unsafe.As<JsValue, double>(ref acc) = JsValue.CanonicalizeNumericResult(
+                                num1 + num2
+                            );
+                            break;
+                        }
+
                         case JsOpCode.Sub:
+                        {
+                            AssertValidOperandScale(operandScale);
+                            operandOffset = 0;
+                            reg = ReadScaledUnsignedOperand(
+                                ref pc,
+                                ref operandOffset,
+                                operandScale
+                            );
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
+                            pc = ref Unsafe.Add(ref pc, operandOffset);
+
+                            if (slotRef.IsInt32 && acc.IsInt32)
+                            {
+                                longNum = (long)slotRef.Int32Value - acc.Int32Value;
+                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
+                                {
+                                    acc = JsValue.FromInt32((int)longNum);
+                                    break;
+                                }
+
+                                // acc is Int32 here, so its Obj half is already
+                                // null: write the float bits in place.
+                                Unsafe.As<JsValue, double>(ref acc) = longNum;
+                                break;
+                            }
+
+                            if (Intrinsics.TryGetDateSubtraction(slotRef, acc, ref acc))
+                                break;
+
+                            if (slotRef.IsFloat64)
+                            {
+                                num1 = slotRef.FastFloat64Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Sub,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else if (slotRef.IsInt32)
+                            {
+                                num1 = slotRef.Int32Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Sub,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                acc = HandleArithmeticNonNumberSlowPath(
+                                    this,
+                                    JsOpCode.Sub,
+                                    slotRef,
+                                    acc
+                                );
+                                break;
+                            }
+
+                            Unsafe.As<JsValue, double>(ref acc) = JsValue.CanonicalizeNumericResult(
+                                num1 - num2
+                            );
+                            break;
+                        }
+
                         case JsOpCode.Mul:
+                        {
+                            AssertValidOperandScale(operandScale);
+                            operandOffset = 0;
+                            reg = ReadScaledUnsignedOperand(
+                                ref pc,
+                                ref operandOffset,
+                                operandScale
+                            );
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
+                            pc = ref Unsafe.Add(ref pc, operandOffset);
+
+                            if (slotRef.IsInt32 && acc.IsInt32)
+                            {
+                                longNum = (long)slotRef.Int32Value * acc.Int32Value;
+                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
+                                {
+                                    acc = JsValue.FromInt32((int)longNum);
+                                    break;
+                                }
+
+                                // acc is Int32 here, so its Obj half is already
+                                // null: write the float bits in place.
+                                Unsafe.As<JsValue, double>(ref acc) = longNum;
+                                break;
+                            }
+
+                            if (slotRef.IsFloat64)
+                            {
+                                num1 = slotRef.FastFloat64Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Mul,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else if (slotRef.IsInt32)
+                            {
+                                num1 = slotRef.Int32Value;
+                                if (acc.IsFloat64)
+                                    num2 = acc.FastFloat64Value;
+                                else if (acc.IsInt32)
+                                    num2 = acc.Int32Value;
+                                else
+                                {
+                                    acc = HandleArithmeticNonNumberSlowPath(
+                                        this,
+                                        JsOpCode.Mul,
+                                        slotRef,
+                                        acc
+                                    );
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                acc = HandleArithmeticNonNumberSlowPath(
+                                    this,
+                                    JsOpCode.Mul,
+                                    slotRef,
+                                    acc
+                                );
+                                break;
+                            }
+
+                            Unsafe.As<JsValue, double>(ref acc) = JsValue.CanonicalizeNumericResult(
+                                num1 * num2
+                            );
+                            break;
+                        }
+
                         case JsOpCode.Div:
                         case JsOpCode.Mod:
                         case JsOpCode.Exp:
@@ -2081,36 +2324,6 @@ public sealed partial class JsRealm
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
-
-                            if (op is JsOpCode.Add or JsOpCode.Sub or JsOpCode.Mul)
-                                if (slotRef.IsInt32 && acc.IsInt32)
-                                {
-                                    intNum1 = slotRef.Int32Value;
-                                    intNum2 = acc.Int32Value;
-                                    longNum = op switch
-                                    {
-                                        JsOpCode.Add => (long)intNum1 + intNum2,
-                                        JsOpCode.Sub => (long)intNum1 - intNum2,
-                                        JsOpCode.Mul => (long)intNum1 * intNum2,
-                                        _ => 0L,
-                                    };
-                                    if (longNum <= int.MaxValue && longNum >= int.MinValue)
-                                    {
-                                        acc = JsValue.FromInt32((int)longNum);
-                                        break;
-                                    }
-
-                                    // acc is Int32 here, so its Obj half is already
-                                    // null: write the float bits in place.
-                                    Unsafe.As<JsValue, double>(ref acc) = longNum;
-                                    break;
-                                }
-
-                            if (
-                                op == JsOpCode.Sub
-                                && Intrinsics.TryGetDateSubtraction(slotRef, acc, ref acc)
-                            )
-                                break;
 
                             if (slotRef.IsFloat64)
                             {
@@ -2146,9 +2359,6 @@ public sealed partial class JsRealm
 
                             num1 = op switch
                             {
-                                JsOpCode.Add => num1 + num2,
-                                JsOpCode.Sub => num1 - num2,
-                                JsOpCode.Mul => num1 * num2,
                                 JsOpCode.Div => num1 / num2,
                                 JsOpCode.Mod => num1 % num2,
                                 JsOpCode.Exp => NumberExponentiate(num1, num2),
@@ -2157,7 +2367,6 @@ public sealed partial class JsRealm
                             acc = new(JsValue.CanonicalizeNumericResult(num1));
                             break;
                         }
-
                         case JsOpCode.AddSmi:
                         case JsOpCode.SubSmi:
                             {

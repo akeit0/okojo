@@ -20,8 +20,8 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C3-C4, A14-A15 and A17/A19 (section 4), and
-V3-V8. C1-C2, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), and A16 were
+Status: ACTIVE PROPOSALS: C3-C4, A15/A17/A19 (section 4), and V3-V8.
+C1-C2, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), A16, and A14 were
 accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the insights
 document. Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm
@@ -167,7 +167,9 @@ isolated bench-ab median and same-config assembly diff land.
    `cmp edx,59` (`Add`) and `cmp edx,60` (`Sub`), then uses the `RWD776`
    secondary table for `Div`/`Mod`/`Exp` (IG293-IG297). The int-plus-int
    path has its own `cmp edx,59/60/68` chain (IG312-IG316). The mixed path
-   pays this after the accumulator overflows to Float64.
+   pays this after the accumulator overflows to Float64. ADDRESSED for
+   Add/Sub/Mul by A14 (dedicated arms, no re-dispatch); Div/Mod/Exp remain
+   fused on their float-only switch.
 4. **Aliasing-blocked CSE (F4):** the mixed path performs two back-to-back
    `and r9,qword ptr [rax]` mask tests in IG284. The `IsFloat64`/`IsInt32`
    reads go through a byref, so RyuJIT does not CSE them across possible
@@ -176,7 +178,9 @@ isolated bench-ab median and same-config assembly diff land.
    emitted along IG280-IG283, IG285-IG287, and IG289-IG291, each with a
    private 16-byte temporary (`[rbp-0x1C0]`, `-0x1D0`, `-0x1E0`). This is
    code-size and frame pressure from one source-level tail reached through
-   three flows.
+   three flows. A14 WORSENED this (9 slow-path call sites after splitting
+   Add/Sub/Mul); a shared cold slow-path entry is future work if code
+   size matters.
 6. **Wide overflow math (F6):** int-plus-int uses sign extension, a 64-bit
    add, and two range comparisons instead of a 32-bit overflow test.
 
@@ -371,12 +375,13 @@ proposals against that profile.
 Dump-driven experiments from section 1.4; one hypothesis per attempt, with
 isolated bench-ab medians and same-config assembly diffs before acceptance.
 
-- **A14 (P1) - arithmetic de-fusion:** give `Add`, `Sub`, and `Mul` separate
-  arms (F3). The top-level `RWD00` table already has separate entries, so
-  the dispatch target set and BTB shape should remain unchanged; only the
-  arm bodies specialize. Expected effect: remove 1-3 inner compares and a
-  second indirect jump on the mixed path, and potentially collapse F5's
-  cloned slow tails.
+- **A14 (P1) - arithmetic de-fusion (DONE):** accepted as variant A:
+  `Add`/`Sub`/`Mul` have dedicated arms (straight-line int fast paths,
+  inline float resolution, op-literal slow-path calls); `Div`/`Mod`/`Exp`
+  remain fused. Three granularities were measured (see
+  `OKOJO_VM_ATTEMPT_LOG.md` for the matrix); all-six-split was rejected
+  as dominated. Result: for-loop-sum -14.6%, arith -4.1%, named-get
+  -4.2%, smi -1.0%; cost +1.9KB Tier1 (duplicated cold paths).
 - **A15 (P2) - operand snapshots:** read `acc` and `slotRef` into locals
   once before multi-testing their tags (F4). A 16-byte `JsValue` local
   whose `Obj` half is unused on the numeric path may promote to one GPR
@@ -446,11 +451,10 @@ All open work items in one table. Completed items live in
 | A8 | Per-op implementation changes (smi fast paths etc.) | open | V8/Node reference observations per AGENTS tooling rules |
 | A9 | Opcode set streamlining | open | compiler-contract change; needs OkojoBytecodeTool evidence first |
 | A11 | Tree-walk interpreter alternative | open (last resort) | only if the bytecode path plateaus; requires its own feature note |
-| A14 | Arithmetic arm de-fusion | PLANNED | section 4 (P1) |
 | A15 | Operand snapshots before tag tests | PLANNED | section 4 (P2) |
 | A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
 | A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
-| A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends A14) |
+| A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends the accepted A14 to Star/Ldar/Inc/TestEqual families) |
 | A24 | Residual operand-scale stack traffic | PROPOSED | V4 |
 | A25 | Dispatch-edge store diet | PROPOSED | V6 |
 | A26 | Frame-scoped global-IC base caching | PROPOSED | V7 |
