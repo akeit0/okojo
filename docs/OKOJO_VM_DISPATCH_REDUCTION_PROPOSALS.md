@@ -20,12 +20,12 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C3-C4, A14-A17 and A19 (section 4), and V2-V8.
-C1-C2, V1 (A21), and A18 (`SkipLocalsInit`) were accepted and are recorded
-in `OKOJO_VM_ATTEMPT_LOG.md` and the insights document. Every item below is
-backed by dynamic opcode profiles (T2, `--profile-opcodes`), bytecode
-disassembly (OkojoBytecodeTool), or per-arm JIT analysis (`analyze-jit.ps1`
-+ listing reads) captured on 2026-08-28.
+Status: ACTIVE PROPOSALS: C3-C4, A14-A15 and A17/A19 (section 4), and
+V3-V8. C1-C2, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), and A16 were
+accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the insights
+document. Every item below is backed by dynamic opcode profiles (T2,
+`--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm
+JIT analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
 evidence in section 5 is recorded for the R3-R5 revisit trigger but is
@@ -159,9 +159,10 @@ isolated bench-ab median and same-config assembly diff land.
    dereference it. Numeric results also use a `vucomisd` self-compare,
    conditional NaN canonicalization, and a second store clearing `Obj`; a
    single float add therefore pays `vucomisd`, two branches, a pointer
-   reload, and two stores before the next dispatch. (The A21 local
-   accumulator removed the pointer reloads; the canonicalization cost
-   remains, see A16.)
+   reload, and two stores before the next dispatch. ADDRESSED: the pointer
+   reloads were removed by the A21 local accumulator, and the
+   canonicalization + Obj-clearing store by A16's in-place numeric result
+   writes (see the attempt log).
 3. **Arithmetic re-dispatch (F3):** the fused arm compares `op` again with
    `cmp edx,59` (`Add`) and `cmp edx,60` (`Sub`), then uses the `RWD776`
    secondary table for `Div`/`Mod`/`Exp` (IG293-IG297). The int-plus-int
@@ -236,42 +237,14 @@ the `Ldar` copy destination is a plain local store (no write barrier), so V2
 only needs to handle the `Star` direction, and the `[rbp-0x338]` pointer
 reloads disappeared from every arm.
 
-### V2 (backlog A22). Star/Mov write-barrier elimination for ref-free values
+### V2 (accepted A22). Star/Mov write-barrier elimination - ACCEPTED, moved
 
-`Star`'s `Unsafe.Add(ref registerRef, reg) = acc` emits
-`movsq + call CORINFO_HELP_ASSIGN_BYREF` - a helper call per execution of
-the hottest opcode. The listing proves null stores need no barrier
-(IG536). Specialize the copy:
-
-```csharp
-ref var dst = ref Unsafe.Add(ref registerRef, reg);
-if (acc.Obj is null)
-{
-    // both stores are barrier-free; JIT elides the barrier for null
-    dst.UnsafeU = acc.U;
-    dst.UnsafeObj = null;
-}
-else
-{
-    dst = acc; // rare: ref-carrying value keeps the checked barrier
-}
-```
-
-(Exact mutation mechanism TBD - `JsValue` is a readonly struct, so this
-needs either `Unsafe.AsRef`-based field writes in a dedicated internal
-helper or a pair of internal mutable accessors; keep it in one
-`CopyValueTo(ref JsValue dst, in JsValue src)` helper so `Mov` and other
-register writers share it.)
-
-- The branch is highly predictable in numeric loops (always null) and in
-  object loops (always non-null).
-- Applies to `Star`, `Mov`, and any arm that stores acc to the register
-  file. With V1 landed, `Ldar` needs nothing.
-- Risk: struct-field-write aliasing must not regress the JIT's ability to
-  keep `acc` enregistered post-V1; capture arm listings before accepting.
-- Verify: `analyze-jit.ps1` shows zero `calls` in the `Star` arm for the
-  numeric configs; bench-ab on `smi-sum-loop` (3M barrier calls per probe
-  removed) and `named-get` (5M).
+Accepted together with A16 and recorded in `OKOJO_VM_ATTEMPT_LOG.md`.
+Implementation note retained for the backlog: `JsValue.CopyValueTo` writes
+ref-free values through a scalar `ulong`-typed byref plus a raw zero store
+for the null-Obj half; a mutable overlay struct is NOT usable (CoreCLR
+reorders GC-reference fields first regardless of Sequential layout -
+insights 3.9).
 
 ### V3 (backlog A23). Hot-arm de-fusion beyond arithmetic
 
@@ -407,13 +380,8 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
 - **A15 (P2) - operand snapshots:** read `acc` and `slotRef` into locals
   once before multi-testing their tags (F4). A 16-byte `JsValue` local
   whose `Obj` half is unused on the numeric path may promote to one GPR
-  and remove the aliasing barrier.
-- **A16 (P3) - integer numeric canonicalization:** test
-  `(bits & BoxMask) == BoxHdr` on the `vmovq` integer bits instead of the
-  floating self-compare (F2 residual). This follows the existing
-  box-header mask pattern, removes the xmm-to-flags dependency, preserves
-  the exact `JsValue` invariant, and may be centralized in one internal
-  `FromNumericResult(double)` helper.
+  and remove the aliasing barrier. (Partially addressed by A16: numeric
+  results are written in place, so the result-side tag tests are gone.)
 - **A17 (P4) - 32-bit overflow:** compare `int r = a + b` with
   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form)
   against current semantics (F6). Tiny innermost-loop experiment; needs
@@ -425,11 +393,15 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   used by LuaJIT/JSC; V8 Ignition avoids the same cost with a physical
   accumulator that the current C# loop cannot provide per dynamic opcode.
   Adding bytecode entries changes the BTB target set, so re-check the
-  dispatch evidence (insights 1.2). Deferred until A14-A17 results justify
-  an opcode-contract change.
+  dispatch evidence (insights 1.2). Deferred until A14-A15/A17 results
+  justify an opcode-contract change.
 
-(A18 / P5, the `SkipLocalsInit` entry-clear probe for F1, was accepted and
-moved to `OKOJO_VM_ATTEMPT_LOG.md`.)
+(A16 / P3, integer numeric canonicalization with in-place result writes,
+was accepted and moved to `OKOJO_VM_ATTEMPT_LOG.md`; the `BoxMask` idea
+from the original proposal was refined to a full NaN predicate
+`(bits & 0x7FFF...) > 0x7FF0...` because `BoxMask` misses signaling NaNs.
+A18 / P5, the `SkipLocalsInit` entry-clear probe for F1, was also accepted
+and moved.)
 
 ## 5. Fusion revisit-trigger evidence (recorded, not proposed)
 
@@ -476,10 +448,8 @@ All open work items in one table. Completed items live in
 | A11 | Tree-walk interpreter alternative | open (last resort) | only if the bytecode path plateaus; requires its own feature note |
 | A14 | Arithmetic arm de-fusion | PLANNED | section 4 (P1) |
 | A15 | Operand snapshots before tag tests | PLANNED | section 4 (P2) |
-| A16 | Numeric result canonicalization | PLANNED | section 4 (P3) |
 | A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
 | A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
-| A22 | Star/Mov write-barrier elimination | PROPOSED | V2 |
 | A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends A14) |
 | A24 | Residual operand-scale stack traffic | PROPOSED | V4 |
 | A25 | Dispatch-edge store diet | PROPOSED | V6 |
@@ -491,9 +461,11 @@ All open work items in one table. Completed items live in
 ## 8. Suggested order
 
 1. C3 (block-lexical TDZ elision; `stopwatch-modern` has direct evidence).
-2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion + V2 barrier fast
-   path (small VM patches with direct arm-level acceptance criteria).
-3. A14-A17 (arithmetic/operand experiments from the F1-F6 dump findings).
+2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion (small VM patches
+   with direct arm-level acceptance criteria; the Star-side barrier part
+   of the original plan is already covered by the accepted V2).
+3. A14-A15 and A17 (arithmetic/operand experiments from the F1-F6 dump
+   findings).
 4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
 5. V7 global-IC base caching (after V1 frees frame budget).

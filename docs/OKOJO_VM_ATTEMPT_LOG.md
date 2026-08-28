@@ -312,6 +312,67 @@ removes for free.
 Evidence: working-tree attempt; numbers from the user-supplied
 VsJintBenchmarks before/after run and the Tier1 code-size report.
 
+### A22 / V2 + A16 write-barrier elimination and in-place numeric results - ACCEPTED (artifact level; bench-ab pending)
+
+Joint attempt (2026-08-28) implementing proposals V2 (A22) and A16 (P3),
+extended by user direction: arithmetic arms write numeric results in place
+(a numeric `acc` guarantees `Obj == null`, so only the bits need updating -
+same `Unsafe.As<JsValue, double>(ref acc)` idiom as the existing AddSmi
+float path), skipping both the 16-byte construction and the Obj-clearing
+store.
+
+Implementation:
+
+- `JsValue.CopyValueTo(ref dst, in src)`: null-Obj values are written as
+  two plain stores (`U` via a scalar `ulong`-typed byref at offset 0, raw
+  zero at offset 8 for the Obj half); ref-carrying values keep the checked
+  copy. Applied to `Star`/`StarWide`, `Mov`/`MovWide`, and
+  `StaLexicalLocal`/`StaLexicalLocalWide`.
+- `JsValue.CanonicalizeNumericResult(double)`: full NaN predicate
+  `(bits & 0x7FFF_FFFF_FFFF_FFFF) > 0x7FF0_0000_0000_0000` via
+  `Unsafe.BitCast` (the original `BoxMask` idea was insufficient - it
+  misses signaling NaNs, whose top 16 bits are `0x7FF0`/`0xFFF0`, not
+  `0x7FF8`). Used by the generic arithmetic result, `Inc`/`Dec` float,
+  `MulSmi`, `ModSmi`, and `ExpSmi`, which now update the result bits in
+  place.
+
+Arm evidence (tiered-off FullOpts; snapshots
+`20260828-175121-0000-pre-v2-a16-baseline` and
+`20260828-181117-0001-v2-a16-barrier-numeric`):
+
+- `Star` arm (opcodes 18/150): hot null path is
+  `mov rdx,[rbp-0x60]; mov [rcx],rdx; xor edx,edx; mov [rcx+8],edx` - zero
+  calls, where the baseline executed `movsq` +
+  `call CORINFO_HELP_ASSIGN_BYREF` per execution of the hottest opcode.
+  Same split in `StaLexicalLocal` (19/151).
+- `ExpSmi`/generic-arith results: `vmovq` + AND 0x7FFF... + CMP/JA integer
+  NaN test, single in-place `vmovsd qword [acc], xmm0`; the baseline's
+  `vucomisd xmm0,xmm0` self-compare, `jp`/`jne`, and separate
+  Obj-clearing store are gone on those arms.
+- Whole method: Tier1 20861 -> 20980 B (+119 B from the dual-path
+  branches), Tier0 -207 B; calls 198 -> 198 (cold-side barriers remain);
+  stack 904 B and IL locals 45 unchanged.
+
+Tests: focused Arithmetic/Assignment/NumberPrototype 60/60; full suite
+2,165 passed, 4 skipped.
+
+Bench-ab/BDN intentionally not run yet (user instruction: artifact first).
+Single probe medians, non-decisional: smi-sum-loop tiered-off
+2436.8 -> 2079.5 us, pgo-off 2302.7 -> 2155.8 us.
+
+Knowledge produced:
+
+1. **Sequential overlays with GC refs are silently reordered** - see the
+   new insights 3.9. The first implementation used a mutable overlay
+   struct through `Unsafe.As<JsValue, Overlay>`; CoreCLR moved the
+   reference field first, the two half-stores swapped, a float bit pattern
+   landed in a live GC slot, and the suite failed with unrelated-looking
+   NaNs and an AccessViolation in the standalone repro. Bisecting the
+   arms (revert Star -> tests pass; overlay probe -> inverted offsets)
+   settled it. Scalar-typed byrefs are the only safe field-write route.
+
+Evidence: snapshot `20260828-181117-0001-v2-a16-barrier-numeric/notice.md`.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -329,6 +390,8 @@ VsJintBenchmarks before/after run and the Tier1 code-size report.
 | T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
 | T2 opcode/pair profiler | PREPARED (`OkojoVmProfile=true` + `--profile-opcodes`; gates superinstruction selection) |
 | A18 `SkipLocalsInit` entry probe | ACCEPTED (prologue clear removed; Tier1 -223 B; suite green) |
+| A22 Star/Mov write-barrier elimination | ACCEPTED (artifact level; bench-ab pending; hot Star path barrier-free) |
+| A16 numeric result canonicalization | ACCEPTED (integer NaN test + in-place result writes; suite green) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
 | A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
 | C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in insights 1.16) |

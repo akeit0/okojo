@@ -1477,7 +1477,7 @@ public sealed partial class JsRealm
                                     op == JsOpCode.StarWide
                                         ? Unsafe.ReadUnaligned<ushort>(ref pc)
                                         : pc;
-                                Unsafe.Add(ref registerRef, reg) = acc;
+                                JsValue.CopyValueTo(ref Unsafe.Add(ref registerRef, reg), in acc);
                                 pc = ref Unsafe.Add(ref pc, op == JsOpCode.StarWide ? 2 : 1);
                             }
                             break;
@@ -1509,7 +1509,10 @@ public sealed partial class JsRealm
                                 }
 
                                 slotRef = ref Unsafe.Add(ref registerRef, intNum1);
-                                Unsafe.Add(ref registerRef, intNum2) = slotRef;
+                                JsValue.CopyValueTo(
+                                    ref Unsafe.Add(ref registerRef, intNum2),
+                                    in slotRef
+                                );
                             }
                             break;
                         case JsOpCode.StaLexicalLocal:
@@ -1526,7 +1529,7 @@ public sealed partial class JsRealm
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
                                 if (slotRef.IsTheHole)
                                     ThrowHole();
-                                slotRef = acc;
+                                JsValue.CopyValueTo(ref slotRef, in acc);
                             }
                             break;
                         case JsOpCode.LdaGlobal:
@@ -2097,7 +2100,9 @@ public sealed partial class JsRealm
                                         break;
                                     }
 
-                                    acc = new(longNum);
+                                    // acc is Int32 here, so its Obj half is already
+                                    // null: write the float bits in place.
+                                    Unsafe.As<JsValue, double>(ref acc) = longNum;
                                     break;
                                 }
 
@@ -2149,7 +2154,7 @@ public sealed partial class JsRealm
                                 JsOpCode.Exp => NumberExponentiate(num1, num2),
                                 _ => 0, // throw makes no sense, and throw or eliminating default cause deoptimization, so just return 0 which will be ignored anyway.
                             };
-                            acc = new(num1);
+                            acc = new(JsValue.CanonicalizeNumericResult(num1));
                             break;
                         }
 
@@ -2170,7 +2175,8 @@ public sealed partial class JsRealm
                                         break;
                                     }
 
-                                    acc = new(longNum);
+                                    // acc is Int32 here: write the float bits in place.
+                                    Unsafe.As<JsValue, double>(ref acc) = longNum;
                                     break;
                                 }
 
@@ -2201,11 +2207,15 @@ public sealed partial class JsRealm
                                 if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                     acc = JsValue.FromInt32((int)longNum);
                                 else
-                                    acc = new(longNum);
+                                    Unsafe.As<JsValue, double>(ref acc) = longNum;
                             }
                             else if (acc.IsFloat64)
                             {
-                                acc = new(acc.FastFloat64Value + intNum1);
+                                // acc is Float64 here: write the bits in place.
+                                Unsafe.As<JsValue, double>(ref acc) =
+                                    JsValue.CanonicalizeNumericResult(
+                                        acc.FastFloat64Value + intNum1
+                                    );
                             }
                             else
                             {
@@ -2225,7 +2235,13 @@ public sealed partial class JsRealm
                                 if (acc.IsInt32)
                                     acc = Mul(acc, intNum1);
                                 else if (acc.IsNumber)
-                                    acc = new(acc.FastNumberValue * intNum1);
+                                {
+                                    // acc is a number: write the bits in place.
+                                    Unsafe.As<JsValue, double>(ref acc) =
+                                        JsValue.CanonicalizeNumericResult(
+                                            acc.FastNumberValue * intNum1
+                                        );
+                                }
                                 else
                                     acc = HandleArithmeticNonNumberSmiSlowPath(
                                         this,
@@ -2252,7 +2268,11 @@ public sealed partial class JsRealm
                                 }
                                 else if (acc.IsFloat64)
                                 {
-                                    acc = new(acc.FastFloat64Value % intNum1);
+                                    // acc is Float64 here: write the bits in place.
+                                    Unsafe.As<JsValue, double>(ref acc) =
+                                        JsValue.CanonicalizeNumericResult(
+                                            acc.FastFloat64Value % intNum1
+                                        );
                                 }
                                 else
                                 {
@@ -2271,7 +2291,13 @@ public sealed partial class JsRealm
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 if (acc.IsNumber)
-                                    acc = new(NumberExponentiate(acc.FastNumberValue, intNum1));
+                                {
+                                    // acc is a number: write the bits in place.
+                                    Unsafe.As<JsValue, double>(ref acc) =
+                                        JsValue.CanonicalizeNumericResult(
+                                            NumberExponentiate(acc.FastNumberValue, intNum1)
+                                        );
+                                }
                                 else
                                     acc = HandleArithmeticNonNumberSmiSlowPath(
                                         this,

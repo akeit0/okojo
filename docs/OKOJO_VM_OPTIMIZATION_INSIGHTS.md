@@ -489,6 +489,26 @@ the numeric arithmetic control moved +3.9% in the same seven-round run.
 The change was rejected. Keep the existing arithmetic order until a guarded
 Date specialization has a stable benchmark and a clear Tier1 shape.
 
+### 3.9 Do not overlay a struct with GC-reference fields for writes (A22 bug)
+
+A mutable `[StructLayout(LayoutKind.Sequential)] struct { ulong U;
+object? Obj; }` written through `Unsafe.As<JsValue, Overlay>` corrupted the
+heap: CoreCLR ignores Sequential as a hint when a struct has GC-reference
+fields and places the reference field first, so the overlay's field offsets
+were inverted relative to the target and the two half-stores landed in each
+other's slots - a float bit pattern ended up in a live GC slot and crashed
+later (AV in string code, far from the store). Symptom is delayed and
+unrelated-looking; a standalone sentinel probe (`write distinct sentinels
+through the overlay, read back through the original typed view`) pinpointed
+it.
+
+House rule: mutate struct fields only through scalar-typed byrefs whose GC
+classification matches reality (e.g. `ref Unsafe.As<JsValue, ulong>(ref
+dst)` for the non-ref half, a raw zero store for the null-Obj half). Byref
+`Unsafe.As<TFrom,TTo>` stays for reinterpretation of non-ref scalars
+(JsValue <-> double, insights 3.3); `Unsafe.BitCast` for value conversions;
+explicit-offset `[FieldOffset]` overlays verified by probe if ever needed.
+
 ## 4. Measurement methodology
 
 | rule | detail |

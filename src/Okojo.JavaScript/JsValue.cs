@@ -167,6 +167,41 @@ public readonly struct JsValue : IEquatable<JsValue>
         return new(value);
     }
 
+    // Copies src into dst. Ref-free values (Obj == null) are written as two
+    // plain stores - a null store needs no write barrier and U is not a GC
+    // reference - so the hottest register writes avoid
+    // CORINFO_HELP_ASSIGN_BYREF. Ref-carrying values keep the checked copy.
+    // Field writes must go through scalar-typed byrefs: a mutable overlay
+    // struct cannot be used because CoreCLR ignores Sequential layout and
+    // moves GC-reference fields first, which inverts the half-store offsets.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void CopyValueTo(ref JsValue dst, in JsValue src)
+    {
+        if (src.Obj is null)
+        {
+            ref var dstBits = ref Unsafe.As<JsValue, ulong>(ref dst);
+            dstBits = src.U;
+            Unsafe.Add(ref dstBits, 1) = 0;
+        }
+        else
+        {
+            dst = src;
+        }
+    }
+
+    // Canonicalizes a numeric result in the integer domain (no xmm-to-flags
+    // dependency): any exponent-all-ones value with a nonzero mantissa is a
+    // NaN and becomes the canonical JsNan bit pattern. Callers that write the
+    // result in place into a numeric JsValue keep the Obj == null invariant.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static double CanonicalizeNumericResult(double value)
+    {
+        var bits = Unsafe.BitCast<double, ulong>(value);
+        if ((bits & 0x7FFFFFFFFFFFFFFFUL) > 0x7FF0000000000000UL)
+            return Unsafe.BitCast<ulong, double>(JsNan);
+        return value;
+    }
+
     public static JsValue FromString(string value)
     {
         return new(Tag.JsTagString, 0, value);
