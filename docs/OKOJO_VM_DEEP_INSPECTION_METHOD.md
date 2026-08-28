@@ -146,6 +146,11 @@ These signatures are candidate explanations, not proof of a bottleneck. The
 acceptance order remains benchmark median, relevant optimized assembly, then
 IL/local evidence.
 
+Do not spend an attempt removing the `opcodePc`/`op` stack homes merely because
+they are visible in the listing: the catch reads `opcodePc` and fused arms read
+`op`, so EH liveness forces those homes. De-fusing can reduce `op` readers, but
+the spill itself is not a target until the lifetime contract changes.
+
 ## 4. Known blind spots (and what fills them)
 
 The current toolchain answers "what does the code look like" but not:
@@ -239,20 +244,36 @@ The recurring "how to think" checklist when a result surprises:
 
 In dependency order:
 
-1. Listing analyzer (T1): parse `RWD00` + IG blocks into a per-arm table
-   (bytes, loads/stores, calls, private `[rbp-...]` slots, indirect
-   jumps) and diff snapshots arm-by-arm - automates §3.2 step 5.
-2. `OKOJO_VM_PROFILE` build constant (T2): per-opcode execution counts and
-   (prev -> next) pair matrix, `--profile-opcodes` probe flag - the
-   data source for any fusion/superinstruction decision.
-3. Ceiling-build harness (T5): named probe-only constants for accumulator
-   locality and numeric-result canonicalization before invasive designs.
-4. `VmLoopIlMap` + `--hold` + `-IlMap` snapshot integration (§5.2).
-5. Sampled heatmap script over the IL/native map (§5.3).
-6. ETW PMC / VTune wrapper for branch-miss and L1I per dispatched op
-   (denominator from item 3).
-7. uiCA/llvm-mca reports for short dispatch and arithmetic sequences (T6),
-   only after T1 has extracted stable regions.
+1. **T1 - `analyze-jit`:** parse `RWD00`'s `dd` entries and IG blocks into a
+   per-opcode arm table containing code bytes, instruction count,
+   loads/stores, calls, private `[rbp-...]` slots, and indirect jumps. Diff
+   the table arm-by-arm between snapshots so layout churn is visible instead
+   of being inferred from a 6,000-line listing. A small PowerShell or C# tool
+   beside `VmLoopProbe` is sufficient.
+2. **T2 - dynamic opcode/pair profile:** add an `OKOJO_VM_PROFILE` build
+   constant, per-opcode execution counts, and the `(previous -> next)` opcode
+   pair matrix, with a `--profile-opcodes` probe output. The normal build must
+   pay zero cost. This supplies the denominator for miss data and the actual
+   fusion candidates for P6/A19.
+3. **T5 - ceiling-build harness:** formalize probe-only named constants such
+   as `CEILING_ACC_LOCAL`, `CEILING_NO_NAN_CANON`, and
+   `CEILING_NO_OBJ_CLEAR`; let `bench-ab.ps1` select those builds. P7/A20 and
+   the numeric-result ceiling are the first customers.
+4. **T3 - sampled cycle heatmap:** use ETW CPU sampling (`PerfView` or
+   `dotnet-trace` at the maximum useful rate), a non-diffable listing with
+   addresses, and T1's opcode-to-IG map to attribute sample IPs to arms. The
+   output should answer whether dispatch or mixed arithmetic consumes the
+   `smi-sum-loop` time.
+5. **T4 - PMU wrapper:** add `capture-pmc.ps1` using VTune when available or
+   `xperf -pmcprofile BranchMispredictions,CacheMisses`; report branch misses
+   and L1I misses per dispatched op using T2's counts. This is the evidence
+   needed for BTB/cluster-spread claims on real workloads.
+6. **IL/native map:** implement `VmLoopIlMap` + `--hold` + `-IlMap` snapshot
+   integration (§5.2), keeping the active tier explicit.
+7. **Static sequence analysis (T6):** run uiCA/llvm-mca on the roughly
+   20-instruction dispatch and hot-arithmetic sequences extracted by T1. Use
+   it for port-pressure comparisons, especially P3 variants, without making
+   it a substitute for wall-clock evidence.
 
 Do not begin the three-operand superinstruction track until T2 supplies real
 opcode-pair frequencies and the accumulator ceiling probe shows enough headroom

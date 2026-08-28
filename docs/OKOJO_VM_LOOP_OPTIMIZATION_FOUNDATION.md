@@ -180,34 +180,94 @@ Two consequences drive the attempt backlog:
 
 ## Next plan: dump-driven arithmetic and entry costs
 
-The current tiered-off `Run` listing is 21,924 bytes with 44 IL locals. It
-gives the following working hypotheses; none is an accepted optimization until
-it has an isolated bench-ab median and a same-config assembly diff:
+The current tiered-off `Run` listing is 21,924 bytes with 44 IL locals. The
+reference artifact is
+`artifacts/vmloopopt/snapshots/20260828-112717-0008-current-asm/jit/smi-sum-loop.tiered-off.direct.jit.txt`.
+The following observations are concrete assembly signatures, but their
+performance meaning is still a hypothesis: each must get an isolated bench-ab
+median and a same-config assembly diff before it becomes an accepted
+optimization.
 
-1. **Entry zeroing (F1):** the `init_locals` prologue clears about 1.1KB of
-   stack on every `Run` entry. Test this only with re-entrant cases such as
-   accessors, function invocation, and generator drives.
-2. **Accumulator indirection (F2):** arithmetic arms repeatedly reload the
-   spilled `&acc`, then clear the `Obj` half after numeric writes. Measure an
-   accumulator-local ceiling before attempting an invasive representation
-   change.
-3. **Arithmetic re-dispatch (F3):** the fused arithmetic arm compares `op`
-   again and uses a secondary table. De-fuse `Add`/`Sub`/`Mul` as separate
-   arms, keeping the existing top-level opcode table.
-4. **Aliasing-blocked CSE (F4):** mixed numeric paths reload and mask-test the
-   accumulator more than once. Copy operands to locals before multi-testing.
-5. **Cloned slow tails (F5):** one non-number slow-path call is emitted along
-   several flows with separate temporary slots. Check whether de-fusing or a
-   single exit removes the copies.
-6. **Wide overflow math (F6):** the int-plus-int path uses sign extension and
-   64-bit range checks. Test a 32-bit overflow form with exact Smi semantics.
+### Working dump findings
 
-Execution order is: build T1's arm-level listing report, build T2's opcode and
-pair profile, run the P7 accumulator-local ceiling probe, then try P1-P5 as
-separate attempts. P6 superinstructions require both the pair profile and a
-positive ceiling; do not start that bytecode/compiler change from source
-intuition alone. T3-T6 are follow-on attribution tools if the isolated results
-remain unclear.
+1. **Entry zeroing (F1):** `init_locals=True` plus the `0x4B8`-byte frame emits
+   a prologue clear loop (`mov rax,-0x420`, three `vmovdqa` stores, `add rax,48`,
+   `jne`). About 1.1KB is cleared on every `Run` entry. This is mostly
+   irrelevant to a single long-running loop, but matters for accessor getters,
+   `InvokeFunction` re-entry, and generator drives.
+2. **Accumulator indirection (F2):** arms repeatedly reload
+   `mov rax,bword ptr [rbp-0x338]` for the spilled `&this.acc` and then
+   dereference it. Numeric results also use a `vucomisd` self-compare,
+   conditional NaN canonicalization, and a second store clearing `Obj`; a
+   single float add therefore pays `vucomisd`, two branches, a pointer reload,
+   and two stores before the next dispatch.
+3. **Arithmetic re-dispatch (F3):** the fused arm compares `op` again with
+   `cmp edx,59` (`Add`) and `cmp edx,60` (`Sub`), then uses the `RWD776`
+   secondary table for `Div`/`Mod`/`Exp` (IG293-IG297). The int-plus-int path
+   has its own `cmp edx,59/60/68` chain (IG312-IG316). The mixed path pays this
+   after the accumulator overflows to Float64.
+4. **Aliasing-blocked CSE (F4):** the mixed path performs two back-to-back
+   `and r9,qword ptr [rax]` mask tests in IG284. The `IsFloat64`/`IsInt32`
+   reads go through a byref, so RyuJIT does not CSE them across possible
+   aliasing.
+5. **Cloned slow tails (F5):** `HandleArithmeticNonNumberSlowPath` is emitted
+   along IG280-IG283, IG285-IG287, and IG289-IG291, each with a private 16-byte
+   temporary (`[rbp-0x1C0]`, `-0x1D0`, `-0x1E0`). This is code-size and frame
+   pressure from one source-level tail reached through three flows.
+6. **Wide overflow math (F6):** int-plus-int uses sign extension, a 64-bit
+   add, and two range comparisons instead of a 32-bit overflow test.
+
+Non-goal: the `opcodePc`/`op` spills at `[rbp-0x370]`/`[rbp-0x8C]` are
+EH-liveness-forced because the catch reads `opcodePc` and arithmetic arms read
+`op`. P1 can reduce `op` readers, but the spills are not a target while the
+catch needs that cursor.
+
+### Planned experiments
+
+1. **P1 / A14 - de-fuse arithmetic:** give `Add`, `Sub`, and `Mul` separate
+   arms. The top-level `RWD00` table already has separate entries, so the
+   dispatch target set and BTB shape should remain unchanged; only the arm
+   bodies specialize. Expected effect: remove 1-3 inner compares and a second
+   indirect jump on the mixed path, and potentially collapse F5's cloned tail.
+2. **P2 / A15 - snapshot operands:** read `acc` and `slotRef` into locals once
+   before multi-testing their tags. A 16-byte `JsValue` local whose `Obj` half
+   is unused on the numeric path may promote to one GPR and remove F4's
+   aliasing barrier.
+3. **P3 / A16 - integer numeric canonicalization:** test
+   `(bits & BoxMask) == BoxHdr` on the `vmovq` integer bits instead of the
+   floating self-compare. This follows the existing box-header mask pattern,
+   removes the xmm-to-flags dependency, preserves the exact `JsValue`
+   invariant, and may be centralized in one internal
+   `FromNumericResult(double)` helper.
+4. **P4 / A17 - 32-bit overflow:** compare `int r = a + b` with
+   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form) against
+   current semantics. This is a tiny innermost-loop experiment and needs exact
+   Smi-to-Float64 promotion tests.
+5. **P5 / A18 - entry clear ceiling:** test `[SkipLocalsInit]` on `Run` (or,
+   only after an assembly-wide audit, at assembly scope) after auditing all
+   managed-reference initialization. Verify that the prologue loop disappears
+   in tiered-off asm and use re-entrant accessor/generator workloads, not just
+   `smi-sum-loop`.
+6. **P6 / A19 - three-operand superinstructions:** after T2 pair frequencies
+   and P7 headroom, fuse patterns such as `Ldar rA; Add rB; Star rC` into
+   `AddRR rA,rB -> rC`, bypassing `this.acc` and two dispatches. This follows
+   the register-machine shape used by LuaJIT/JSC; V8 Ignition avoids the same
+   cost with a physical accumulator that the current C# loop cannot provide per
+   dynamic opcode. Adding bytecode entries changes the BTB target set, so
+   re-check the dispatch evidence.
+7. **P7 / A20 - accumulator-local ceiling:** make a probe-only hacked build
+   with a local `ulong accBits` mirror used only by numeric
+   arithmetic/compare/`Ldar`/`Star` arms. It may be semantically wrong outside
+   numerics and is valid only for cases such as `smi-sum-loop` and
+   `for-loop-sum`. A small ceiling kills the invasive path; a large one
+   justifies the synchronization audit for calls, suspends, and exceptions.
+
+Execution order is T1 listing analysis, T2 opcode/pair profiling, the P7
+ceiling probe, then isolated P1-P5 attempts. P6 remains deferred until both
+the pair profile and ceiling are positive. T3-T6 are follow-on attribution
+tools when the isolated results remain unclear. When an F1-F6 hypothesis is
+confirmed, copy the measured result into `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`
+with its snapshot and tier; until then, keep it labeled as a hypothesis here.
 
 ## Candidate Attempts
 
