@@ -17,7 +17,7 @@ internal ref struct PooledCharBuilder(Span<char> initialBuffer)
         buffer[Length++] = c;
     }
 
-    public void Append(ReadOnlySpan<char> value)
+    public void Append(scoped ReadOnlySpan<char> value)
     {
         EnsureCapacity(value.Length);
         value.CopyTo(buffer[Length..]);

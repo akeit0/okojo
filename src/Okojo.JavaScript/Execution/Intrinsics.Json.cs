@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Okojo.JavaScript.Internals;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -96,6 +97,22 @@ public partial class Intrinsics
                 var gap = args.Length > 2 ? JsonStringifyComputeGap(realm, args[2]) : string.Empty;
 
                 var visited = new HashSet<JsObject>();
+                if (replacer is null && propertyList is null && gap.Length == 0)
+                {
+                    var builder = new PooledCharBuilder(stackalloc char[256]);
+                    try
+                    {
+                        var root = ApplyJsonToJson(realm, string.Empty, value);
+                        return AppendJsonFastValue(realm, root, ref builder, visited)
+                            ? builder.ToString()
+                            : JsValue.Undefined;
+                    }
+                    finally
+                    {
+                        builder.Dispose();
+                    }
+                }
+
                 var serialized = JsonStringifyTopLevel(
                     realm,
                     value,
@@ -1056,6 +1073,203 @@ public partial class Intrinsics
             visited,
             string.Empty
         );
+    }
+
+    private static bool AppendJsonFastValue(
+        JsRealm realm,
+        in JsValue value,
+        ref PooledCharBuilder builder,
+        HashSet<JsObject> visited
+    )
+    {
+        if (value.IsUndefined || value.IsSymbol)
+            return false;
+        if (value.IsBigInt)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Do not know how to serialize a BigInt"
+            );
+        if (value.IsNull)
+        {
+            builder.Append("null".AsSpan());
+            return true;
+        }
+        if (value.IsTrue)
+        {
+            builder.Append("true".AsSpan());
+            return true;
+        }
+        if (value.IsFalse)
+        {
+            builder.Append("false".AsSpan());
+            return true;
+        }
+        if (value.IsString)
+        {
+            AppendJsonStringFast(ref builder, value.AsString());
+            return true;
+        }
+        if (value.IsNumber)
+        {
+            var number = value.NumberValue;
+            if (double.IsNaN(number) || double.IsInfinity(number))
+            {
+                builder.Append("null".AsSpan());
+                return true;
+            }
+
+            Span<char> numberBuffer = stackalloc char[NumberFormatting.MaxLength];
+            NumberFormatting.TryFormat(number, numberBuffer, out var written);
+            builder.Append(numberBuffer[..written]);
+            return true;
+        }
+
+        if (!value.TryGetObject(out var obj))
+            return false;
+        if (obj is JsFunction)
+            return false;
+        if (obj is JsRawJsonObject rawJsonObject)
+        {
+            builder.Append(rawJsonObject.RawJson.AsSpan());
+            return true;
+        }
+
+        if (obj is JsArray array && TryGetDenseJsonArray(array, out var dense))
+        {
+            if (!visited.Add(obj))
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Converting circular structure to JSON"
+                );
+
+            try
+            {
+                builder.Append('[');
+                for (var i = 0; i < array.Length; i++)
+                {
+                    if (i != 0)
+                        builder.Append(',');
+
+                    var element = dense[i];
+                    var key = i.ToString(CultureInfo.InvariantCulture);
+                    var elementValue = ApplyJsonToJson(realm, key, element);
+                    if (!AppendJsonFastValue(realm, elementValue, ref builder, visited))
+                        builder.Append("null".AsSpan());
+                }
+
+                builder.Append(']');
+                return true;
+            }
+            finally
+            {
+                visited.Remove(obj);
+            }
+        }
+
+        if (obj is JsPlainObject)
+        {
+            if (!visited.Add(obj))
+                throw new JsRuntimeException(
+                    JsErrorKind.TypeError,
+                    "Converting circular structure to JSON"
+                );
+
+            try
+            {
+                var keys = CollectEnumerableOwnStringKeysForJsonInternalize(realm, obj);
+                var propertyBuilder = new PooledCharBuilder(stackalloc char[128]);
+                try
+                {
+                    builder.Append('{');
+                    var emitted = 0;
+                    for (var i = 0; i < keys.Length; i++)
+                    {
+                        var key = keys[i];
+                        if (!TryGetJsonPropertyByStringKey(realm, obj, key, out var propertyValue))
+                            propertyValue = JsValue.Undefined;
+
+                        var jsonValue = ApplyJsonToJson(realm, key, propertyValue);
+                        propertyBuilder.Clear();
+                        if (!AppendJsonFastValue(realm, jsonValue, ref propertyBuilder, visited))
+                            continue;
+
+                        if (emitted++ != 0)
+                            builder.Append(',');
+                        AppendJsonStringFast(ref builder, key);
+                        builder.Append(':');
+                        builder.Append(propertyBuilder.AsSpan());
+                    }
+
+                    builder.Append('}');
+                    return true;
+                }
+                finally
+                {
+                    propertyBuilder.Dispose();
+                }
+            }
+            finally
+            {
+                visited.Remove(obj);
+            }
+        }
+
+        var serialized = JsonStringifyCore(
+            realm,
+            value,
+            replacer: null,
+            propertyList: null,
+            gap: string.Empty,
+            visited,
+            currentIndent: string.Empty
+        );
+        if (serialized is null)
+            return false;
+        builder.Append(serialized.AsSpan());
+        return true;
+    }
+
+    private static bool TryGetDenseJsonArray(JsArray array, out JsValue[] dense)
+    {
+        dense = array.Dense!;
+        if (
+            dense is null
+            || array.IndexedProperties is not null
+            || array.Length > (uint)dense.Length
+            || array.Length > int.MaxValue
+        )
+        {
+            dense = null!;
+            return false;
+        }
+
+        for (var i = 0; i < array.Length; i++)
+            if (dense[i].IsTheHole)
+            {
+                dense = null!;
+                return false;
+            }
+
+        return true;
+    }
+
+    private static void AppendJsonStringFast(ref PooledCharBuilder builder, string value)
+    {
+        var chars = value.AsSpan();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            var c = chars[i];
+            if (c < ' ' || c is '"' or '\\' || char.IsSurrogate(c))
+            {
+                var escaped = JsonStringEncoding.Escape(value);
+                builder.Append(escaped.AsSpan());
+                return;
+            }
+        }
+
+        builder.Append('"');
+        builder.Append(chars);
+        builder.Append('"');
     }
 
     private static string? JsonStringifyProperty(
