@@ -545,6 +545,7 @@ public partial class Intrinsics
             "indexOf",
             1
         );
+        indexOfFn.LeafBodyField = TryLeafIndexOf;
 
         var lastIndexOfFn = new JsHostFunction(
             Realm,
@@ -566,6 +567,7 @@ public partial class Intrinsics
             "lastIndexOf",
             1
         );
+        lastIndexOfFn.LeafBodyField = TryLeafLastIndexOf;
 
         var sliceFn = new JsHostFunction(
             Realm,
@@ -2038,6 +2040,57 @@ public partial class Intrinsics
         result = JsValue.FromString(
             index < 0 || index >= text.Length ? string.Empty : text[index].ToString()
         );
+        return true;
+    }
+
+    private static bool TryLeafIndexOf(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.indexOf called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var search = args.Length != 0 ? realm.ToJsStringValueSlowPath(args[0]) : "undefined";
+        var position = args.Length > 1 ? realm.ToIntegerOrInfinity(args[1]) : 0d;
+        var start =
+            double.IsNegativeInfinity(position) || position <= 0d ? 0
+            : double.IsPositiveInfinity(position) || position >= text.Length ? text.Length
+            : (int)position;
+        result = JsValue.FromInt32(text.IndexOf(search, start));
+        return true;
+    }
+
+    private static bool TryLeafLastIndexOf(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.lastIndexOf called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var search = args.Length != 0 ? realm.ToJsStringValueSlowPath(args[0]) : "undefined";
+        var numericPosition = args.Length > 1 ? realm.ToNumberSlowPath(args[1]) : double.NaN;
+        var position = double.IsNaN(numericPosition)
+            ? double.PositiveInfinity
+            : realm.ToIntegerOrInfinity(new(numericPosition));
+        var start =
+            double.IsNegativeInfinity(position) || position <= 0d ? 0
+            : double.IsPositiveInfinity(position) || position >= text.Length ? text.Length
+            : (int)position;
+        result = JsValue.FromInt32(text.LastIndexOf(search, start));
         return true;
     }
 
