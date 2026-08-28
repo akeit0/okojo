@@ -339,8 +339,29 @@ internal static class JsRegExpRuntime
 
     internal static bool Test(JsRealm realm, JsRegExpObject rx, string input)
     {
-        // test only needs existence of a match; skip building the result array.
-        return IntrinsicExecStep(realm, rx, input) is not null;
+        var global = rx.Global;
+        var sticky = rx.Sticky;
+        var useLastIndex = global || sticky;
+        var lastIndex = GetLastIndex(realm, rx);
+        var startIndex = useLastIndex ? (int)Math.Min(lastIndex, int.MaxValue) : 0;
+
+        if (useLastIndex && lastIndex > input.Length)
+        {
+            SetLastIndex(realm, rx, 0);
+            return false;
+        }
+
+        // test only needs the match end, not capture ranges or the result array.
+        if (!RegExpEngine.Default.TryMatchEnd(rx.CompiledPattern, input, startIndex, out var end))
+        {
+            if (useLastIndex)
+                SetLastIndex(realm, rx, 0);
+            return false;
+        }
+
+        if (useLastIndex)
+            SetLastIndex(realm, rx, end);
+        return true;
     }
 
     private static long GetLastIndex(JsRealm realm, JsRegExpObject rx)

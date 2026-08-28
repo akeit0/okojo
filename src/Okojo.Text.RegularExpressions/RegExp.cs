@@ -148,6 +148,38 @@ public sealed class RegExp
         return IsMatch(input.AsSpan(), startIndex);
     }
 
+    internal bool TryMatchEnd(ReadOnlySpan<char> input, int startIndex, out int endPosition)
+    {
+        ValidateStart(input, startIndex);
+        bool sticky = (Flags & RegExpFlags.Sticky) != 0;
+        int slotCount = checked(RequiredCaptureCount * 2);
+        int[]? rented = null;
+        Span<int> registers =
+            slotCount <= 128
+                ? stackalloc int[slotCount]
+                : (rented = ArrayPool<int>.Shared.Rent(slotCount)).AsSpan(0, slotCount);
+        try
+        {
+            // Boolean test still needs the exact end for global/sticky lastIndex updates, but it
+            // does not need capture ranges. Keep the backtracking result-selection semantics and
+            // skip the CaptureRange adapter used by full exec/match paths.
+            return BacktrackingVm.TrySearch(
+                _program,
+                input,
+                startIndex,
+                sticky,
+                registers,
+                _options,
+                out endPosition
+            );
+        }
+        finally
+        {
+            if (rented is not null)
+                ArrayPool<int>.Shared.Return(rented, clearArray: false);
+        }
+    }
+
     /// <summary>Searches at or after <paramref name="startIndex"/>, unless the <c>y</c> flag is set.</summary>
     public bool TryMatch(
         ReadOnlySpan<char> input,

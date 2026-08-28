@@ -108,6 +108,26 @@ internal sealed class RegExpEngine
         return true;
     }
 
+    public bool TryMatchEnd(
+        RegExpCompiledPattern compiled,
+        string input,
+        int startIndex,
+        out int endPosition
+    )
+    {
+        if (
+            compiled.EngineState is not CompiledRegExp regexp
+            || startIndex > input.Length
+            || startIndex < 0
+        )
+        {
+            endPosition = -1;
+            return false;
+        }
+
+        return regexp.TryMatchEnd(input.AsSpan(), startIndex, out endPosition);
+    }
+
     public RegExpCompiledPattern Compile(string pattern, string flags)
     {
         if (s_compiledPatterns.Count >= CompiledPatternCacheCapacity)
