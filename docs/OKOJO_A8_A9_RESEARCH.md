@@ -500,3 +500,17 @@ The optimization opportunity is in TryGetContiguousPlainLocalArgumentRegisters:
 when it succeeds, arguments already live in contiguous local registers and
 no Star emissions are needed. Improving its success rate via smarter
 register allocation would reduce bytecode size and improve execution speed.
+
+## 10. Follow-up proposal batch (2026-08-28, dynamic-profile-driven)
+
+The T2 dynamic opcode/pair profiler (foundation doc) superseded this
+document's static corpus counts for prioritization. The resulting
+compiler-emission proposals - compound-assignment LHS temp elision,
+statement-position `ToNumeric` elision, block-lexical TDZ hole-init
+elision, and script completion-value elision - plus the recollected
+fusion-pair table for the section 1.5 revisit trigger, are documented in:
+
+- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` (sections 2 and 4)
+
+None of them expand the opcode set; the R3-R5 closure stands until the
+post-C1/C2 residual pair table is put in front of the owner.

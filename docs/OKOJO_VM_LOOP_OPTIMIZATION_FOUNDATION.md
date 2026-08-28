@@ -10,6 +10,9 @@ Related documents:
   microbench evidence.
 - `OKOJO_A8_A9_RESEARCH.md` - bytecode/compiler research: corpus profile,
   fusion candidates, let-loop context lowering.
+- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` - 2026-08-28 proposal batch:
+  T2 dynamic profiles, compiler emission elisions (C1-C4), arm-level VM
+  work (V1-V5 = backlog A21-A24), fusion revisit-trigger evidence.
 
 Scope: establish a repeatable methodology for optimizing the interpreter
 dispatch loop (`JsRealm.Run`, `src/Okojo.JavaScript/Execution/JsRealm.VmLoop.cs`)
@@ -365,6 +368,12 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A18 | `SkipLocalsInit` entry probe | Test removal of the `Run` prologue clear only after auditing managed-reference initialization and re-entry paths; use accessor/generator cases, not just a single loop |
 | A19 | Three-operand arithmetic superinstructions | Fuse measured register-op patterns such as `Ldar` + arithmetic + `Star`; require T2 pair frequencies, P7 headroom, compiler/bytecode evidence, and an explicit opcode-contract owner |
 | A20 | Accumulator-local ceiling probe | Positive ceiling: Tier1 code -6.1% and numeric probe medians about -11%; probe failed 244/2,164 tests because runtime boundaries still read `JsRealm.acc`; implementation deferred, never ship the probe directly |
+| A21 | Accumulator-local implementation (staged) | Make the A20 ceiling semantic: Stage A converts `this.acc` helper readers to `ref JsValue` parameters (semantic no-op, lands independently); Stage B flips `Run` to a local acc with sync only at escape arms (call/construct/CallRuntime/generator/throw/catch-entry). The 244 A20 failures are the boundary checklist. Detail: OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md V1 |
+| A22 | Star/Mov write-barrier elimination for ref-free values | `Star`'s 16-byte struct copy through a byref emits `movsq + CORINFO_HELP_ASSIGN_BYREF` per execution of the hottest opcode; listing proves null Obj stores are barrier-free (IG536). Branch on `acc.Obj is null` in a shared `CopyValueTo` helper: numeric path becomes two plain stores. Detail: proposals doc V2 |
+| A23 | Hot-arm de-fusion beyond arithmetic | Extends A14 with per-arm evidence: `Star/StarWide` re-dispatch `cmp edx,150` per execution, `Ldar` family range test + hole-check branch, `Inc/Dec` delta select, `TestEqual` family inner `op switch` + unconditional `AbstractEquals` with no inline int32 compare (4.1M/probe in stopwatch). Split arms; jump-table shape unchanged. Detail: proposals doc V3 |
+| A24 | Residual operand-scale stack traffic | Post-A13, hot two-operand arms still zero `operandOffset` to `[rbp-0x78]` and reload `operandScale` from `[rbp-0x5C]` every execution (by-ref cold-reader signature + EH liveness). Restructure: scale-1 fast path reads bytes directly; cold wide decode takes inputs by value. Detail: proposals doc V4 |
+| A25 | Dispatch-edge store diet | Four bookkeeping stack stores per dispatch on IG07/IG08: `operandScale` reset (move to a post-wide-op stub), a dead `opcodePc` null store (EH-live local defeats dead-store elimination; restructure the init), and the `op` spill for cold resume paths (re-derive from `opcodePc` there). Small (A5 calibration: whole countdown was <=0.4%); accept on medians only. Detail: proposals doc V6 |
+| A26 | Frame-scoped global-IC base caching | `LdaGlobal` re-derives the global-IC entry base via a three-load chain + two bounds checks per execution (IG466-469); derive once per frame at ReloadFrame like `registerRef`. Watch register pressure against A21's frame shrink. Detail: proposals doc V7 |
 
 Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
@@ -581,6 +590,13 @@ Initial smoke checks:
 | A18 `SkipLocalsInit` entry probe | PLANNED |
 | A19 arithmetic superinstructions | DEFERRED (requires T2 and P7 evidence) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
+| A21 accumulator-local implementation | PROPOSED (staged plan in OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md V1) |
+| A22 Star/Mov write-barrier elimination | PROPOSED (proposals doc V2; arm evidence: `CORINFO_HELP_ASSIGN_BYREF` per Star/Ldar execution) |
+| A23 hot-arm de-fusion beyond arithmetic | PROPOSED (proposals doc V3; extends A14 to Star/Ldar/Inc/TestEqual families) |
+| A24 residual operand-scale stack traffic | PROPOSED (proposals doc V4; follows A13) |
+| A25 dispatch-edge store diet | PROPOSED (proposals doc V6; three independent micro-attempts) |
+| A26 frame-scoped global-IC base caching | PROPOSED (proposals doc V7) |
+| C1-C4 compiler emission elisions | PROPOSED (proposals doc section 2; compound-assign temp, statement ToNumeric, block TDZ, completion values) |
 
 Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
 fresh 20260828 comparison for the current local-sharing + cold-split attempt
