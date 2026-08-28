@@ -1634,12 +1634,24 @@ public partial class Intrinsics
                     var splitPatternSource = fastSplitter.Pattern;
                     if (splitPatternSource.Length == 0 || splitPatternSource is "(?:)")
                     {
+                        if (!unicodeMatching)
+                        {
+                            var dense = new JsValue[(int)Math.Min((uint)text.Length, limit)];
+                            for (var i = 0; i < dense.Length; i++)
+                                dense[i] = JsValue.FromLatin1Char(text[i]);
+                            return realm.CreateArrayObjectFromDense(dense);
+                        }
+
                         while (fastQ < text.Length)
                         {
                             var next = AdvanceStringIndex(text, fastQ, unicodeMatching);
                             if (fastQ != fastP)
                             {
-                                resultBuilder.Add(JsValue.FromString(text[fastP..fastQ]));
+                                resultBuilder.Add(
+                                    fastQ - fastP == 1
+                                        ? JsValue.FromLatin1Char(text[fastP])
+                                        : JsValue.FromString(text[fastP..fastQ])
+                                );
                                 fastLength++;
                                 if (fastLength == limit)
                                     return realm.CreateArrayObjectFromDense(
@@ -1649,7 +1661,7 @@ public partial class Intrinsics
                             }
                             fastQ = next;
                         }
-                        if (fastLength < limit)
+                        if (fastP < text.Length && fastLength < limit)
                             resultBuilder.Add(JsValue.FromString(text[fastP..]));
                         return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                     }
