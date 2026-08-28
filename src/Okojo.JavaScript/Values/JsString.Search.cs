@@ -10,6 +10,11 @@ public readonly partial struct JsString
         if (ReferenceEquals(leftObject, rightObject))
             return true;
 
+        if (leftObject is RopeNode leftRope)
+            leftObject = leftRope.Flatten();
+        if (rightObject is RopeNode rightRope)
+            rightObject = rightRope.Flatten();
+
         var leftLength = GetLength(leftObject);
         if (leftLength != GetLength(rightObject))
             return false;

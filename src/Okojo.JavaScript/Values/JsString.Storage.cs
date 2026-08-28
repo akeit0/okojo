@@ -8,7 +8,6 @@ public readonly partial struct JsString
 {
     private const int SmallConcatThreshold = 32;
     private const int FlatConcatThreshold = 96;
-    private const int MaxRopeDepth = 24;
     private const int SmallSliceCopyThreshold = 32;
     private const int SliceCopyLengthThreshold = 64;
     private const int SliceCopyBaseLengthThreshold = 1024;
@@ -22,18 +21,6 @@ public readonly partial struct JsString
             RopeNode rope => rope.Length,
             SliceNode slice => slice.Length,
             _ => ThrowInvalidStringObject<int>(),
-        };
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte GetDepth(object value)
-    {
-        return value switch
-        {
-            string => 0,
-            RopeNode rope => rope.Depth,
-            SliceNode => 0,
-            _ => ThrowInvalidStringObject<byte>(),
         };
     }
 
@@ -172,16 +159,7 @@ public readonly partial struct JsString
         )
             return string.Concat(leftString, rightString);
 
-        if (GetDepth(left) >= MaxRopeDepth || GetDepth(right) >= MaxRopeDepth)
-            return ConcatToFlat(left, right, totalLength);
-
-        return new RopeNode(
-            left,
-            right,
-            leftLength,
-            totalLength,
-            (byte)(Math.Max(GetDepth(left), GetDepth(right)) + 1)
-        );
+        return new RopeNode(left, right, leftLength, totalLength);
     }
 
     private static object Slice(object value, int start, int length)
@@ -220,9 +198,7 @@ public readonly partial struct JsString
         return value switch
         {
             string s => s[index],
-            RopeNode rope => index < rope.LeftLength
-                ? CharAt(rope.Left, index)
-                : CharAt(rope.Right, index - rope.LeftLength),
+            RopeNode rope => rope.Flatten()[index],
             SliceNode slice => CharAt(slice.Base, slice.Offset + index),
             _ => ThrowInvalidStringObject<char>(),
         };
@@ -318,9 +294,9 @@ public readonly partial struct JsString
         throw new InvalidOperationException("Invalid JsString payload.");
     }
 
-    private sealed class RopeNode(object left, object right, int leftLength, int length, byte depth)
+    private sealed class RopeNode(object left, object right, int leftLength, int length)
     {
-        public byte Depth = depth;
+        private const int InitialPendingCapacity = 16;
 
         private string? flat;
         public object Left = left;
@@ -339,14 +315,52 @@ public readonly partial struct JsString
             if (flat is not null)
                 return flat;
 
-            var result = ConcatToFlat(Left, Right, Length);
+            var result = string.Create(Length, this, static (chars, rope) => rope.CopyInto(chars));
             flat = result;
             Left = result;
             Right = string.Empty;
             LeftLength = result.Length;
             Length = result.Length;
-            Depth = 0;
             return result;
+        }
+
+        private void CopyInto(Span<char> destination)
+        {
+            var pending = Array.Empty<object>();
+            var pendingCount = 0;
+            object node = this;
+            var position = Length;
+
+            while (true)
+            {
+                if (node is RopeNode rope && rope.flat is null)
+                {
+                    if (pendingCount == pending.Length)
+                        Array.Resize(
+                            ref pending,
+                            pendingCount == 0 ? InitialPendingCapacity : pendingCount * 2
+                        );
+
+                    pending[pendingCount++] = rope.Left;
+                    node = rope.Right;
+                    continue;
+                }
+
+                var text = node switch
+                {
+                    string s => s,
+                    RopeNode nested => nested.Flatten(),
+                    SliceNode slice => slice.Flatten(),
+                    _ => ThrowInvalidStringObject<string>(),
+                };
+                position -= text.Length;
+                text.AsSpan().CopyTo(destination[position..]);
+
+                if (pendingCount == 0)
+                    break;
+
+                node = pending[--pendingCount];
+            }
         }
     }
 
