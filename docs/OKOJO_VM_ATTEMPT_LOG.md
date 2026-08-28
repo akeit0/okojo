@@ -528,6 +528,46 @@ through constants).
 
 Evidence: snapshot `20260828-212832-0008-c3-tdz-elision`.
 
+### A23 / V3 hot-arm de-fusion beyond arithmetic - ACCEPTED
+
+Implemented 2026-08-28 against the dromaeo-3d-cube-modern opcode mix (Star
+26%, Ldar 20% of stream; harness stubs added to VmLoopProbe to make dromaeo
+cases runnable - proposals doc tooling gap closed).
+
+- `Star`(18)/`StarWide`(150): dedicated arms (narrow vs wide operand reads);
+  the per-execution `cmp edx,150` re-dispatch is gone.
+- `Ldar`(16): minimal dedicated arm (no hole check, no width tests);
+  `LdaLexicalLocal`(17): own arm keeping the TDZ hole check;
+  `LdarWide`/`LdaLexicalLocalWide`: shared cold arm.
+- `Inc`(63)/`Dec`(64): separate arms with constant delta; overflow checks
+  specialize (Inc upper bound only, Dec lower bound only).
+- `TestEqual`+`TestEqualStrict`: one arm with an inline both-number fast
+  path (double `==` is exact for number equality); slow path branches on op
+  for StrictEquals vs AbstractEquals. `TestNotEqual`: own arm with inline
+  `!=` and negated fallback.
+
+Arm evidence: opcodes 16/17/18/63/64/150 all dedicated targets (analyze-jit),
+no inner re-dispatch compares. Code size FullOpts 21,742 -> 23,043 B
+(+1,301 B: Inc/Dec duplication + TestEqual fast paths), justified by the
+measured wins.
+
+bench-ab (5 rounds, pgo-off, medians):
+
+| case | base | attempt | delta |
+| ---- | ---: | ------: | ----: |
+| dromaeo-3d-cube-modern | 3,195,542 | 2,906,195 | -9.1% |
+| smi-sum-loop | 2,070,780 | 1,840,398 | -11.1% |
+| stopwatch-modern | 85,675,513 | 76,129,708 | -11.1% |
+| for-loop-sum | 205,890 | 182,630 | -11.3% |
+| named-get | 3,083,458 | 2,997,960 | -2.8% |
+
+Full Okojo.Tests: 2,176 passed, 4 skipped. T2 dromaeo profile captured
+(Star 1.48M, Ldar 1.16M, LdaKeyedProperty 725k, Add 440k, Mul 181k,
+Inc 136k per probe) - LdaKeyedProperty/StaKeyedProperty are the remaining
+hot targets for a future keyed-op pass.
+
+Evidence: snapshot `20260828-221259-0009-v3-defusion`.
+
 ## Attempt Log Status
 
 | ID | Verdict |

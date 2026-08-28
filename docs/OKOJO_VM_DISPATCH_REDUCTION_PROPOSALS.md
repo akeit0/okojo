@@ -20,10 +20,10 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C4, A17/A19 (section 4), and V3-V8.
-C1-C2, C3, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), A16, A14, and A15
-were accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the
-insights document. Every item below is backed by dynamic opcode profiles (T2,
+Status: ACTIVE PROPOSALS: C4, A17/A19 (section 4), and V4-V8.
+C1-C2, C3, V1 (A21), V2 (A22), V3 (A23), A18, A16, A14, and A15 were
+accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the insights
+document. Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm
 JIT analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
@@ -241,7 +241,12 @@ for the null-Obj half; a mutable overlay struct is NOT usable (CoreCLR
 reorders GC-reference fields first regardless of Sequential layout -
 insights 3.9).
 
-### V3 (backlog A23). Hot-arm de-fusion beyond arithmetic
+### V3 (A23) Hot-arm de-fusion beyond arithmetic - ACCEPTED, moved
+
+Accepted and recorded in `OKOJO_VM_ATTEMPT_LOG.md`; `LdaKeyedProperty`/
+`StaKeyedProperty` (725k/52k per dromaeo probe) are the remaining hot
+candidates for a future keyed-op pass.
+
 
 A14 planned de-fusing `Add`/`Sub`/`Mul`; the listing shows the same inner
 re-dispatch on hotter arms:
@@ -427,7 +432,6 @@ All open work items in one table. Completed items live in
 | A11 | Tree-walk interpreter alternative | open (last resort) | only if the bytecode path plateaus; requires its own feature note |
 | A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
 | A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
-| A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends the accepted A14 to Star/Ldar/Inc/TestEqual families) |
 | A24 | Residual operand-scale stack traffic | PROPOSED | V4 |
 | A25 | Dispatch-edge store diet | PROPOSED | V6 |
 | A26 | Frame-scoped global-IC base caching | PROPOSED | V7 |
@@ -436,11 +440,8 @@ All open work items in one table. Completed items live in
 
 ## 8. Suggested order
 
-1. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion (small VM patches
-   with direct arm-level acceptance criteria; the Star-side barrier part
-   of the original plan is already covered by the accepted V2).
-3. A17 (arithmetic/operand experiments from the F1-F6 dump
-   findings; A14/A15 landed\).
+1. A17 (arithmetic/operand experiments from the F1-F6 dump
+   findings; A14/A15 landed).
 4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
 5. V7 global-IC base caching (after V1 frees frame budget).

@@ -1445,26 +1445,22 @@ public sealed partial class JsRealm
                             );
                             break;
                         case JsOpCode.Ldar:
-                        case JsOpCode.LdarWide:
+                            acc = Unsafe.Add(ref registerRef, pc);
+                            pc = ref Unsafe.Add(ref pc, 1);
+                            break;
                         case JsOpCode.LdaLexicalLocal:
+                            acc = Unsafe.Add(ref registerRef, pc);
+                            if (acc.IsTheHole)
+                                ThrowHole();
+                            pc = ref Unsafe.Add(ref pc, 1);
+                            break;
+                        case JsOpCode.LdarWide:
                         case JsOpCode.LdaLexicalLocalWide:
-                            {
-                                reg = op is JsOpCode.LdarWide or JsOpCode.LdaLexicalLocalWide
-                                    ? Unsafe.ReadUnaligned<ushort>(ref pc)
-                                    : pc;
-                                acc = Unsafe.Add(ref registerRef, reg);
-                                if (
-                                    (
-                                        op == JsOpCode.LdaLexicalLocal
-                                        || op == JsOpCode.LdaLexicalLocalWide
-                                    ) && acc.IsTheHole
-                                )
-                                    ThrowHole();
-                                pc = ref Unsafe.Add(
-                                    ref pc,
-                                    op is JsOpCode.LdarWide or JsOpCode.LdaLexicalLocalWide ? 2 : 1
-                                );
-                            }
+                            reg = Unsafe.ReadUnaligned<ushort>(ref pc);
+                            acc = Unsafe.Add(ref registerRef, reg);
+                            if (op == JsOpCode.LdaLexicalLocalWide && acc.IsTheHole)
+                                ThrowHole();
+                            pc = ref Unsafe.Add(ref pc, 2);
                             break;
                         case JsOpCode.LdaModuleVariable:
                             {
@@ -1478,15 +1474,18 @@ public sealed partial class JsRealm
                             }
                             break;
                         case JsOpCode.Star:
+                            JsValue.CopyValueTo(ref Unsafe.Add(ref registerRef, pc), in acc);
+                            pc = ref Unsafe.Add(ref pc, 1);
+                            break;
                         case JsOpCode.StarWide:
-                            {
-                                reg =
-                                    op == JsOpCode.StarWide
-                                        ? Unsafe.ReadUnaligned<ushort>(ref pc)
-                                        : pc;
-                                JsValue.CopyValueTo(ref Unsafe.Add(ref registerRef, reg), in acc);
-                                pc = ref Unsafe.Add(ref pc, op == JsOpCode.StarWide ? 2 : 1);
-                            }
+                            JsValue.CopyValueTo(
+                                ref Unsafe.Add(
+                                    ref registerRef,
+                                    Unsafe.ReadUnaligned<ushort>(ref pc)
+                                ),
+                                in acc
+                            );
+                            pc = ref Unsafe.Add(ref pc, 2);
                             break;
                         case JsOpCode.StaModuleVariable:
                             {
@@ -2321,23 +2320,20 @@ public sealed partial class JsRealm
                             }
                             break;
                         case JsOpCode.Inc:
-                        case JsOpCode.Dec:
-                            intNum1 = op == JsOpCode.Inc ? 1 : -1;
                             uRhs = acc.U;
                             if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                             {
-                                longNum = (long)(int)uRhs + intNum1;
-                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
+                                longNum = (long)(int)uRhs + 1;
+                                if (longNum <= int.MaxValue)
                                     acc = JsValue.FromInt32((int)longNum);
                                 else
                                     Unsafe.As<JsValue, double>(ref acc) = longNum;
                             }
                             else if ((uRhs & JsValue.BoxMask) != JsValue.BoxHdr)
                             {
-                                // acc is Float64 here: write the bits in place.
                                 Unsafe.As<JsValue, double>(ref acc) =
                                     JsValue.CanonicalizeNumericResult(
-                                        Unsafe.BitCast<ulong, double>(uRhs) + intNum1
+                                        Unsafe.BitCast<ulong, double>(uRhs) + 1
                                     );
                             }
                             else
@@ -2345,8 +2341,35 @@ public sealed partial class JsRealm
                                 this.acc = acc;
                                 acc =
                                     uRhs == JsValue.JsBigIntBits
-                                        ? IncrementBigIntSlowPath(acc, intNum1)
-                                        : IncrementSlowPath(this, acc, intNum1);
+                                        ? IncrementBigIntSlowPath(acc, 1)
+                                        : IncrementSlowPath(this, acc, 1);
+                            }
+
+                            break;
+                        case JsOpCode.Dec:
+                            uRhs = acc.U;
+                            if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
+                            {
+                                longNum = (long)(int)uRhs - 1;
+                                if (longNum >= int.MinValue)
+                                    acc = JsValue.FromInt32((int)longNum);
+                                else
+                                    Unsafe.As<JsValue, double>(ref acc) = longNum;
+                            }
+                            else if ((uRhs & JsValue.BoxMask) != JsValue.BoxHdr)
+                            {
+                                Unsafe.As<JsValue, double>(ref acc) =
+                                    JsValue.CanonicalizeNumericResult(
+                                        Unsafe.BitCast<ulong, double>(uRhs) - 1
+                                    );
+                            }
+                            else
+                            {
+                                this.acc = acc;
+                                acc =
+                                    uRhs == JsValue.JsBigIntBits
+                                        ? IncrementBigIntSlowPath(acc, -1)
+                                        : IncrementSlowPath(this, acc, -1);
                             }
 
                             break;
@@ -2571,7 +2594,6 @@ public sealed partial class JsRealm
                             break;
 
                         case JsOpCode.TestEqual:
-                        case JsOpCode.TestNotEqual:
                         case JsOpCode.TestEqualStrict:
                         {
                             AssertValidOperandScale(operandScale);
@@ -2584,15 +2606,52 @@ public sealed partial class JsRealm
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
-                            acc = op switch
+
+                            // Number == number abstract equality is the exact
+                            // double comparison (+0/-0 equal, NaN unequal), so
+                            // the fast path is shared with strict equality.
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                && JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
                             {
-                                JsOpCode.TestEqualStrict => StrictEquals(slotRef, acc),
-                                JsOpCode.TestEqual => AbstractEquals(this, slotRef, acc),
-                                JsOpCode.TestNotEqual => !AbstractEquals(this, slotRef, acc),
-                                _ => false,
+                                acc = num1 == num2 ? JsValue.True : JsValue.False;
+                                break;
                             }
-                                ? JsValue.True
+
+                            acc =
+                                op == JsOpCode.TestEqualStrict ? StrictEquals(slotRef, acc)
+                                : AbstractEquals(this, slotRef, acc) ? JsValue.True
                                 : JsValue.False;
+                            break;
+                        }
+                        case JsOpCode.TestNotEqual:
+                        {
+                            AssertValidOperandScale(operandScale);
+                            operandOffset = 0;
+                            reg = ReadScaledUnsignedOperand(
+                                ref pc,
+                                ref operandOffset,
+                                operandScale
+                            );
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
+                            pc = ref Unsafe.Add(ref pc, operandOffset);
+
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                && JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
+                            {
+                                acc = num1 != num2 ? JsValue.True : JsValue.False;
+                                break;
+                            }
+
+                            acc = AbstractEquals(this, slotRef, acc) ? JsValue.False : JsValue.True;
                             break;
                         }
                         case JsOpCode.TestInstanceOf:
