@@ -509,6 +509,26 @@ dst)` for the non-ref half, a raw zero store for the null-Obj half). Byref
 (JsValue <-> double, insights 3.3); `Unsafe.BitCast` for value conversions;
 explicit-offset `[FieldOffset]` overlays verified by probe if ever needed.
 
+### 3.10 Bit-mask set tests: the OR-fusion of two equality tests is unsound
+
+`((a|b) & Top32Mask) == JsInt32Top32Bits` as a "both are Int32" test is
+wrong: the OR only proves `a&M ⊆ c`, not `a&M == c`. Any value whose
+top-32 bits are a subset of the Int32 pattern - e.g. the double 2^31
+(`0x41E0_0000_0000_0000`, bits 47-32 all zero) - passes alongside a genuine
+Int32, and the int fast path then reads garbage from the low bits. Caught
+by `TestMixedNumberArithmeticAfterInt32Overflow`. Fuse two equality tests
+with OR only when the target mask `c` has no subsets in play (single-bit
+targets), otherwise keep two independent tests (they are register-local
+after bit snapshotting, so the cost is one extra AND/CMP).
+
+### 3.11 Do not rewrite `x - imm` as `x + (-imm)` for IEEE floats
+
+`-0.0 + 0.0` is `+0.0` but `-0.0 - 0.0` is `-0.0`; the algebraic
+simplification flips the sign of zero and `1/(-0)` propagates it to
+`-Infinity` vs `+Infinity` (caught by TestSubSmi). Keep subtraction
+subtraction. Same care applies to `x * 1` and `x / 1` style "no-op"
+elisions near zero and negative results (`x % -0`).
+
 ## 4. Measurement methodology
 
 | rule | detail |

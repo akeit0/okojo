@@ -20,8 +20,8 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C3-C4, A15/A17/A19 (section 4), and V3-V8.
-C1-C2, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), A16, and A14 were
+Status: ACTIVE PROPOSALS: C3-C4, A17/A19 (section 4), and V3-V8.
+C1-C2, V1 (A21), A18 (`SkipLocalsInit`), V2 (A22), A16, A14, and A15 were
 accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the insights
 document. Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm
@@ -173,7 +173,8 @@ isolated bench-ab median and same-config assembly diff land.
 4. **Aliasing-blocked CSE (F4):** the mixed path performs two back-to-back
    `and r9,qword ptr [rax]` mask tests in IG284. The `IsFloat64`/`IsInt32`
    reads go through a byref, so RyuJIT does not CSE them across possible
-   aliasing.
+   aliasing. ADDRESSED by A15: each arm snapshots `U` into shared `ulong`
+   locals once; all mask tests and value extraction are register-local.
 5. **Cloned slow tails (F5):** `HandleArithmeticNonNumberSlowPath` is
    emitted along IG280-IG283, IG285-IG287, and IG289-IG291, each with a
    private 16-byte temporary (`[rbp-0x1C0]`, `-0x1D0`, `-0x1E0`). This is
@@ -382,11 +383,11 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   `OKOJO_VM_ATTEMPT_LOG.md` for the matrix); all-six-split was rejected
   as dominated. Result: for-loop-sum -14.6%, arith -4.1%, named-get
   -4.2%, smi -1.0%; cost +1.9KB Tier1 (duplicated cold paths).
-- **A15 (P2) - operand snapshots:** read `acc` and `slotRef` into locals
-  once before multi-testing their tags (F4). A 16-byte `JsValue` local
-  whose `Obj` half is unused on the numeric path may promote to one GPR
-  and remove the aliasing barrier. (Partially addressed by A16: numeric
-  results are written in place, so the result-side tag tests are gone.)
+- **A15 (P2) - operand snapshots (DONE):** accepted. Each hot arm reads
+  `slotRef.U`/`acc.U` once into two shared `ulong` locals; tag tests and
+  value extraction are register-local (F4 addressed). See
+  `OKOJO_VM_ATTEMPT_LOG.md`: Tier1 -1,031 B vs A14, calls -8, BDN-confirmed
+  broad wins (arith -9.8%, indexing -10.4%, named-get -9.6%).
 - **A17 (P4) - 32-bit overflow:** compare `int r = a + b` with
   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form)
   against current semantics (F6). Tiny innermost-loop experiment; needs
@@ -398,7 +399,7 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   used by LuaJIT/JSC; V8 Ignition avoids the same cost with a physical
   accumulator that the current C# loop cannot provide per dynamic opcode.
   Adding bytecode entries changes the BTB target set, so re-check the
-  dispatch evidence (insights 1.2). Deferred until A14-A15/A17 results
+  dispatch evidence (insights 1.2). Deferred until A17 results
   justify an opcode-contract change.
 
 (A16 / P3, integer numeric canonicalization with in-place result writes,
@@ -451,7 +452,6 @@ All open work items in one table. Completed items live in
 | A8 | Per-op implementation changes (smi fast paths etc.) | open | V8/Node reference observations per AGENTS tooling rules |
 | A9 | Opcode set streamlining | open | compiler-contract change; needs OkojoBytecodeTool evidence first |
 | A11 | Tree-walk interpreter alternative | open (last resort) | only if the bytecode path plateaus; requires its own feature note |
-| A15 | Operand snapshots before tag tests | PLANNED | section 4 (P2) |
 | A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
 | A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
 | A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends the accepted A14 to Star/Ldar/Inc/TestEqual families) |
@@ -468,8 +468,8 @@ All open work items in one table. Completed items live in
 2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion (small VM patches
    with direct arm-level acceptance criteria; the Star-side barrier part
    of the original plan is already covered by the accepted V2).
-3. A14-A15 and A17 (arithmetic/operand experiments from the F1-F6 dump
-   findings).
+3. A17 (arithmetic/operand experiments from the F1-F6 dump
+   findings; A14/A15 landed\).
 4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
 5. V7 global-IC base caching (after V1 frees frame budget).

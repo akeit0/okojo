@@ -1234,6 +1234,8 @@ public sealed partial class JsRealm
                 SlotInfo slotInfo;
                 bool boolTemp;
                 long longNum;
+                ulong uLhs,
+                    uRhs;
                 try
                 {
                     NextOp:
@@ -2077,9 +2079,18 @@ public sealed partial class JsRealm
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                            if (slotRef.IsInt32 && acc.IsInt32)
+                            // One byref read per operand: every tag test and value
+                            // extraction below runs off the raw bit snapshots, so
+                            // the mask tests CSE in registers instead of reloading
+                            // through the register-file byref (F4).
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                (uLhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                && (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                            )
                             {
-                                longNum = (long)slotRef.Int32Value + acc.Int32Value;
+                                longNum = (long)(int)uLhs + (int)uRhs;
                                 if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                 {
                                     acc = JsValue.FromInt32((int)longNum);
@@ -2092,43 +2103,10 @@ public sealed partial class JsRealm
                                 break;
                             }
 
-                            if (slotRef.IsFloat64)
-                            {
-                                num1 = slotRef.FastFloat64Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Add,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else if (slotRef.IsInt32)
-                            {
-                                num1 = slotRef.Int32Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Add,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else
+                            if (
+                                !JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                || !JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
                             {
                                 acc = HandleArithmeticNonNumberSlowPath(
                                     this,
@@ -2158,9 +2136,14 @@ public sealed partial class JsRealm
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                            if (slotRef.IsInt32 && acc.IsInt32)
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                (uLhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                && (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                            )
                             {
-                                longNum = (long)slotRef.Int32Value - acc.Int32Value;
+                                longNum = (long)(int)uLhs - (int)uRhs;
                                 if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                 {
                                     acc = JsValue.FromInt32((int)longNum);
@@ -2176,43 +2159,10 @@ public sealed partial class JsRealm
                             if (Intrinsics.TryGetDateSubtraction(slotRef, acc, ref acc))
                                 break;
 
-                            if (slotRef.IsFloat64)
-                            {
-                                num1 = slotRef.FastFloat64Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Sub,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else if (slotRef.IsInt32)
-                            {
-                                num1 = slotRef.Int32Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Sub,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else
+                            if (
+                                !JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                || !JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
                             {
                                 acc = HandleArithmeticNonNumberSlowPath(
                                     this,
@@ -2242,9 +2192,14 @@ public sealed partial class JsRealm
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                            if (slotRef.IsInt32 && acc.IsInt32)
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                (uLhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                && (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                            )
                             {
-                                longNum = (long)slotRef.Int32Value * acc.Int32Value;
+                                longNum = (long)(int)uLhs * (int)uRhs;
                                 if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                 {
                                     acc = JsValue.FromInt32((int)longNum);
@@ -2257,43 +2212,10 @@ public sealed partial class JsRealm
                                 break;
                             }
 
-                            if (slotRef.IsFloat64)
-                            {
-                                num1 = slotRef.FastFloat64Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Mul,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else if (slotRef.IsInt32)
-                            {
-                                num1 = slotRef.Int32Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(
-                                        this,
-                                        JsOpCode.Mul,
-                                        slotRef,
-                                        acc
-                                    );
-                                    break;
-                                }
-                            }
-                            else
+                            if (
+                                !JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                || !JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
                             {
                                 acc = HandleArithmeticNonNumberSlowPath(
                                     this,
@@ -2325,33 +2247,12 @@ public sealed partial class JsRealm
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                            if (slotRef.IsFloat64)
-                            {
-                                num1 = slotRef.FastFloat64Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
-                                    break;
-                                }
-                            }
-                            else if (slotRef.IsInt32)
-                            {
-                                num1 = slotRef.Int32Value;
-                                if (acc.IsFloat64)
-                                    num2 = acc.FastFloat64Value;
-                                else if (acc.IsInt32)
-                                    num2 = acc.Int32Value;
-                                else
-                                {
-                                    acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
-                                    break;
-                                }
-                            }
-                            else
+                            uLhs = slotRef.U;
+                            uRhs = acc.U;
+                            if (
+                                !JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                || !JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                            )
                             {
                                 acc = HandleArithmeticNonNumberSlowPath(this, op, slotRef, acc);
                                 break;
@@ -2373,10 +2274,11 @@ public sealed partial class JsRealm
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
-                                if (acc.IsInt32)
+                                uRhs = acc.U;
+                                if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                                 {
                                     longNum =
-                                        (long)acc.Int32Value
+                                        (long)(int)uRhs
                                         + intNum1 * (op == JsOpCode.AddSmi ? 1 : -1);
                                     if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                     {
@@ -2389,10 +2291,16 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                if (acc.IsFloat64)
+                                if ((uRhs & JsValue.BoxMask) != JsValue.BoxHdr)
                                 {
-                                    ref var num = ref Unsafe.As<JsValue, double>(ref acc);
-                                    num = op == JsOpCode.AddSmi ? num + intNum1 : num - intNum1;
+                                    // acc is Float64 here: write the bits in place.
+                                    // Subtraction must stay a real subtraction:
+                                    // -0.0 + (-imm) is +0.0 in IEEE-754 when
+                                    // imm == 0, while -0.0 - imm is -0.0.
+                                    Unsafe.As<JsValue, double>(ref acc) =
+                                        op == JsOpCode.AddSmi
+                                            ? Unsafe.BitCast<ulong, double>(uRhs) + intNum1
+                                            : Unsafe.BitCast<ulong, double>(uRhs) - intNum1;
                                     break;
                                 }
 
@@ -2410,27 +2318,28 @@ public sealed partial class JsRealm
                         case JsOpCode.Inc:
                         case JsOpCode.Dec:
                             intNum1 = op == JsOpCode.Inc ? 1 : -1;
-                            if (acc.IsInt32)
+                            uRhs = acc.U;
+                            if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                             {
-                                longNum = (long)acc.Int32Value + intNum1;
+                                longNum = (long)(int)uRhs + intNum1;
                                 if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                     acc = JsValue.FromInt32((int)longNum);
                                 else
                                     Unsafe.As<JsValue, double>(ref acc) = longNum;
                             }
-                            else if (acc.IsFloat64)
+                            else if ((uRhs & JsValue.BoxMask) != JsValue.BoxHdr)
                             {
                                 // acc is Float64 here: write the bits in place.
                                 Unsafe.As<JsValue, double>(ref acc) =
                                     JsValue.CanonicalizeNumericResult(
-                                        acc.FastFloat64Value + intNum1
+                                        Unsafe.BitCast<ulong, double>(uRhs) + intNum1
                                     );
                             }
                             else
                             {
                                 this.acc = acc;
                                 acc =
-                                    acc.U == JsValue.JsBigIntBits
+                                    uRhs == JsValue.JsBigIntBits
                                         ? IncrementBigIntSlowPath(acc, intNum1)
                                         : IncrementSlowPath(this, acc, intNum1);
                             }
@@ -2441,15 +2350,14 @@ public sealed partial class JsRealm
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
-                                if (acc.IsInt32)
+                                uRhs = acc.U;
+                                if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                                     acc = Mul(acc, intNum1);
-                                else if (acc.IsNumber)
+                                else if (JsValue.TryGetNumberValueFromUlong(uRhs, out num1))
                                 {
                                     // acc is a number: write the bits in place.
                                     Unsafe.As<JsValue, double>(ref acc) =
-                                        JsValue.CanonicalizeNumericResult(
-                                            acc.FastNumberValue * intNum1
-                                        );
+                                        JsValue.CanonicalizeNumericResult(num1 * intNum1);
                                 }
                                 else
                                     acc = HandleArithmeticNonNumberSmiSlowPath(
@@ -2466,21 +2374,25 @@ public sealed partial class JsRealm
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
-                                if (acc.IsInt32 && intNum1 != 0)
+                                uRhs = acc.U;
+                                if (
+                                    (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                    && intNum1 != 0
+                                )
                                 {
-                                    intNum2 = acc.Int32Value;
+                                    intNum2 = (int)uRhs;
                                     intNum1 = intNum2 % intNum1;
                                     acc =
                                         intNum1 == 0 && intNum2 < 0
                                             ? new(-0.0d)
                                             : JsValue.FromInt32(intNum1);
                                 }
-                                else if (acc.IsFloat64)
+                                else if ((uRhs & JsValue.BoxMask) != JsValue.BoxHdr)
                                 {
                                     // acc is Float64 here: write the bits in place.
                                     Unsafe.As<JsValue, double>(ref acc) =
                                         JsValue.CanonicalizeNumericResult(
-                                            acc.FastFloat64Value % intNum1
+                                            Unsafe.BitCast<ulong, double>(uRhs) % intNum1
                                         );
                                 }
                                 else
@@ -2499,12 +2411,13 @@ public sealed partial class JsRealm
                                 // imm operand in intNum1
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                if (acc.IsNumber)
+                                uRhs = acc.U;
+                                if (JsValue.TryGetNumberValueFromUlong(uRhs, out num1))
                                 {
                                     // acc is a number: write the bits in place.
                                     Unsafe.As<JsValue, double>(ref acc) =
                                         JsValue.CanonicalizeNumericResult(
-                                            NumberExponentiate(acc.FastNumberValue, intNum1)
+                                            NumberExponentiate(num1, intNum1)
                                         );
                                 }
                                 else
@@ -2626,10 +2539,15 @@ public sealed partial class JsRealm
                                 ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                                if (slotRef.IsNumber && acc.IsNumber)
+                                // One byref read per operand; tag tests and value
+                                // extraction run off the bit snapshots.
+                                uLhs = slotRef.U;
+                                uRhs = acc.U;
+                                if (
+                                    JsValue.TryGetNumberValueFromUlong(uLhs, out num1)
+                                    && JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
+                                )
                                 {
-                                    num1 = slotRef.FastNumberValue;
-                                    num2 = acc.FastNumberValue;
                                     acc = op switch
                                     {
                                         JsOpCode.TestLessThan => num1 < num2,
@@ -2717,9 +2635,9 @@ public sealed partial class JsRealm
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
 
-                                if (acc.IsNumber)
+                                uRhs = acc.U;
+                                if (JsValue.TryGetNumberValueFromUlong(uRhs, out num2))
                                 {
-                                    num2 = acc.FastNumberValue;
                                     acc = op switch
                                     {
                                         JsOpCode.TestLessThanSmi => num2 < num1,
@@ -2755,10 +2673,17 @@ public sealed partial class JsRealm
                                 ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                                if (slotRef.IsInt32 && acc.IsInt32)
+                                // One byref read per operand; tag tests and value
+                                // extraction run off the bit snapshots.
+                                uLhs = slotRef.U;
+                                uRhs = acc.U;
+                                if (
+                                    (uLhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                    && (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
+                                )
                                 {
-                                    intNum1 = slotRef.Int32Value;
-                                    intNum2 = acc.Int32Value;
+                                    intNum1 = (int)uLhs;
+                                    intNum2 = (int)uRhs;
                                     if (op == JsOpCode.ShiftRightLogical)
                                     {
                                         longNum = (uint)intNum1 >> (intNum2 & 0x1F);
@@ -2783,10 +2708,7 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                if (
-                                    slotRef.U == JsValue.JsBigIntBits
-                                    && acc.U == JsValue.JsBigIntBits
-                                )
+                                if (uLhs == JsValue.JsBigIntBits && uRhs == JsValue.JsBigIntBits)
                                 {
                                     acc = HandleBigIntBitwiseFastSlowPath(op, slotRef, acc);
                                     break;

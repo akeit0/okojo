@@ -419,6 +419,52 @@ Implementation notes:
 Snapshots: `0002-a14-variant-c-asm` (C), `0003-a14-variant-a-asm` (A,
 accepted), `0004-a14-variant-b-asm` (B).
 
+### A15 / P2 operand bit snapshots with shared locals - ACCEPTED
+
+Implemented 2026-08-28: every hot arm reads `slotRef.U` / `acc.U` once into
+two shared `ulong` locals (`uLhs`/`uRhs`, declared at the loop head per the
+A12 C-style pattern); all tag tests and value extraction run off the raw
+bits via `JsValue.TryGetNumberValueFromUlong` (verified inlined: zero call
+sites) or direct `Top32Mask`/`BoxMask` tests. Register-file byref reads per
+arm drop from 2-4 to one (F4 addressed). Arms converted: Add/Sub/Mul,
+Div/Mod/Exp, AddSmi/SubSmi, Inc/Dec, MulSmi, ModSmi, ExpSmi, Test<>/Test<>Smi,
+Bitwise/Shift (including BigInt tag checks off the bits).
+
+Two-iteration path to the accepted shape:
+
+1. Per-arm snapshot locals: IL locals 44 -> 57, stack +48 B, and bench-ab
+   showed consistent named-get/for-loop-sum regressions. User direction:
+   try locals sharing.
+2. Two shared `ulong` locals (lifetimes exclusive across arms): locals 45,
+   stack 888 B (=), Tier1 21,855 B (-1,031 vs A14), calls 205 (-8),
+   IL 8,048 B (-299). Accepted.
+
+Two semantic traps found by focused tests (recorded as insights 3.10/3.11):
+
+1. A "single-OR" both-int32 test `((a|b) & Top32Mask) == JsInt32Top32Bits`
+   is unsound - subset false positives (2^31 = 0x41E0..., NaN patterns)
+   - caught by TestMixedNumberArithmeticAfterInt32Overflow; reverted to two
+   independent register-local tests.
+2. `x - imm` must not be rewritten as `x + (-imm)`: IEEE signed zeros make
+   `-0.0 + 0.0 = +0.0` while `-0.0 - 0.0 = -0.0` (TestSubSmi, bytecode
+   LdaZero/ToNumeric/Negate/SubSmi/Div).
+
+Results:
+
+- BDN (ShortRun, pgo-off) vs the user's last confirmed table (post-A22/A16,
+  including A14): arith -9.8%, indexing -10.4%, named-get -9.6%,
+  lexical-block -9.5%, for-loop-sum -7.1%, smi-sum-loop -5.9%, object
+  -6.6%, pure-call -2.8%; math-call/many-object flat; closure-heavy +4.9%
+  (inside its noise band).
+- bench-ab was not decision-grade this session (for-loop-sum medians swung
+  -16.5%..+12.1% across invocations, base drift ~10%; its regressions did
+  not reproduce under BDN). Structural evidence plus BDN carried the
+  acceptance.
+- Full suite 2,165 passed, 4 skipped.
+
+Evidence: snapshots `0005-a15-bit-snapshots` (per-arm locals variant) and
+`0006-a15-shared-locals` (accepted).
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -439,6 +485,7 @@ accepted), `0004-a14-variant-b-asm` (B).
 | A22 Star/Mov write-barrier elimination | ACCEPTED (BDN-confirmed: arith -8.4%, indexing -10.3%, smi -4.8%, named-get -6.9%; hot Star path barrier-free) |
 | A16 numeric result canonicalization | ACCEPTED (integer NaN test + in-place result writes; BDN-confirmed, no regressions) |
 | A14 arithmetic arm de-fusion | ACCEPTED (variant A: A/S/M split, DME fused; bench-ab 5 rounds; for-loop-sum -14.6%, arith -4.1%; +1.9KB Tier1) |
+| A15 operand bit snapshots | ACCEPTED (shared ulong locals; byref reads 2-4 -> 1 per arm; Tier1 -1KB vs A14; BDN-confirmed broad wins) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
 | A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
 | C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in insights 1.16) |
