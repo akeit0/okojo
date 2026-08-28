@@ -123,6 +123,50 @@ kept its original byte read; only rare wide/extra-wide code pays a call.
 This is the useful fast-path/cold-path split shape for this C# interpreter:
 share cold implementation, do not add a call to the hot bytecode path.
 
+### 1.9 Use immediate operands for compiler-known literal metadata
+
+The compiler already knows the length of a non-empty array literal. Encoding
+that length in a dedicated two-byte operand avoids putting an `int` in the
+object pool and avoids the hot handler's repeated pool indexing and type
+tests. The old pool-backed opcode remains for compatibility and routes its
+rare forms through a `NoInlining` helper.
+
+In an isolated 11-round pgo-off A/B from `27910a5`, the focused literal
+workload moved from 468,227 ns to 462,843 ns (-1.1%). `Run` IL fell from
+7,810 to 7,757 bytes; Tier0 code fell from 18,764 to 18,462 bytes and
+Tier1-OSR from 22,281 to 22,104 bytes. The local count stayed at 44.
+This is a scoped array-literal win, not evidence that adding an opcode is a
+general dispatch win.
+
+### 1.10 Decode fixed-width store operands with one width split
+
+`StaNamedProperty` and `StaNamedPropertyWide` previously selected the width
+once and then branched again for each of the two remaining operands. Decoding
+all three operands inside one narrow/wide split removes those repeated
+branches while preserving the existing three-byte and six-byte ABI.
+
+In an isolated 11-round pgo-off A/B from `27910a5`, the focused named-store
+workload moved from 2,821,020 ns to 2,695,137 ns (-4.5%). `Run` IL fell from
+7,810 to 7,787 bytes; Tier0 code fell from 18,764 to 18,581 bytes. Tier1
+and Tier1-OSR code changed by +37 and +40 bytes respectively, and the local
+count stayed at 44. Treat this as a scoped decoder improvement: source-level
+branch removal does not guarantee a whole-program win when it perturbs the
+layout of the large `Run` method.
+
+### 1.11 Independently good `Run` edits are not necessarily additive
+
+The named-store and array-literal edits were each positive in their focused
+workloads, but their combined pgo-off build was not a universal improvement.
+One 11-round comparison moved `stopwatch-modern` by +4.5%, `array-stress` by
++4.4%, and `arith` by +1.2%, while the focused named-store result was +0.9%
+relative to the named-only build. The JIT changed code placement and frame
+layout even though the semantic handlers were unrelated.
+
+Consequence: isolate each `Run` edit, commit confirmed scoped changes
+separately, and re-run a stack comparison before describing a total
+improvement. Benchmark medians remain the decision gate; assembly and IL
+explain the result but do not override it.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
@@ -248,6 +292,15 @@ subtraction semantics. The internal helper now takes `ref` output and writes
 only on success; the focused regression test caught the issue before the
 benchmark run.
 
+### 3.8 Do not move a rare Date fast path on source intuition alone
+
+Moving the Date subtraction probe ahead of numeric handling and adding
+object-tag guards looked cheaper in source, but the isolated pgo-off results
+did not establish a stable gain: the Date-focused case was only -0.3% while
+the numeric arithmetic control moved +3.9% in the same seven-round run.
+The change was rejected. Keep the existing arithmetic order until a guarded
+Date specialization has a stable benchmark and a clear Tier1 shape.
+
 ## 4. Measurement methodology
 
 | rule | detail |
@@ -259,3 +312,4 @@ benchmark run.
 | dasm determinism | diffable JIT dumps are byte-identical for identical code (validated); any nonzero compare-jit diff = your change |
 | tier awareness | short scripts may never reach final Tier1 in probe runs; OSR code dominates; note which listing you read |
 | sub-10us cells | flip sign between processes; BDN or bench-ab medians required |
+| Run edits | independently benchmark each source change, then benchmark the intended stack; JIT layout can defeat additive source wins |
