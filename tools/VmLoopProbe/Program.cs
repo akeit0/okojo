@@ -72,6 +72,21 @@ if (phase is not null)
 
 using var runtime = JsRuntime.CreateBuilder().Build();
 var realm = runtime.DefaultRealm;
+
+// Dromaeo suite cases reference benchmark-harness globals; provide no-op
+// stand-ins so they run under the probe (proposals doc tooling gaps).
+realm.Execute(
+    realm.CompileScript(
+        """
+        function startTest(name, id) {}
+        function endTest() {}
+        function prep(body) { body(); }
+        function test(name, body) { body(); }
+        """
+    ),
+    pumpJobsAfterRun: false
+);
+
 var script = realm.CompileScript(source);
 
 realm.Execute(script, pumpJobsAfterRun: false);
