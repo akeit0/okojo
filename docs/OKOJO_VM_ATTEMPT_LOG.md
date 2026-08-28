@@ -621,6 +621,40 @@ buy 12%). Lesson: bench-ab resolves ~1% reliably on this machine; larger
 swings from tiny Run edits are layout, and should be re-verified with a
 dedicated re-run before being trusted in either direction.
 
+### A17 / P4 32-bit overflow check - REJECTED (4 variants; layout-dominated)
+
+Attempted 2026-08-28 per F6 (replace the two signed 64-bit range compares in
+the int fast paths with cheaper overflow detection). Four variants tried,
+each fully test-verified (full suite 2,176 passed) and bench-ab measured:
+
+1. xor-sign-change test via shared locals (`intNum1/intNum2/intSum`):
+   smi +20.4%, for-loop +24.5% - the shared ints are MEMORY-HOMED (they are
+   passed byref by other arms, e.g. generator handlers), so the new code
+   added 3 memory round-trips to the hottest path. Shared locals must be
+   read once per arm; repeated reads in an expression re-load from memory.
+2. xor test in pure expression form (JIT CSE expected): still regressed
+   (smi +21.9%, for-loop +22.2%) - the JIT does NOT CSE the repeated
+   `(int)uLhs`/`(int)uRhs` loads of memory-homed shared locals.
+3. boundary-compare form for AddSmi/SubSmi + constant-double overflow
+   results (2147483648.0 / -2147483649.0) for Inc/Dec: named-get +17.2%,
+   then +9.2% after Inc/Dec went pure-expression.
+4. minimal uint single-compare form (`unchecked((ulong)(longNum -
+   int.MinValue)) <= uint.MaxValue`, Inc/Dec reverted to committed shape):
+   smi -4.5%, dromaeo -1.7%, for-loop +0.8%, but named-get +10.7% then
+   +9.8% (dedicated re-run).
+
+named-get regressed in EVERY variant while its hot path differs from the
+committed code only inside the Add arm body - the ~2-uop theoretical saving
+never survives the layout perturbation of the arm. Debug-build also
+surfaces checked-mode constraints (CS0220 on `int.MaxValue -
+int.MinValue`): the project compiles checked in Debug, so constant
+int arithmetic like that needs care.
+
+Rejected: the committed two-compare form is register-friendly and
+layout-stable; A17's theoretical saving is not observable. Closed; do not
+re-attempt without a layout-addressed build (e.g. after the RunCore
+restructure).
+
 ## Attempt Log Status
 
 | ID | Verdict |
