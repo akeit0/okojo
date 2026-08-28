@@ -1198,6 +1198,11 @@ public sealed partial class JsRealm
 
             ref var pc = ref Unsafe.NullRef<byte>();
             ref var fp = ref this.fp;
+            // Declared per Run (not per loop iteration) so the EH-live
+            // null-ref initialization store does not land on the per-dispatch
+            // join (A25.2); ReloadFrame and every NextOp overwrite it before
+            // anything can observe the null.
+            ref var opcodePc = ref Unsafe.NullRef<byte>();
 
             ReloadFrame:
             var currentFunc = Unsafe.As<JsBytecodeFunction>(
@@ -1205,6 +1210,7 @@ public sealed partial class JsRealm
             );
             ref var bytecode = ref MemoryMarshal.GetArrayDataReference(currentFunc.Script.Bytecode);
             pc = ref Unsafe.Add(ref bytecode, startPc);
+            opcodePc = ref pc;
             startPc = 0;
 #if OKOJO_VM_PROFILE
             s_vmProfileFrameEntries++;
@@ -1222,7 +1228,6 @@ public sealed partial class JsRealm
             while (true)
             {
                 var operandScale = BytecodeInfo.OperandScale.Single;
-                ref var opcodePc = ref Unsafe.NullRef<byte>();
                 double num1,
                     num2;
                 int intNum1,

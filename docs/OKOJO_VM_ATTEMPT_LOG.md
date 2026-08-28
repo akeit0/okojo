@@ -568,6 +568,23 @@ hot targets for a future keyed-op pass.
 
 Evidence: snapshot `20260828-221259-0009-v3-defusion`.
 
+### A25.2 dead opcodePc null-init store removed - ACCEPTED
+
+The EH-live `opcodePc` declaration moved from the per-iteration loop scope
+to per-Run, with `opcodePc = ref pc` written once at ReloadFrame. The dead
+null-ref initialization store no longer lands on the per-dispatch join
+(A25 item 2 resolved without the RunCore restructure).
+
+- Arm evidence: the dispatch edge now contains exactly one opcodePc store;
+  the `xor/mov` dead pair is gone.
+- bench-ab (pgo-off, medians): smi-sum-loop -11.9%, named-get -14.5%,
+  stopwatch-modern -3.2%; dromaeo showed +6.4% in the first run that did
+  not reproduce (-7.3% on a dedicated re-run) - layout noise, insights
+  1.11.
+- Full suite 2,176 passed, 4 skipped.
+
+Evidence: snapshot `20260828-224232-0010-a25-2-opcodepc-init`.
+
 ## Attempt Log Status
 
 | ID | Verdict |
