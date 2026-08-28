@@ -16,8 +16,9 @@ if (args.Length == 1 && string.Equals(args[0], "--inspect-run", StringComparison
 if (args.Length < 1)
 {
     Console.Error.WriteLine(
-        "usage: VmLoopProbe <case> [iterations] [warmup] [--strict] [--phase <name>] | --inspect-run"
+        "usage: VmLoopProbe <case> [iterations] [warmup] [--hold] [--strict] [--phase <name>]"
     );
+    Console.Error.WriteLine("       VmLoopProbe --inspect-run");
     return 1;
 }
 
@@ -35,6 +36,7 @@ var warmup =
         : Math.Max(400, iterations * 2);
 var phase = GetOption(args, "--phase");
 var strict = args.Contains("--strict", StringComparer.OrdinalIgnoreCase);
+var hold = args.Contains("--hold", StringComparer.OrdinalIgnoreCase);
 
 var source = ResolveCaseSource(caseName);
 if (strict)
@@ -68,6 +70,14 @@ Console.WriteLine(function is null ? "[mode] script" : "[mode] function");
 
 for (var i = 0; i < warmup; i++)
     RunOnce();
+
+if (hold)
+{
+    Console.WriteLine($"[hold] pid={Environment.ProcessId} warmed=true");
+    Console.Out.Flush();
+    Console.ReadLine();
+    return 0;
+}
 
 var samples = new double[iterations];
 var stopwatch = new Stopwatch();

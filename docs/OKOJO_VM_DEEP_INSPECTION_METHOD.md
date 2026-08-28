@@ -182,11 +182,11 @@ The current toolchain now answers structural opcode-to-arm costs, but not:
 | blind spot | consequence | fill |
 | ---------- | ----------- | ---- |
 | where cycles go inside `Run` | arm costs inferred from shape only | sampled heatmap (§5.3) |
-| asm <-> source correlation | manual pattern-matching per arm | IL/native map tool (§5) |
+| asm <-> source correlation | CLRMD map gives ranges/instructions, not arm rollups | IL/native map integration and T1 join (§5) |
 | dynamic opcode/pair frequencies | fusion candidates chosen by intuition | profile build counters |
 | branch-miss / I-cache data | BTB reasoning rests on one microbench | ETW PMC / VTune wrapper |
 
-## 5. IL-to-native mapping tool (design)
+## 5. IL-to-native mapping tool
 
 ### 5.1 Why a tool is required
 
@@ -202,9 +202,10 @@ one of:
 | native `ICorProfiler` | C++ profiler DLL, `JITCompilationFinished` + `GetILToNativeMapping2` | new native project, COM registration env vars | only needed if per-tier history or exact rejit tracking becomes necessary |
 | ETW `MethodILToNativeMap` | `Microsoft-Windows-DotNETRuntime` JitTracing keyword, parsed with TraceEvent | capture-time only | the natural route when combining with CPU sample events (§5.3) |
 
-### 5.2 Tool shape
+### 5.2 Current first slice and remaining shape
 
-New tool `tools/VmLoopIlMap` (managed console app) plus one probe flag:
+The first slice is implemented as `tools/VmLoopIlMap` (managed console app)
+plus one probe flag:
 
 1. `VmLoopProbe <case> --hold`: run warmup so `Run` reaches the intended
    tier (use `tiered-off` for a single deterministic body), print
@@ -212,15 +213,15 @@ New tool `tools/VmLoopIlMap` (managed console app) plus one probe flag:
 2. `VmLoopIlMap <pid>` (or `<dump-path>`):
    - attach via CLRMD, locate `JsRealm.Run`, read `NativeCode`,
      `HotColdInfo`, and `ILOffsetMap`;
-   - disassemble the native bytes with Iced;
-   - open the portable PDB (`System.Reflection.Metadata`) and resolve IL
-     offsets to sequence points (`JsRealm.VmLoop.cs` lines) - the same
-     PDB path `--inspect-run` already uses;
-   - emit `run.ilmap.txt`: `native-offset | asm | IL-offset | file:line`,
-     plus a per-source-line rollup (native bytes and instruction count
-     per C# line) and a per-arm rollup using the §3.2 `RWD00` opcode map.
-3. `capture-jit.ps1 -IlMap`: run the pair automatically and store
-   `run.ilmap.txt` in the snapshot beside the diffable listing.
+    - disassemble the hot/cold native bytes with Iced on x86/x64;
+    - open the portable PDB (`System.Reflection.Metadata`) and resolve IL
+      offsets to sequence points (`JsRealm.VmLoop.cs` lines) - the same
+      PDB path `--inspect-run` already uses;
+    - emit `[map]` ranges and `[asm] native | asm | IL-offset | file:line`
+      lines.
+3. Remaining integration: `capture-jit.ps1 -IlMap` should run the pair and
+   store `run.ilmap.txt` beside the diffable listing; the T1 `RWD00` map can
+   then add per-source-line and per-arm rollups.
 
 Caveats to encode in the tool's output header:
 
@@ -292,8 +293,9 @@ In dependency order:
    `xperf -pmcprofile BranchMispredictions,CacheMisses`; report branch misses
    and L1I misses per dispatched op using T2's counts. This is the evidence
    needed for BTB/cluster-spread claims on real workloads.
-6. **IL/native map:** implement `VmLoopIlMap` + `--hold` + `-IlMap` snapshot
-   integration (§5.2), keeping the active tier explicit.
+6. **IL/native map integration (partial):** `VmLoopIlMap` + `--hold` are
+   prepared and validated on `JsRealm.Run`; add `capture-jit.ps1 -IlMap`,
+   per-source-line/per-arm rollups, and explicit tier capture metadata (§5.2).
 7. **Static sequence analysis (T6):** run uiCA/llvm-mca on the roughly
    20-instruction dispatch and hot-arithmetic sequences extracted by T1. Use
    it for port-pressure comparisons, especially P3 variants, without making

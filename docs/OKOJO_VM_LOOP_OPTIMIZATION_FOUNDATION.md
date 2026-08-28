@@ -103,6 +103,34 @@ are used only to calculate block sizes. The report is structural evidence, not
 a hotness profile; accept or reject an optimization only after benchmark and
 relevant-assembly checks.
 
+### IL-to-native inspection (`tools/VmLoopIlMap`)
+
+For source/IL/native correlation, build the CLRMD mapper and hold a warmed
+probe at the intended tier:
+
+```powershell
+dotnet build tools/VmLoopProbe/VmLoopProbe.csproj -c Release
+dotnet build tools/VmLoopIlMap/VmLoopIlMap.csproj -c Release
+
+$env:DOTNET_TieredCompilation = "0"
+$env:DOTNET_TieredPGO = "0"
+dotnet tools/VmLoopProbe/bin/Release/net10.0/VmLoopProbe.dll `
+  smi-sum-loop 1 400 --hold
+
+# use the [hold] pid printed above
+dotnet tools/VmLoopIlMap/bin/Release/net10.0/VmLoopIlMap.dll <pid> `
+  --output artifacts/vmloopopt/snapshots/<snapshot>/run.ilmap.txt
+```
+
+`VmLoopIlMap` accepts either a PID or a dump path. CLRMD reads the current
+jitted `JsRealm.Run` method, its hot/cold regions, and `ILOffsetMap`; Iced
+decodes x86/x64 native bytes; and the portable PDB adds source file/line
+locations. The output contains `[map]` ranges and `[asm]` instruction lines.
+`--hold` blocks on stdin after warmup; press Enter after inspection. This is a
+mapping/disassembly artifact, not a timing result, and the `capture-jit.ps1
+-IlMap` automatic integration plus per-line/per-arm rollups remain follow-up
+work.
+
 ### Comparing snapshots
 
 ```powershell
