@@ -1209,22 +1209,16 @@ public partial class Intrinsics
                     return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                 }
 
-                var result = realm.CreateArrayObject();
                 if (hasStringSeparator && separatorString.Length == 0)
                 {
                     char[]? pooledChars = null;
                     var chars = text.Flatten(out pooledChars);
                     try
                     {
-                        uint count = 0;
-                        for (var i = 0; i < chars.Length && count < limit; i++, count++)
-                            FreshArrayOperations.DefineElement(
-                                result,
-                                count,
-                                JsValue.FromString(chars[i].ToString())
-                            );
-                        result.SetLength(count);
-                        return result;
+                        var dense = new JsValue[(int)Math.Min((uint)chars.Length, limit)];
+                        for (var i = 0; i < dense.Length; i++)
+                            dense[i] = JsValue.FromLatin1Char(chars[i]);
+                        return realm.CreateArrayObjectFromDense(dense);
                     }
                     finally
                     {
@@ -1233,6 +1227,7 @@ public partial class Intrinsics
                     }
                 }
 
+                using var stringResultBuilder = new PooledManagedArrayBuilder<JsValue>(16);
                 uint index = 0;
                 var start = 0;
                 while (index < limit)
@@ -1241,27 +1236,18 @@ public partial class Intrinsics
                     if (match < 0)
                         break;
 
-                    FreshArrayOperations.DefineElement(
-                        result,
-                        index++,
-                        JsValue.FromString(text.Slice(start, match - start))
-                    );
+                    stringResultBuilder.Add(JsValue.FromString(text.Slice(start, match - start)));
+                    index++;
                     start = match + separatorString.Length;
                     if (index == limit)
-                    {
-                        result.SetLength(index);
-                        return result;
-                    }
+                        return realm.CreateArrayObjectFromDense(stringResultBuilder.ToArray());
                 }
 
                 if (index < limit)
-                    FreshArrayOperations.DefineElement(
-                        result,
-                        index++,
+                    stringResultBuilder.Add(
                         JsValue.FromString(text.Slice(start, text.Length - start))
                     );
-                result.SetLength(index);
-                return result;
+                return realm.CreateArrayObjectFromDense(stringResultBuilder.ToArray());
             },
             "split",
             2
