@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Globalization;
 using System.Text;
+using Okojo.JavaScript.Internals;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
@@ -1062,15 +1063,19 @@ public partial class Intrinsics
                     hasStringSeparator = true;
                 }
 
-                var result = realm.CreateArrayObject();
                 if (limit == 0)
-                    return result;
+                    return realm.CreateArrayObject();
 
                 if (separatorValue.IsUndefined)
                 {
-                    FreshArrayOperations.DefineElement(result, 0, JsValue.FromString(text));
-                    result.SetLength(1);
-                    return result;
+                    var undefinedResult = realm.CreateArrayObject();
+                    FreshArrayOperations.DefineElement(
+                        undefinedResult,
+                        0,
+                        JsValue.FromString(text)
+                    );
+                    undefinedResult.SetLength(1);
+                    return undefinedResult;
                 }
 
                 if (
@@ -1081,19 +1086,15 @@ public partial class Intrinsics
                     var flatText = text.Flatten();
                     if (separatorRegex.Pattern.Length == 0)
                     {
-                        uint count = 0;
-                        for (var i = 0; i < flatText.Length && count < limit; i++, count++)
-                            FreshArrayOperations.DefineElement(
-                                result,
-                                count,
-                                JsValue.FromLatin1Char(flatText[i])
-                            );
-                        result.SetLength(count);
-                        return result;
+                        var dense = new JsValue[(int)Math.Min((uint)flatText.Length, limit)];
+                        for (var i = 0; i < dense.Length; i++)
+                            dense[i] = JsValue.FromLatin1Char(flatText[i]);
+                        return realm.CreateArrayObjectFromDense(dense);
                     }
 
                     if (text.Length == 0)
                     {
+                        var emptyResult = realm.CreateArrayObject();
                         if (
                             JsRegExpRuntime
                                 .Exec(
@@ -1117,14 +1118,14 @@ public partial class Intrinsics
                         )
                         {
                             FreshArrayOperations.DefineElement(
-                                result,
+                                emptyResult,
                                 0,
                                 JsValue.FromString(string.Empty)
                             );
-                            result.SetLength(1);
+                            emptyResult.SetLength(1);
                         }
 
-                        return result;
+                        return emptyResult;
                     }
 
                     var splitterFlags = separatorRegex.Flags.Contains('g')
@@ -1142,6 +1143,7 @@ public partial class Intrinsics
                         separatorRegex.DotAll
                     );
 
+                    using var resultBuilder = new PooledManagedArrayBuilder<JsValue>(16);
                     uint resultIndex = 0;
                     var splitStart = 0;
                     while (resultIndex < limit)
@@ -1172,16 +1174,12 @@ public partial class Intrinsics
                                 break;
                         }
 
-                        FreshArrayOperations.DefineElement(
-                            result,
-                            resultIndex++,
+                        resultBuilder.Add(
                             JsValue.FromString(text.Slice(splitStart, matchIndex - splitStart))
                         );
+                        resultIndex++;
                         if (resultIndex == limit)
-                        {
-                            result.SetLength(resultIndex);
-                            return result;
-                        }
+                            return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
 
                         var endIndex = matchIndex + matchedLength;
                         splitStart = endIndex;
@@ -1198,15 +1196,13 @@ public partial class Intrinsics
                     }
 
                     if (resultIndex < limit)
-                        FreshArrayOperations.DefineElement(
-                            result,
-                            resultIndex++,
+                        resultBuilder.Add(
                             JsValue.FromString(text.Slice(splitStart, text.Length - splitStart))
                         );
-                    result.SetLength(resultIndex);
-                    return result;
+                    return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                 }
 
+                var result = realm.CreateArrayObject();
                 if (hasStringSeparator && separatorString.Length == 0)
                 {
                     char[]? pooledChars = null;

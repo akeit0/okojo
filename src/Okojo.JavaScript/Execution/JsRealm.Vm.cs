@@ -2440,6 +2440,14 @@ public sealed partial class JsRealm
         return array;
     }
 
+    internal JsArray CreateArrayObjectFromDense(JsValue[] denseElements)
+    {
+        var array = CreateArrayObject();
+        array.Dense = denseElements;
+        array.SetLength((uint)denseElements.Length);
+        return array;
+    }
+
     internal JsArray CreateArrayObjectWithLength(int length)
     {
         var array = CreateArrayObject();

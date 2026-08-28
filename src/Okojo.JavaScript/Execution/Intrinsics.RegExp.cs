@@ -1,4 +1,5 @@
 using System.Text;
+using Okojo.JavaScript.Internals;
 using Okojo.JavaScript.Parsing;
 using Okojo.JavaScript.RegExp;
 
@@ -1596,11 +1597,6 @@ public partial class Intrinsics
                     0
                 );
 
-                var result = realm.CreateArrayObject();
-                uint lengthA = 0;
-                var p = 0;
-                var q = 0;
-
                 // R8-regexp fast path: default species construction already
                 // happened above; with a plain regexp receiver still bound to
                 // the builtin exec, per-position splitting can use raw engine
@@ -1612,14 +1608,20 @@ public partial class Intrinsics
                     && realm.Intrinsics.IsDefaultRegExpExec(realm, fastSplitterObj)
                 )
                 {
+                    using var resultBuilder = new PooledManagedArrayBuilder<JsValue>(16);
+                    uint fastLength = 0;
+                    var fastP = 0;
+                    var fastQ = 0;
+
                     if (text.Length == 0)
                     {
                         if (
                             JsRegExpRuntime.IntrinsicExecStepAt(realm, fastSplitter, text, 0)
                             is not null
                         )
-                            goto done;
-                        goto add_tail;
+                            return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
+                        resultBuilder.Add(JsValue.FromString(text[fastP..]));
+                        return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                     }
 
                     // Trivially empty pattern (empty source or bare non-
@@ -1629,80 +1631,83 @@ public partial class Intrinsics
                     var splitPatternSource = fastSplitter.Pattern;
                     if (splitPatternSource.Length == 0 || splitPatternSource is "(?:)")
                     {
-                        while (q < text.Length)
+                        while (fastQ < text.Length)
                         {
-                            var next = AdvanceStringIndex(text, q, unicodeMatching);
-                            if (q != p)
+                            var next = AdvanceStringIndex(text, fastQ, unicodeMatching);
+                            if (fastQ != fastP)
                             {
-                                FreshArrayOperations.DefineElement(
-                                    result,
-                                    lengthA++,
-                                    JsValue.FromString(text[p..q])
-                                );
-                                if (lengthA == limit)
-                                    goto done;
-                                p = q;
+                                resultBuilder.Add(JsValue.FromString(text[fastP..fastQ]));
+                                fastLength++;
+                                if (fastLength == limit)
+                                    return realm.CreateArrayObjectFromDense(
+                                        resultBuilder.ToArray()
+                                    );
+                                fastP = fastQ;
                             }
-                            q = next;
+                            fastQ = next;
                         }
-                        goto add_tail;
+                        if (fastLength < limit)
+                            resultBuilder.Add(JsValue.FromString(text[fastP..]));
+                        return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                     }
 
-                    while (q < text.Length)
+                    while (fastQ < text.Length)
                     {
                         var step = JsRegExpRuntime.IntrinsicExecStepAt(
                             realm,
                             fastSplitter,
                             text,
-                            q
+                            fastQ
                         );
                         if (step is null)
                         {
-                            q = AdvanceStringIndex(text, q, unicodeMatching);
+                            fastQ = AdvanceStringIndex(text, fastQ, unicodeMatching);
                             continue;
                         }
 
                         var e = step.Value.Index + step.Value.Length;
                         if (e > text.Length)
                             e = text.Length;
-                        if (e == p)
+                        if (e == fastP)
                         {
-                            q = AdvanceStringIndex(text, q, unicodeMatching);
+                            fastQ = AdvanceStringIndex(text, fastQ, unicodeMatching);
                             continue;
                         }
 
-                        FreshArrayOperations.DefineElement(
-                            result,
-                            lengthA++,
-                            JsValue.FromString(text[p..q])
-                        );
-                        if (lengthA == limit)
-                            goto done;
+                        resultBuilder.Add(JsValue.FromString(text[fastP..fastQ]));
+                        fastLength++;
+                        if (fastLength == limit)
+                            return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
 
-                        p = e;
+                        fastP = e;
 
                         var ranges = step.Value.Ranges;
                         for (var i = 1; i < step.Value.RangeCount; i++)
                         {
                             var capture = ranges[i];
-                            FreshArrayOperations.DefineElement(
-                                result,
-                                lengthA++,
+                            resultBuilder.Add(
                                 capture.Success
                                     ? JsValue.FromString(
                                         text.Substring(capture.Index, capture.Length)
                                     )
                                     : JsValue.Undefined
                             );
-                            if (lengthA == limit)
-                                goto done;
+                            fastLength++;
+                            if (fastLength == limit)
+                                return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                         }
 
-                        q = p;
+                        fastQ = fastP;
                     }
-                    goto add_tail;
+                    if (fastLength < limit)
+                        resultBuilder.Add(JsValue.FromString(text[fastP..]));
+                    return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
                 }
 
+                var result = realm.CreateArrayObject();
+                uint lengthA = 0;
+                var p = 0;
+                var q = 0;
                 if (text.Length == 0)
                 {
                     var z = RegExpExecGeneric(realm, splitterValue, text);
