@@ -459,6 +459,7 @@ public partial class Intrinsics
             "charAt",
             1
         );
+        charAtFn.LeafBodyField = TryLeafCharAt;
 
         var charCodeAtFn = new JsHostFunction(
             Realm,
@@ -2009,6 +2010,34 @@ public partial class Intrinsics
 
         var index = (int)position;
         result = index < 0 || index >= text.Length ? JsValue.NaN : new((double)text[index]);
+        return true;
+    }
+
+    private static bool TryLeafCharAt(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.charAt called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var position = args.Length == 0 ? 0d : realm.ToIntegerOrInfinity(args[0]);
+        if (double.IsInfinity(position))
+        {
+            result = JsValue.FromString(string.Empty);
+            return true;
+        }
+
+        var index = (int)position;
+        result = JsValue.FromString(
+            index < 0 || index >= text.Length ? string.Empty : text[index].ToString()
+        );
         return true;
     }
 
