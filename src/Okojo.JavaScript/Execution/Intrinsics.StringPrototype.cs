@@ -1507,6 +1507,7 @@ public partial class Intrinsics
             "toLowerCase",
             0
         );
+        toLowerCaseFn.LeafBodyField = TryLeafToLowerCase;
 
         var toLocaleLowerCaseFn = new JsHostFunction(
             Realm,
@@ -1541,6 +1542,7 @@ public partial class Intrinsics
             "toUpperCase",
             0
         );
+        toUpperCaseFn.LeafBodyField = TryLeafToUpperCase;
 
         var toLocaleUpperCaseFn = new JsHostFunction(
             Realm,
@@ -2221,6 +2223,48 @@ public partial class Intrinsics
         }
 
         result = JsValue.FromString(chars.ToString());
+        return true;
+    }
+
+    private static bool TryLeafToLowerCase(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.toLowerCase called on null or undefined"
+            );
+
+        result = JsValue.FromString(
+            JsStringCaseOperations.ToLowerCaseUnicodeDefault(
+                realm.ToJsStringValueSlowPath(thisValue)
+            )
+        );
+        return true;
+    }
+
+    private static bool TryLeafToUpperCase(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.toUpperCase called on null or undefined"
+            );
+
+        result = JsValue.FromString(
+            JsStringCaseOperations.ToUpperCaseUnicodeDefault(
+                realm.ToJsStringValueSlowPath(thisValue)
+            )
+        );
         return true;
     }
 }
