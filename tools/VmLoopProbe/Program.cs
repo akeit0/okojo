@@ -16,7 +16,7 @@ if (args.Length == 1 && string.Equals(args[0], "--inspect-run", StringComparison
 if (args.Length < 1)
 {
     Console.Error.WriteLine(
-        "usage: VmLoopProbe <case> [iterations] [warmup] [--hold] [--strict] [--phase <name>]"
+        "usage: VmLoopProbe <case> [iterations] [warmup] [--hold] [--strict] [--profile-opcodes] [--phase <name>]"
     );
     Console.Error.WriteLine("       VmLoopProbe --inspect-run");
     return 1;
@@ -37,6 +37,7 @@ var warmup =
 var phase = GetOption(args, "--phase");
 var strict = args.Contains("--strict", StringComparer.OrdinalIgnoreCase);
 var hold = args.Contains("--hold", StringComparer.OrdinalIgnoreCase);
+var profileOpcodes = args.Contains("--profile-opcodes", StringComparer.OrdinalIgnoreCase);
 
 var source = ResolveCaseSource(caseName);
 if (strict)
@@ -53,11 +54,21 @@ Console.WriteLine(
     $"[env] jitDisasm={(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_JitDisasm")) ? "<off>" : "on")}"
 );
 Console.WriteLine(
-    $"[env] case={caseName} strict={strict} iterations={iterations} warmup={warmup} phase={phase ?? "execute"}"
+    $"[env] case={caseName} strict={strict} iterations={iterations} warmup={warmup} phase={phase ?? "execute"} profileOpcodes={profileOpcodes}"
 );
 
 if (phase is not null)
+{
+    if (profileOpcodes)
+    {
+        Console.Error.WriteLine(
+            "--profile-opcodes is supported only for the normal execute probe."
+        );
+        return 1;
+    }
+
     return RunPhaseProbe(source, phase, iterations, warmup);
+}
 
 using var runtime = JsRuntime.CreateBuilder().Build();
 var realm = runtime.DefaultRealm;
@@ -76,6 +87,8 @@ if (hold)
     Console.WriteLine($"[hold] pid={Environment.ProcessId} warmed=true");
     Console.Out.Flush();
     Console.ReadLine();
+    if (profileOpcodes && !WriteOpcodeProfile())
+        return 2;
     return 0;
 }
 
@@ -99,6 +112,8 @@ var maxNs = samples[^1];
 Console.WriteLine(
     $"[result] case={caseName} mode={(function is null ? "script" : "function")} runs={iterations} mean_ns={meanNs:F1} median_ns={medianNs:F1} min_ns={minNs:F1} max_ns={maxNs:F1} total_ms={totalMs:F2}"
 );
+if (profileOpcodes && !WriteOpcodeProfile())
+    return 2;
 return 0;
 
 void RunOnce()
@@ -107,6 +122,21 @@ void RunOnce()
         realm.Execute(function, pumpJobsAfterRun: false);
     else
         realm.Execute(script, pumpJobsAfterRun: false);
+}
+
+static bool WriteOpcodeProfile()
+{
+    var report = JsRealm.GetVmOpcodeProfileReport();
+    if (report is null)
+    {
+        Console.Error.WriteLine(
+            "[profile] unavailable; rebuild with -p:OkojoVmProfile=true before using --profile-opcodes."
+        );
+        return false;
+    }
+
+    Console.Write(report);
+    return true;
 }
 
 static string ResolveCaseSource(string caseName)

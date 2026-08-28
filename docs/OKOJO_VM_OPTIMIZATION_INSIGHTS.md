@@ -203,6 +203,22 @@ The probe accepts comma-separated configuration lists, for example:
 Use one representative case for this assembly capture;
 reserve multi-case runs for timing and coverage.
 
+### 1.14 Dynamic opcode profiles must be separate from timing builds
+
+The T2 profile is enabled only with `-p:OkojoVmProfile=true` and is printed by
+`VmLoopProbe --profile-opcodes`. It counts the fetched dispatch stream, while
+its pair matrix resets at each frame reload. The latter matters for fusion:
+`CallUndefinedReceiver -> <callee entry>` is a real VM control transfer but is
+not a compiler-local adjacent pair.
+
+The first smoke cases matched the expected shapes: `smi-sum-loop` was
+dominated by `Star`, `Ldar`, `LdaSmiExtraWide`, and its arithmetic/loop pairs;
+`pure-function-call` exposed the caller-local
+`JumpIfFalse -> CallUndefinedReceiver` pair without a cross-frame call pair.
+The instrumented binary is evidence-only. It must not be used for pgo-off
+benchmark or JIT-size acceptance, and a normal build has no profile dispatch
+work.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)

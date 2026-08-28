@@ -22,6 +22,7 @@ Every performance question about `JsRealm.Run` lives on one of four layers:
 | C# source | the switch arm / helper | editor, `rg` |
 | IL | IL bytes, locals, EH regions | `VmLoopProbe --inspect-run` |
 | native code | tier-specific asm listing | `capture-jit.ps1`, `analyze-jit.ps1`, `compare-jit.ps1` |
+| VM execution stream | fetched opcode and frame-local pair counts | `VmLoopProbe --profile-opcodes` (profile build) |
 | CPU behavior | wall time (today); PMU/samples (planned) | `bench-ab.ps1`, probe medians |
 
 The core discipline: **a change is only understood when you can name the
@@ -147,13 +148,39 @@ Use `-ChangedOnly` for a compact A/B view. Since the comparison key is the
 opcode, a changed target label is reported as a target change rather than
 silently losing the arm in an IG-label diff.
 
-### 3.4 Diffs (`compare-jit.ps1`)
+### 3.4 Dynamic opcode/pair profile (`VmLoopProbe --profile-opcodes`)
+
+Build the probe with the opt-in profile constant, then run a workload through
+the resulting binary:
+
+```powershell
+dotnet build tools/VmLoopProbe/VmLoopProbe.csproj -c Release `
+  -p:OkojoVmProfile=true
+dotnet tools/VmLoopProbe/bin/Release/net10.0/VmLoopProbe.dll `
+  smi-sum-loop 10 400 --profile-opcodes
+```
+
+The output is sorted by count and has one summary line followed by
+`[profile-op]` opcode rows and `[profile-pair]` rows. It counts every fetched
+byte-valued dispatch opcode, including `Wide`/`ExtraWide` prefixes. Pair state
+resets at each VM frame reload, so a caller's `Call` is not falsely adjacent to
+the callee's first opcode; this makes the pair rows suitable for compiler
+fusion screening. The profile build is single-threaded probe instrumentation,
+not a benchmark build. A normal build contains no counters, profile locals, or
+per-dispatch branches; using `--profile-opcodes` there reports the rebuild
+requirement.
+
+Use the profile to choose candidates, not to accept an optimization. The
+candidate still needs the normal pgo-off timing comparison, same-tier assembly,
+and IL evidence described above.
+
+### 3.5 Diffs (`compare-jit.ps1`)
 
 Code-size delta first, then WHERE: a delta concentrated in the changed
 arm is explainable; a diff smeared across unrelated arms is layout churn
 - do not attribute timing shifts to your semantic change until re-run.
 
-### 3.5 From an asm signature to an isolated plan
+### 3.6 From an asm signature to an isolated plan
 
 Use the signature, not the source idea, to choose the next experiment:
 
@@ -183,7 +210,6 @@ The current toolchain now answers structural opcode-to-arm costs, but not:
 | ---------- | ----------- | ---- |
 | where cycles go inside `Run` | arm costs inferred from shape only | sampled heatmap (§5.3) |
 | asm <-> source correlation | CLRMD map gives ranges/instructions, not arm rollups | IL/native map integration and T1 join (§5) |
-| dynamic opcode/pair frequencies | fusion candidates chosen by intuition | profile build counters |
 | branch-miss / I-cache data | BTB reasoning rests on one microbench | ETW PMC / VTune wrapper |
 
 ## 5. IL-to-native mapping tool
@@ -275,11 +301,11 @@ In dependency order:
    and indirect jumps. Its opcode-keyed comparison makes target-label churn
    visible. Remaining work is validation against more cases and, if needed,
    richer source/IL correlation; it is not a hotness profiler.
-2. **T2 - dynamic opcode/pair profile:** add an `OKOJO_VM_PROFILE` build
-   constant, per-opcode execution counts, and the `(previous -> next)` opcode
-   pair matrix, with a `--profile-opcodes` probe output. The normal build must
-   pay zero cost. This supplies the denominator for miss data and the actual
-   fusion candidates for P6/A19.
+2. **T2 - dynamic opcode/pair profile (prepared):** build with
+   `-p:OkojoVmProfile=true` and run `VmLoopProbe --profile-opcodes` for
+   per-opcode execution counts and the frame-local `(previous -> next)` pair
+   matrix. The normal build pays zero dispatch cost. This supplies the actual
+   fusion candidates for P6/A19; it is not a timing configuration.
 3. **T5 - ceiling-build harness:** formalize probe-only named constants such
    as `CEILING_ACC_LOCAL`, `CEILING_NO_NAN_CANON`, and
    `CEILING_NO_OBJ_CLEAR`; let `bench-ab.ps1` select those builds. P7/A20 and

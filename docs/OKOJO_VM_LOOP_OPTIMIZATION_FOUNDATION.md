@@ -40,6 +40,17 @@ dotnet tools/VmLoopProbe/bin/Release/net10.0/VmLoopProbe.dll <case> [iterations]
 - `--inspect-run` reports `Run` IL bytes, maxstack, local count, per-type
   counts, and portable-PDB source-local names. This identifies which C#
   declarations become dedicated IL locals.
+- Build with `-p:OkojoVmProfile=true` and pass `--profile-opcodes` to collect
+  profile-only opcode and frame-local adjacent-pair counts. The profile build
+  is intentionally separate from timing/assembly acceptance; the normal build
+  contains no per-dispatch profile code.
+
+```powershell
+dotnet build tools/VmLoopProbe/VmLoopProbe.csproj -c Release `
+  -p:OkojoVmProfile=true
+dotnet tools/VmLoopProbe/bin/Release/net10.0/VmLoopProbe.dll `
+  smi-sum-loop 10 400 --profile-opcodes
+```
 
 ### 2. JIT capture (`tools/VmLoopProbe/capture-jit.ps1`)
 
@@ -525,6 +536,24 @@ Compared with the fresh pre-attempt snapshot:
 - The full BenchmarkDotNet matrix was stopped because its fixed 15-case run
   was too slow for this iteration; no benchmark-project source was changed.
 
+### t2-opcode-pair-profile - PREPARED
+
+`OkojoVmProfile=true` adds a compile-time-gated profiler to `JsRealm.Run` and
+`VmLoopProbe --profile-opcodes` prints sorted opcode and adjacent-pair rows.
+Opcode counts include every fetched opcode, including width prefixes. Pair state
+resets at each frame reload, excluding caller/callee boundary pairs from fusion
+screening. The default build has no profile counters or dispatch branch.
+
+Initial smoke checks:
+
+- `smi-sum-loop` produced the expected high-volume `Star`, `Ldar`, `Add`, and
+  loop-control counts plus repeated loop pairs.
+- `pure-function-call` exposed `JumpIfFalse -> CallUndefinedReceiver` inside
+  the caller while excluding the false `CallUndefinedReceiver -> <callee entry>`
+  cross-frame pair.
+- A normal build rejected `--profile-opcodes` with the explicit profile-build
+  command, and the uninstrumented probe still executed normally.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -543,7 +572,7 @@ Compared with the fresh pre-attempt snapshot:
 | A12 Run local sharing | ACCEPTED (short A/B; BDN deferred) |
 | A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
 | T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
-| T2 opcode/pair profiler | PLANNED (gates superinstruction selection) |
+| T2 opcode/pair profiler | PREPARED (`OkojoVmProfile=true` + `--profile-opcodes`; gates superinstruction selection) |
 | A14 arithmetic arm de-fusion | PLANNED (after T1/T2/P7 gates) |
 | A15 operand snapshots | PLANNED |
 | A16 numeric canonicalization | PLANNED |

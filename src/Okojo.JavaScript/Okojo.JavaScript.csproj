@@ -14,6 +14,9 @@
         <PackageTags>javascript;ecmascript;engine;runtime;dotnet</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(OkojoVmProfile)' == 'true'">
+        <DefineConstants>$(DefineConstants);OKOJO_VM_PROFILE</DefineConstants>
+    </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj" />
         <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj" />

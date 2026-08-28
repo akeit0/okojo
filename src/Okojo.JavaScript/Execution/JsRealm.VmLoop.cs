@@ -1,12 +1,95 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using Okojo.JavaScript.Bytecode;
 
 namespace Okojo.JavaScript.Execution;
 
 public sealed partial class JsRealm
 {
+#if OKOJO_VM_PROFILE
+    private const int VmProfileOpcodeCount = 256;
+    private static readonly long[] s_vmProfileOpcodeCounts = new long[VmProfileOpcodeCount];
+    private static readonly long[] s_vmProfilePairCounts = new long[
+        VmProfileOpcodeCount * VmProfileOpcodeCount
+    ];
+    private static long s_vmProfileRunEntries;
+    private static long s_vmProfileFrameEntries;
+#endif
+
+    internal static string? GetVmOpcodeProfileReport()
+    {
+#if !OKOJO_VM_PROFILE
+        return null;
+#else
+        var opcodeCounts = new List<(int Opcode, long Count)>();
+        var totalOpcodes = 0L;
+        for (var opcode = 0; opcode < VmProfileOpcodeCount; opcode++)
+        {
+            var count = s_vmProfileOpcodeCounts[opcode];
+            if (count == 0)
+                continue;
+
+            totalOpcodes += count;
+            opcodeCounts.Add((opcode, count));
+        }
+
+        opcodeCounts.Sort(
+            static (left, right) =>
+            {
+                var countComparison = right.Count.CompareTo(left.Count);
+                return countComparison != 0 ? countComparison : left.Opcode.CompareTo(right.Opcode);
+            }
+        );
+
+        var pairCounts = new List<(int From, int To, long Count)>();
+        var totalPairs = 0L;
+        for (var pair = 0; pair < s_vmProfilePairCounts.Length; pair++)
+        {
+            var count = s_vmProfilePairCounts[pair];
+            if (count == 0)
+                continue;
+
+            totalPairs += count;
+            pairCounts.Add((pair >> 8, pair & 0xff, count));
+        }
+
+        pairCounts.Sort(
+            static (left, right) =>
+            {
+                var countComparison = right.Count.CompareTo(left.Count);
+                if (countComparison != 0)
+                    return countComparison;
+
+                var fromComparison = left.From.CompareTo(right.From);
+                return fromComparison != 0 ? fromComparison : left.To.CompareTo(right.To);
+            }
+        );
+
+        static string OpcodeName(int opcode) => Enum.GetName((JsOpCode)opcode) ?? $"0x{opcode:X2}";
+
+        var report = new StringBuilder();
+        report.AppendLine(
+            $"[profile] run_entries={s_vmProfileRunEntries} frame_entries={s_vmProfileFrameEntries} "
+                + $"total_opcodes={totalOpcodes} "
+                + $"distinct_opcodes={opcodeCounts.Count} total_pairs={totalPairs} "
+                + $"distinct_pairs={pairCounts.Count}"
+        );
+        foreach (var (opcode, count) in opcodeCounts)
+            report.AppendLine(
+                $"[profile-op] opcode={opcode} name={OpcodeName(opcode)} count={count}"
+            );
+        foreach (var (from, to, count) in pairCounts)
+            report.AppendLine(
+                $"[profile-pair] from={from} from_name={OpcodeName(from)} "
+                    + $"to={to} to_name={OpcodeName(to)} count={count}"
+            );
+
+        return report.ToString();
+#endif
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int ReadByteOrU16(ReadOnlySpan<byte> code, ref int pc, bool wide)
     {
@@ -1095,6 +1178,10 @@ public sealed partial class JsRealm
     private void Run(int stopAtCallerFp = -1, int startPc = 0)
     {
         managedRunDepth++;
+#if OKOJO_VM_PROFILE
+        s_vmProfileRunEntries++;
+        var previousOpcode = -1;
+#endif
         try
         {
             var fullStack = Stack.AsSpan();
@@ -1110,6 +1197,10 @@ public sealed partial class JsRealm
             ref var bytecode = ref MemoryMarshal.GetArrayDataReference(currentFunc.Script.Bytecode);
             pc = ref Unsafe.Add(ref bytecode, startPc);
             startPc = 0;
+#if OKOJO_VM_PROFILE
+            s_vmProfileFrameEntries++;
+            previousOpcode = -1;
+#endif
             ref var nextCheck = ref Agent.ExecutionCheckCountdown;
             var objectPool = currentFunc.Script.ObjectConstants;
             var atomizedStringConstants = currentFunc.Script.AtomizedStringConstants;
@@ -1150,6 +1241,13 @@ public sealed partial class JsRealm
                             op,
                             ref nextCheck
                         );
+#if OKOJO_VM_PROFILE
+                    var opcodeValue = (byte)op;
+                    s_vmProfileOpcodeCounts[opcodeValue]++;
+                    if (previousOpcode >= 0)
+                        s_vmProfilePairCounts[(previousOpcode << 8) | opcodeValue]++;
+                    previousOpcode = opcodeValue;
+#endif
                     switch (op)
                     {
                         case JsOpCode.Wide:
