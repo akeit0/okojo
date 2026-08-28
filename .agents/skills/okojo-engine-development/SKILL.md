@@ -14,8 +14,9 @@ Use this skill only for Okojo engine implementation or debugging. Read
   `../../../docs/OKOJO_VM_DEEP_INSPECTION_METHOD.md` when the task is
   non-trivial.
 - VM-loop optimization: also read
-  `../../../docs/OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` only for that
-  optimization work.
+  `../../../docs/OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` (workflow) and
+  `../../../docs/OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` (active plan)
+  only for that optimization work.
 - Test262 campaigns: use [`okojo-test262`](../okojo-test262/SKILL.md), not this
   workflow.
 - Okojo.Node/Ink debugging: use

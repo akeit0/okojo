@@ -4,6 +4,8 @@ Related documents:
 
 - `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative technical knowledge base
   (JIT/codegen, CPU, C# pitfalls, measurement methodology).
+- `OKOJO_VM_ATTEMPT_LOG.md` - historical record of completed attempts
+  (accepted/rejected/prepared/deferred) and the final verdict table.
 - `OKOJO_VM_DEEP_INSPECTION_METHOD.md` - investigation method: layered
   model, artifact-reading recipes, IL-to-native mapping tool design.
 - `OKOJO_A7_DISPATCH_DESIGN.md` - dispatch-structure analysis and E1
@@ -11,14 +13,16 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - bytecode/compiler research: corpus profile,
   fusion candidates, let-loop context lowering.
 - `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` - active 2026-08-28 proposals:
-  T2 dynamic profiles, compiler emission elisions (C3-C4), arm-level VM
-  work (accepted V1/A21 plus V2-V5 backlog A22-A24), fusion revisit-trigger
-  evidence.
+  compiler emission elisions (C3-C4), arm-level VM work (V2-V8), fusion
+  revisit-trigger evidence.
 
 Scope: establish a repeatable methodology for optimizing the interpreter
 dispatch loop (`JsRealm.Run`, `src/Okojo.JavaScript/Execution/JsRealm.VmLoop.cs`)
 beyond wall-clock benchmarking: IL/JIT-assembly comparison, Dynamic PGO A/B,
-and per-attempt evidence capture.
+and per-attempt evidence capture. This document holds the workflow,
+tooling, and baseline constraints only; the active plan lives in
+`OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` and completed attempt history in
+`OKOJO_VM_ATTEMPT_LOG.md`.
 
 Priority order per AGENTS.md still applies: correctness, observability,
 measured optimization.
@@ -248,425 +252,25 @@ Two consequences drive the attempt backlog:
    in the loop head (and per-arm temps) measurably changes frame setup and
    reg pressure.
 
-## Next plan: dump-driven arithmetic and entry costs
+## Active plan pointer
 
-The current tiered-off `Run` listing is 21,924 bytes with 44 IL locals. The
-reference artifact is
-`artifacts/vmloopopt/snapshots/20260828-112717-0008-current-asm/jit/smi-sum-loop.tiered-off.direct.jit.txt`.
-The following observations are concrete assembly signatures, but their
-performance meaning is still a hypothesis: each must get an isolated bench-ab
-median and a same-config assembly diff before it becomes an accepted
-optimization.
+The dump-driven findings (F1-F6), all open proposals and experiments
+(A8/A9/A11, A14-A19, A22-A26, C3-C4, V2-V8), the consolidated backlog, and
+the suggested execution order live in the single active plan document:
 
-### Working dump findings
+- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md`
 
-1. **Entry zeroing (F1):** `init_locals=True` plus the `0x4B8`-byte frame emits
-   a prologue clear loop (`mov rax,-0x420`, three `vmovdqa` stores, `add rax,48`,
-   `jne`). About 1.1KB is cleared on every `Run` entry. This is mostly
-   irrelevant to a single long-running loop, but matters for accessor getters,
-   `InvokeFunction` re-entry, and generator drives.
-2. **Accumulator indirection (F2):** arms repeatedly reload
-   `mov rax,bword ptr [rbp-0x338]` for the spilled `&this.acc` and then
-   dereference it. Numeric results also use a `vucomisd` self-compare,
-   conditional NaN canonicalization, and a second store clearing `Obj`; a
-   single float add therefore pays `vucomisd`, two branches, a pointer reload,
-   and two stores before the next dispatch.
-3. **Arithmetic re-dispatch (F3):** the fused arm compares `op` again with
-   `cmp edx,59` (`Add`) and `cmp edx,60` (`Sub`), then uses the `RWD776`
-   secondary table for `Div`/`Mod`/`Exp` (IG293-IG297). The int-plus-int path
-   has its own `cmp edx,59/60/68` chain (IG312-IG316). The mixed path pays this
-   after the accumulator overflows to Float64.
-4. **Aliasing-blocked CSE (F4):** the mixed path performs two back-to-back
-   `and r9,qword ptr [rax]` mask tests in IG284. The `IsFloat64`/`IsInt32`
-   reads go through a byref, so RyuJIT does not CSE them across possible
-   aliasing.
-5. **Cloned slow tails (F5):** `HandleArithmeticNonNumberSlowPath` is emitted
-   along IG280-IG283, IG285-IG287, and IG289-IG291, each with a private 16-byte
-   temporary (`[rbp-0x1C0]`, `-0x1D0`, `-0x1E0`). This is code-size and frame
-   pressure from one source-level tail reached through three flows.
-6. **Wide overflow math (F6):** int-plus-int uses sign extension, a 64-bit
-   add, and two range comparisons instead of a 32-bit overflow test.
-
-Non-goal: the `opcodePc`/`op` spills at `[rbp-0x370]`/`[rbp-0x8C]` are
-EH-liveness-forced because the catch reads `opcodePc` and arithmetic arms read
-`op`. P1 can reduce `op` readers, but the spills are not a target while the
-catch needs that cursor.
-
-### Planned experiments
-
-1. **P1 / A14 - de-fuse arithmetic:** give `Add`, `Sub`, and `Mul` separate
-   arms. The top-level `RWD00` table already has separate entries, so the
-   dispatch target set and BTB shape should remain unchanged; only the arm
-   bodies specialize. Expected effect: remove 1-3 inner compares and a second
-   indirect jump on the mixed path, and potentially collapse F5's cloned tail.
-2. **P2 / A15 - snapshot operands:** read `acc` and `slotRef` into locals once
-   before multi-testing their tags. A 16-byte `JsValue` local whose `Obj` half
-   is unused on the numeric path may promote to one GPR and remove F4's
-   aliasing barrier.
-3. **P3 / A16 - integer numeric canonicalization:** test
-   `(bits & BoxMask) == BoxHdr` on the `vmovq` integer bits instead of the
-   floating self-compare. This follows the existing box-header mask pattern,
-   removes the xmm-to-flags dependency, preserves the exact `JsValue`
-   invariant, and may be centralized in one internal
-   `FromNumericResult(double)` helper.
-4. **P4 / A17 - 32-bit overflow:** compare `int r = a + b` with
-   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form) against
-   current semantics. This is a tiny innermost-loop experiment and needs exact
-   Smi-to-Float64 promotion tests.
-5. **P5 / A18 - entry clear ceiling:** test `[SkipLocalsInit]` on `Run` (or,
-   only after an assembly-wide audit, at assembly scope) after auditing all
-   managed-reference initialization. Verify that the prologue loop disappears
-   in tiered-off asm and use re-entrant accessor/generator workloads, not just
-   `smi-sum-loop`.
-6. **P6 / A19 - three-operand superinstructions:** after T2 pair frequencies
-   and P7 headroom, fuse patterns such as `Ldar rA; Add rB; Star rC` into
-   `AddRR rA,rB -> rC`, bypassing `this.acc` and two dispatches. This follows
-   the register-machine shape used by LuaJIT/JSC; V8 Ignition avoids the same
-   cost with a physical accumulator that the current C# loop cannot provide per
-   dynamic opcode. Adding bytecode entries changes the BTB target set, so
-   re-check the dispatch evidence.
-7. **P7 / A20 - accumulator-local ceiling:** make a probe-only hacked build
-   with a local accumulator used only to measure the field-indirection ceiling.
-   The first probe used a value `JsValue` local rather than the narrower
-   `ulong accBits` mirror; it is semantically wrong at unsynchronized runtime
-   boundaries and valid only as a ceiling measurement. A large ceiling now
-   justifies a synchronization audit for calls, suspends, and exceptions, but
-   does not justify shipping the probe implementation.
-
-Execution order is the prepared T1 listing analyzer, T2 opcode/pair
-profiling, the P7 ceiling probe, then isolated P1-P5 attempts. P6 remains
-deferred until both the pair profile and ceiling are positive. T3-T6 are
-follow-on attribution tools when the isolated results remain unclear. When an
-F1-F6 hypothesis is confirmed, copy the measured result into
-`OKOJO_VM_OPTIMIZATION_INSIGHTS.md` with its snapshot and tier; until then,
-keep it labeled as a hypothesis here.
-
-## Candidate Attempts
-
-Order = proposed execution order (cheap/measurable first). Each attempt:
-one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
-`compare-jit.ps1`, BDN confirmation only if probe+dasm look good.
-
-| ID | Idea | Hypothesis / Notes |
-| -- | ---- | ------------------ |
-| A1 | IL-locals diet in `Run` loop head | 137 locals (56 Int32) inflate GC-report slots and reg pressure; hoist/reuse temps, move per-arm temporaries into handler methods. Measure: frame-setup instructions in dasm, code size, probe timing |
-| A2 | Hot/cold split: cold opcode handlers -> NoInlining methods | Cold rare ops leave the loop body; hot core shrinks from ~22KB toward I-cache-friendly size; cold paths pay call overhead only when executed |
-| A3 | Remove redundant checks via Unsafe where provably safe | e.g. `GetPcOffset` uses `checked` byte-offset math on every slow-path hop; validated bytecode makes many bounds/overflow checks dead. Remove only where correctness is provable; add regression tests for touched paths |
-| A4 | Manual inline / AggressiveInlining audit | Ensure hot-op helper bodies actually inline (call-site scan in dasm); mark tiny hot helpers AggressiveInlining, keep big ones NoInlining to protect budgets |
-| A5 | Execution-check countdown placement/width | `--nextCheck == 0` sits on every dispatch edge; test fusing with pc advance or widening countdown |
-| A6 | Narrow try/catch scope around dispatch | Whole-loop EH region may constrain codegen; exceptions are the JS throw mechanism so semantics must be preserved exactly |
-| A7 | Dispatch structure: switch -> opcode-indexed function-pointer table | Static `delegate*<ref VmState, ...>[]` indexed by opcode passes state explicitly. Expected gain is NOT dispatch speed (jump table already confirmed) but code-size/reg-pressure relief per handler; risks indirect-call overhead + state-struct refactor. Compare stable pgo-off diffs before/after |
-| A8 | Per-operation implementation changes (smi fast paths etc.) | Per-op work with V8 reference observations; use OkojoBytecodeTool cases + Node/V8 repros per AGENTS tooling rules |
-| A9 | Opcode set streamlining | Compiler-contract change (frame layout/operand rules): only after A1/A2 measurements justify it; needs OkojoBytecodeTool evidence first |
-| A10 | IC-helper devirtualization friendliness | Help PGO guard/guarded-devirtualize named-property IC calls (sealed/final shapes, explicit type tests) |
-| A11 | Tree-walk interpreter alternative | Largest change; diverges from the V8/Ignition reference model. Only if the bytecode path plateaus after A1-A10; requires its own feature note before starting |
-| A12 | `Run` C# local sharing | Use the PDB-backed local report to preserve frame/stack-machine state, but share short-lived same-type temporaries. Measure benchmark first, then Tier1 frame/calls, then IL locals |
-| A13 | Scaled operand reader fast/cold split | Keep the common single-byte operand read inline and share wide/extra-wide/invalid decoding in one cold NoInlining helper |
-| A14 | Arithmetic arm de-fusion | Give `Add`, `Sub`, and `Mul` separate arms so mixed numeric paths do not re-dispatch on `op`; verify the top-level jump-table target set is unchanged and measure mixed arithmetic |
-| A15 | Operand snapshots before tag tests | Copy `acc` and `slotRef` to locals before repeated numeric/type tests; inspect whether byref reloads and duplicate mask loads disappear without enlarging the frame |
-| A16 | Numeric result canonicalization | Replace the floating self-compare used for box-header avoidance with the integer mask invariant; add NaN/number regression coverage before accepting a helper |
-| A17 | 32-bit Smi overflow check | Test a 32-bit add/overflow test against the current 64-bit range checks; preserve exact JS integer/float promotion semantics |
-| A18 | `SkipLocalsInit` entry probe | Test removal of the `Run` prologue clear only after auditing managed-reference initialization and re-entry paths; use accessor/generator cases, not just a single loop |
-| A19 | Three-operand arithmetic superinstructions | Fuse measured register-op patterns such as `Ldar` + arithmetic + `Star`; require T2 pair frequencies, P7 headroom, compiler/bytecode evidence, and an explicit opcode-contract owner |
-| A20 | Accumulator-local ceiling probe | Positive ceiling: Tier1 code -6.1% and numeric probe medians about -11%; probe failed 244/2,164 tests because runtime boundaries still read `JsRealm.acc`; implementation deferred, never ship the probe directly |
-| A21 | Accumulator-local implementation | ACCEPTED: value-local `acc`, helper mutation via `ref`, and publication only at re-entry/observable/exception/exit boundaries. Okojo.Tests 2,165 passed + 4 skipped; non-staging Test262 41,499 passed + 9,239 intentional skips; pgo-off numeric/property medians -8.3% to -15.9%; Tier1 -843 B and frame -304 B. Detail: proposals V1 and snapshot `20260828-164803-a21-acc-local-final` |
-| A22 | Star/Mov write-barrier elimination for ref-free values | `Star`'s 16-byte struct copy through a byref emits `movsq + CORINFO_HELP_ASSIGN_BYREF` per execution of the hottest opcode; listing proves null Obj stores are barrier-free (IG536). Branch on `acc.Obj is null` in a shared `CopyValueTo` helper: numeric path becomes two plain stores. Detail: proposals doc V2 |
-| A23 | Hot-arm de-fusion beyond arithmetic | Extends A14 with per-arm evidence: `Star/StarWide` re-dispatch `cmp edx,150` per execution, `Ldar` family range test + hole-check branch, `Inc/Dec` delta select, `TestEqual` family inner `op switch` + unconditional `AbstractEquals` with no inline int32 compare (4.1M/probe in stopwatch). Split arms; jump-table shape unchanged. Detail: proposals doc V3 |
-| A24 | Residual operand-scale stack traffic | Post-A13, hot two-operand arms still zero `operandOffset` to `[rbp-0x78]` and reload `operandScale` from `[rbp-0x5C]` every execution (by-ref cold-reader signature + EH liveness). Restructure: scale-1 fast path reads bytes directly; cold wide decode takes inputs by value. Detail: proposals doc V4 |
-| A25 | Dispatch-edge store diet | Four bookkeeping stack stores per dispatch on IG07/IG08: `operandScale` reset (move to a post-wide-op stub), a dead `opcodePc` null store (EH-live local defeats dead-store elimination; restructure the init), and the `op` spill for cold resume paths (re-derive from `opcodePc` there). Small (A5 calibration: whole countdown was <=0.4%); accept on medians only. Detail: proposals doc V6 |
-| A26 | Frame-scoped global-IC base caching | `LdaGlobal` re-derives the global-IC entry base via a three-load chain + two bounds checks per execution (IG466-469); derive once per frame at ReloadFrame like `registerRef`. Watch register pressure against A21's frame shrink. Detail: proposals doc V7 |
-| C3-C4 | Compiler emission elisions | C3 block TDZ and C4 completion-value elisions remain proposed. Detail: `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` section 2 |
-
-Deferred/rejected ideas stay recorded here with reasons instead of being
-retried silently (AGENTS.md: no old fast-path experiments without profiling
-evidence).
-
-## Attempt Log
-
-### a2-hot-cold-split - ACCEPTED (branch vmopt-a2-hot-cold-split)
-Extracted 7 cold opcode arm groups into NoInlining handlers returning the
-consumed-delta (CreateClosure, CreateFunctionContext family, context-slot
-families, StaGlobal family, GetNamedPropertyFromSuper, CreateObjectLiteral).
-
-- Tier1 code size 22373 -> 21058 (-5.9%), Tier0 -10.1%.
-- bench-ab (5 alternating rounds, pgo-off): for-loop-sum -4.1%,
-  closure-heavy -1.6%, pure-function-call -1.2%, others within noise.
-  Degradable cases show no handler-call regression.
-- Full suite green. Merged --no-ff into vm-opt.
-
-Knowledge produced by this attempt:
-
-1. **C# ref-reassignment pitfall**: `pc = ref Unsafe.Add(ref pc, n)` inside a
-   callee rebinds only the callee's ref slot; the caller's ref local is never
-   reseated. A pc cursor cannot be advanced through-writes (it would
-   overwrite bytecode). Extracted handlers MUST return the consumed delta and
-   arms apply `pc = ref Unsafe.Add(ref pc, Handler(...))`. This is WHY the
-   pre-existing Handle* helpers use that convention. Documented in
-   JsRealm.VmLoop.cs above `HandleCreateClosure`.
-2. **Diagnosis workflow for VM dispatch bugs** (worked end-to-end):
-   probe mode fallback -> minimal repro app -> targeted `[diag]` lines in
-   handler/store path -> per-dispatch `[optrace]` line comparing working vs
-   broken -> raw bytecode byte dump to disprove misleading disasm listing.
-   The OkojoBytecodeTool listing showed operand bytes as separate pseudo-
-   instructions; raw byte dump settled it.
-3. **A1 implementation hint**: reduce locals C-style - declare shared temps
-   once at method top (the loop-head already does this for num/intNum/reg);
-   extend that pattern rather than adding per-arm locals when extracting.
-
-### a1-locals-diet - ACCEPTED (branch vmopt-a1-locals-diet)
-
-C-style shared-temp conversion of cold-arm decodes (module vars, Mov,
-LdaGlobal decode, rest/array/object literal indices, typed const, Smi-imm
-arith) plus one shared `operandOffset` replacing 10 per-arm declarations.
-
-- IL locals 117 -> 93 (-20%), Int32 slots 47 -> 23.
-- Tier1 code size 21058 -> 20562 vs A2 (-2.4%); -8.1% cumulative vs baseline.
-- bench-ab vs vm-opt: all six cases within noise; no regressions
-  (pure-function-call +2.2% is inside this machine's variance band).
-- Hygiene fix bundled: deleted six dead v1 handler overloads left by the A2
-  bulk replace (void/ref-reseat variants were unreachable but silently
-  legal as overloads). Lesson: after bulk method replacement, grep the old
-  signature shape to confirm zero leftovers before merging.
-
-### a4-inline-audit - ACCEPTED (branch vmopt-a4-inline-audit)
-
-Dasm call-site audit: extracted every `call` target from Run's Tier1 listing
-and classified them. Tiny hot accessors on the 16-byte JsValue struct were
-left un-inlined by JIT heuristics (IsNumber x9, IsInt32 x8, FastNumberValue
-x7, IsFloat64 x4, ctor(double) x12, IsDynamic x6, TryGetObject x2).
-Forced AggressiveInlining (accessor-target for properties) removed all of
-them at ~+150B Tier1 code size; bench-ab neutral; suite green.
-
-Knowledge:
-
-1. Audit recipe: `rg 'call.*\[Okojo' <tier1 dasm>` grouped by target -
-   anything tiny and hot that still shows up is an inline candidate;
-   big/slow helpers showing up confirm NoInlining is doing its job.
-2. MethodImpl(AggressiveInlining) cannot annotate a property directly; it
-   must go on the get accessor.
-3. RyuJIT refusing 1-line struct accessors in huge methods is real; do not
-   assume trivial members inline themselves under register pressure.
-4. ThrowInvalidOperandScale appears as 21 cold throw-tails (one per arm with
-   scale checks); harmless footprint, revisit only if code size matters.
-
-### a5a6-dispatch-overhead - REJECTED (branch vmopt-a5a6-dispatch-overhead, preserved)
-
-Two hypotheses killed with evidence; branch kept unmerged.
-
-- A5 countdown placement/width: ceiling measurement (check fully disabled)
-  gained only -0.4% on the dispatch-heaviest case. dec+jz is free. Moving
-  the check would also break debugger checkpoint precision (slow path
-  receives the current opcode's pc). Do not revisit without profiler
-  evidence.
-- A6 EH scope: `while { try {} catch {} }` already emits ONE IL EH region
-  covering the loop; restructuring to try-around-while is an IL no-op
-  (+3B IL, +-1.2% noise). There was never a per-iteration region to narrow.
-
-Methodology note: the "ceiling measurement" (disable the feature entirely,
-measure max possible win before designing any clever version) is the cheap
-way to kill speculative micro-optimizations and is now standard here.
-
-### a3-unsafe-checks - ACCEPTED (branch vmopt-a3-unsafe-checks)
-
-Audit of overflow/bounds checks in the execution core. Removed the single
-provably-dead one: `GetPcOffset`'s `checked((int)Unsafe.ByteOffset(...))`
-(same-array offsets always fit int; dead `jo` at ~23 inlined call sites).
-Everything else classified and recorded in the snapshot notice:
-
-- KEEP: all semantic checked math (host conversion contracts, typed-array
-  spec throws).
-- SKIP deliberately: trusted-index array bounds checks in handlers - safe to
-  remove only under full compiler-trust, payoff sub-noise, and raw-pointer
-  access converts diagnosable exceptions into memory corruption on future
-  engine bugs.
-
-Result: Tier1 -4B, timings noise, suite green. Value = the classification
-table + removed dead branch pattern.
-
-### a10-ic-devirt - ACCEPTED (branch vmopt-a10-ic-devirt)
-
-Removed hidden runtime type tests from the IC hot path and constant-pool
-consumers. `JsObject.Shape` castclass -> Unsafe.As (invariant proven: both
-layout classes sealed; !IsDynamic => exactly static layout; both Shape
-callers sit behind the UsesDynamicNamedProperties guard). Closure and
-object-literal handler pool casts likewise.
-
-- named-get Tier1 ISINSTANCEOF/CHKCAST helper calls 7 -> 3 (remaining are
-  genuine type tests as control flow).
-- bench-ab pgo-off: named-get -0.9%, pure-function-call -2.8%, rest noise.
-  pgo-on reference pass showed masking (+0.4%), confirming decisions stay
-  pgo-off.
-
-Knowledge:
-
-1. House style for guaranteed heap casts: `Unsafe.As<T>(object)` (since
-   .NET 5) - same codegen as the byref form, simpler call sites.
-   The byref `Unsafe.As<TFrom,TTo>(ref ...)` remains for byref/field
-   reinterpretation (e.g., JsValue <-> double).
-2. Before Unsafe.As anywhere: write down the invariant + audit ALL consumers;
-   an unguarded path turns loud InvalidCastException into silent corruption.
-3. Virtual-dispatch scan of hot arms found none (IC predicates were already
-   AggressiveInlining statics; Get/SetNamedByCachedSlotInfo non-virtual) -
-   A10's win was hidden casts, not devirtualization per se.
-
-### a12-run-local-sharing - ACCEPTED (working-tree attempt)
-
-Added `VmLoopProbe --inspect-run` with portable-PDB source names, then
-converted avoidable per-arm C# temporaries to method-loop shared locals.
-Frame/operand state and the machine stack remain unchanged; stack-machine
-references and already-shared locals were preserved.
-
-- Fresh `Run` report: **98 -> 44 IL locals**, **7,880 -> 7,810 IL bytes**.
-- Int32 locals: 23 -> 5; JsObject locals: 6 -> 1; SlotInfo locals: 4 -> 1;
-  Boolean locals: 12 -> 4.
-- Five-round short pgo-off A/B (`100` samples, `200` warmup) improved the
-  main cases: smi-sum-loop -6.4%, for-loop-sum -5.5%, named-get -8.8%.
-  Arithmetic and prototype/closure checks were within noise.
-- A failed Date fast-path alias attempt was caught by the focused test; the
-  helper now uses `ref` output and does not write on a failed guard, keeping
-  accumulator/RHS semantics intact.
-
-### a13-scaled-reader-cold-split - ACCEPTED (working-tree attempt)
-
-`ReadScaledUnsignedOperand` keeps the `Single` byte read inline and routes
-wide, extra-wide, and invalid scales to one shared NoInlining helper. This
-removes repeated cold decode blocks from `Run` without changing opcode
-operands or frame layout.
-
-Compared with the fresh pre-attempt snapshot:
-
-- Tier1: **22,503 -> 21,925 bytes** (-578); Tier1-OSR:
-  **22,779 -> 22,281 bytes** (-498).
-- Tier1 calls: 228 -> 222; Tier1-OSR calls: 229 -> 222.
-- Tier1 stack reservation: 1,464 -> 1,272 bytes; OSR reservation changed
-  992 -> 1,008 bytes.
-- Final short pgo-off A/B against `HEAD`: smi -3.6%, for -11.0%, named
-  -6.1%, pure-call -3.6%, prototype -1.1%; closure +1.5% (noise).
-- A shorter pgo-on sanity pass showed profile sensitivity (main loops near
-  neutral-to-better, named-get +4.9%, pure-call/closure much faster); it is
-  not used to override the pgo-off/Tier1 decision.
-- The full BenchmarkDotNet matrix was stopped because its fixed 15-case run
-  was too slow for this iteration; no benchmark-project source was changed.
-
-### t2-opcode-pair-profile - PREPARED
-
-`OkojoVmProfile=true` adds a compile-time-gated profiler to `JsRealm.Run` and
-`VmLoopProbe --profile-opcodes` prints sorted opcode and adjacent-pair rows.
-Opcode counts include every fetched opcode, including width prefixes. Pair state
-resets at each frame reload, excluding caller/callee boundary pairs from fusion
-screening. The default build has no profile counters or dispatch branch.
-
-Initial smoke checks:
-
-- `smi-sum-loop` produced the expected high-volume `Star`, `Ldar`, `Add`, and
-  loop-control counts plus repeated loop pairs.
-- `pure-function-call` exposed `JumpIfFalse -> CallUndefinedReceiver` inside
-  the caller while excluding the false `CallUndefinedReceiver -> <callee entry>`
-  cross-frame pair.
-- A normal build rejected `--profile-opcodes` with the explicit profile-build
-  command, and the uninstrumented probe still executed normally.
-
-### C1 compound-assignment temp elision - ACCEPTED
-
-The compiler now emits the RHS directly into the accumulator and reads the
-uncaptured current-frame local from the arithmetic operand register, removing
-the compound-assignment `Ldar`/`Star` temporary sequence. The conservative
-gate keeps captured, context, uninitialized, and RHS-aliasing cases on the
-original ordered path.
-
-- `smi-sum-loop`: 13 -> 11 dispatches/iteration; pgo-off A/B median -19.1%.
-- The checked two-property `named-get`: 17 -> 14 dispatches/iteration;
-  pgo-off A/B median -17.5%.
-- Unchanged controls stayed within noise (`for-loop-sum` -0.9%,
-  `lexical-block` +0.9%).
-- OkojoBytecodeTool matches the V8 operand order; AssignmentTests 47/47 and
-  the full suite 2,161 passed with 4 skips.
-- `stopwatch-modern` has identical opcode sequences and register counts in
-  all 8 baseline/current units, so its timing sample is not attributed to C1.
-
-### C2 statement-position ToNumeric elision - ACCEPTED
-
-The compiler now uses effect mode for expression statements when no script
-completion sink is active. This lets identifier and member `Inc`/`Dec` consume
-their own numeric coercion when the update result is discarded, while script
-completion and value-producing updates retain the explicit `ToNumeric`.
-
-- `smi-sum-loop`: 11 -> 10 dispatches/iteration after C1.
-- `stopwatch-modern`: the script unit loses `ToNumeric` before both loop
-  increments; the other 7 units are opcode-equivalent and register-equivalent.
-- Focused AssignmentTests 49/49 and the full suite 2,163 passed with 4 skips.
-- The opcode diff was unambiguous, so the broad timing run was stopped and no
-  timing improvement is claimed for C2.
-
-### A21 accumulator-local implementation - ACCEPTED
-
-`Run` now copies `JsRealm.acc` into a value local before entering the EH
-region and publishes it back in `finally`. Helpers that mutate accumulator
-state receive `ref JsValue`; residual realm publication occurs only before
-re-entrant calls/runtime helpers, debugger/constraint checkpoints, exception
-routing, and method exit. No stack pointer, pinning, or `GCHandle` is used.
-
-- Okojo.Tests: 2,165 passed, 4 skipped.
-- Non-staging Test262: 41,499 passed, 0 failed, 9,239 intentionally skipped.
-- Five-round pgo-off A/B: smi -14.8%, for-loop -15.9%, Date subtraction
-  -8.3%, named-get -10.2%. The noisy call control was repeated for nine rounds
-  and improved 5.8%.
-- Tier1: 21,927 -> 21,084 B; frame 1,208 -> 904 B; calls 218 -> 198.
-  Tier1-OSR: 22,055 -> 20,872 B; frame 960 -> 624 B.
-- The sweep exposed and fixed two independent correctness bugs: immediate
-  compound assignments had elided their required LHS load, and failed keyed
-  element probes overwrote the key through `out acc` before slow fallback.
-
-Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
-
-## Attempt Log Status
-
-| ID | Verdict |
-| -- | ------- |
-| A1 locals diet | ACCEPTED (merged) |
-| A2 hot/cold split | ACCEPTED (merged) |
-| A3 unsafe checks | ACCEPTED (merged; audit table in notice) |
-| A4 inline audit | ACCEPTED (merged) |
-| A5 countdown | REJECTED (ceiling: <=0.4%) |
-| A6 EH scope | REJECTED (IL no-op) |
-| A7 dispatch table | REJECTED (design + E1 microbench; see OKOJO_A7_DISPATCH_DESIGN.md) |
-| A8 per-op implementation | open (per-op) |
-| A9 opcode set | open (needs bytecode evidence) |
-| A10 IC devirt friendliness | ACCEPTED (merged) |
-| A11 tree walk | open (last resort) |
-| A12 Run local sharing | ACCEPTED (short A/B; BDN deferred) |
-| A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
-| T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
-| T2 opcode/pair profiler | PREPARED (`OkojoVmProfile=true` + `--profile-opcodes`; gates superinstruction selection) |
-| A14 arithmetic arm de-fusion | PLANNED (after T1/T2/P7 gates) |
-| A15 operand snapshots | PLANNED |
-| A16 numeric canonicalization | PLANNED |
-| A17 32-bit overflow check | PLANNED |
-| A18 `SkipLocalsInit` entry probe | PLANNED |
-| A19 arithmetic superinstructions | DEFERRED (requires T2 and P7 evidence) |
-| A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
-| A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
-| A22 Star/Mov write-barrier elimination | PROPOSED (proposals doc V2; arm evidence: `CORINFO_HELP_ASSIGN_BYREF` per Star/Ldar execution) |
-| A23 hot-arm de-fusion beyond arithmetic | PROPOSED (proposals doc V3; extends A14 to Star/Ldar/Inc/TestEqual families) |
-| A24 residual operand-scale stack traffic | PROPOSED (proposals doc V4; follows A13) |
-| A25 dispatch-edge store diet | PROPOSED (proposals doc V6; three independent micro-attempts) |
-| A26 frame-scoped global-IC base caching | PROPOSED (proposals doc V7) |
-| C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in the foundation log and insights 1.16) |
-| C2 compiler emission elision | ACCEPTED (compiler/test change; recorded in the foundation log and insights 1.17) |
-| C3-C4 compiler emission elisions | PROPOSED (block TDZ, completion values; proposals doc section 2) |
-
-Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
-fresh 20260828 comparison for the current local-sharing + cold-split attempt
-is 22503 -> 21925 Tier1 bytes (-2.6%), 98 -> 44 IL locals, with the full
-suite green. Local count is recorded as a means to improve generated code,
-not as an acceptance criterion by itself.
+Completed attempt history lives in `OKOJO_VM_ATTEMPT_LOG.md`. Do not record
+plans or completed attempts in this document.
 
 ## Optimization Work Rules (binding for this effort)
 
 1. Never skip or defer a bug discovered mid-attempt; fix it before measuring.
 2. Every attempt must also improve reusable tooling when a gap appears
    (bench-ab.ps1 and compare-jit.ps1 were born this way).
-3. Record all findings/failures in the snapshot notice.md AND this document;
+3. Record all findings/failures in the snapshot notice.md AND
+   `OKOJO_VM_ATTEMPT_LOG.md` (accepted/rejected/prepared entries there;
+   durable conclusions in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`);
    rejected attempts stay on their branches as recoverable knowledge.
 4. Measure hot cases AND degradable cases (workloads that execute the changed
    cold paths) before accept/reject.

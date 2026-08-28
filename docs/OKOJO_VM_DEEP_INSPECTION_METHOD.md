@@ -3,7 +3,10 @@
 Related documents:
 
 - `OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` - workflow, tooling commands,
-  attempt backlog and log.
+  and baseline constraints.
+- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` - the single active plan
+  (proposals, backlog, suggested order).
+- `OKOJO_VM_ATTEMPT_LOG.md` - completed attempt history.
 - `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative findings (JIT/codegen,
   CPU, C# pitfalls, measurement rules).
 

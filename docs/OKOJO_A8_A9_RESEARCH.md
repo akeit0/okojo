@@ -510,7 +510,7 @@ statement-position `ToNumeric` elision, block-lexical TDZ hole-init
 elision, and script completion-value elision - plus the recollected
 fusion-pair table for the section 1.5 revisit trigger, are documented in:
 
-- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` (sections 2 and 4)
+- `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` (sections 2 and 5)
 
 None of them expand the opcode set; the R3-R5 closure stands until the
 post-C1/C2 residual pair table is put in front of the owner.

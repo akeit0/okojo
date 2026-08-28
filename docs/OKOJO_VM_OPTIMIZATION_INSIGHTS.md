@@ -1,7 +1,9 @@
 # VM Optimization Insights - Cumulative Knowledge Base
 
-Companion to `OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` (workflow/backlog)
-and `OKOJO_A8_A9_RESEARCH.md` (bytecode/compiler research). This collects the
+Companions: `OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` (workflow/tooling),
+`OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` (single active plan: proposals,
+backlog, suggested order), and `OKOJO_VM_ATTEMPT_LOG.md` (completed attempt
+history). This collects the
 durable technical insights produced by the optimization campaign so far,
 organized by layer. Each entry states the finding, the evidence that
 established it, and where it applies. Nothing here should be re-derived from

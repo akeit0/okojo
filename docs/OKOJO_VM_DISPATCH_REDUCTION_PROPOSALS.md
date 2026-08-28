@@ -3,7 +3,9 @@
 Related documents:
 
 - `OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` - workflow, tooling commands,
-  attempt backlog (A-numbers referenced below) and log.
+  baseline constraints, and measurement rules.
+- `OKOJO_VM_ATTEMPT_LOG.md` - completed attempt history (accepted V1/A21 and
+  earlier attempts) and the verdict table.
 - `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative findings; especially 1.14
   (profile builds are evidence-only), 1.15 (accumulator-local ceiling), and
   1.16-1.17 (accepted compiler elisions).
@@ -12,14 +14,20 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - static corpus research; section 1.5 records the
   no-ISA-growth policy and its revisit trigger.
 
-Status: ACTIVE PROPOSALS: C3-C4 and V2-V7. C1-C2 and V1 were accepted and are
-recorded in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` and the foundation attempt
-log. Every item below is backed by dynamic opcode profiles (T2,
+This document is the SINGLE active plan for the VM loop optimization effort:
+all open proposals, the consolidated backlog, and the suggested execution
+order live here. Completed attempts are recorded in
+`OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
+`OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
+
+Status: ACTIVE PROPOSALS: C3-C4, A14-A19 (section 4), and V2-V8. C1-C2 and
+V1 were accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the
+insights document. Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm JIT
 analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
-evidence in section 4 is recorded for the R3-R5 revisit trigger but is
+evidence in section 5 is recorded for the R3-R5 revisit trigger but is
 explicitly NOT proposed here.
 
 ## 1. Evidence base
@@ -131,6 +139,48 @@ post-call `Star r0` completion writes occur several times per iteration.
   (`PrepareBytecodeRegisterWindow(..., clearUnusedRegisters: false)`), so
   per-call frame setup carries no hidden zeroing cost.
 
+### 1.4 Dump findings behind the arithmetic/operand experiments (F1-F6)
+
+Source: tiered-off `Run` listing
+`artifacts/vmloopopt/snapshots/20260828-112717-0008-current-asm/jit/smi-sum-loop.tiered-off.direct.jit.txt`.
+These are concrete assembly signatures; each is a hypothesis until its
+isolated bench-ab median and same-config assembly diff land.
+
+1. **Entry zeroing (F1):** `init_locals=True` plus the `0x4B8`-byte frame
+   emits a prologue clear loop (`mov rax,-0x420`, three `vmovdqa` stores,
+   `add rax,48`, `jne`). About 1.1KB is cleared on every `Run` entry.
+   Mostly irrelevant to a single long-running loop, but matters for
+   accessor getters, `InvokeFunction` re-entry, and generator drives.
+2. **Accumulator indirection (F2):** arms repeatedly reload
+   `mov rax,bword ptr [rbp-0x338]` for the spilled `&this.acc` and then
+   dereference it. Numeric results also use a `vucomisd` self-compare,
+   conditional NaN canonicalization, and a second store clearing `Obj`; a
+   single float add therefore pays `vucomisd`, two branches, a pointer
+   reload, and two stores before the next dispatch. (The A21 local
+   accumulator removed the pointer reloads; the canonicalization cost
+   remains, see A16.)
+3. **Arithmetic re-dispatch (F3):** the fused arm compares `op` again with
+   `cmp edx,59` (`Add`) and `cmp edx,60` (`Sub`), then uses the `RWD776`
+   secondary table for `Div`/`Mod`/`Exp` (IG293-IG297). The int-plus-int
+   path has its own `cmp edx,59/60/68` chain (IG312-IG316). The mixed path
+   pays this after the accumulator overflows to Float64.
+4. **Aliasing-blocked CSE (F4):** the mixed path performs two back-to-back
+   `and r9,qword ptr [rax]` mask tests in IG284. The `IsFloat64`/`IsInt32`
+   reads go through a byref, so RyuJIT does not CSE them across possible
+   aliasing.
+5. **Cloned slow tails (F5):** `HandleArithmeticNonNumberSlowPath` is
+   emitted along IG280-IG283, IG285-IG287, and IG289-IG291, each with a
+   private 16-byte temporary (`[rbp-0x1C0]`, `-0x1D0`, `-0x1E0`). This is
+   code-size and frame pressure from one source-level tail reached through
+   three flows.
+6. **Wide overflow math (F6):** int-plus-int uses sign extension, a 64-bit
+   add, and two range comparisons instead of a 32-bit overflow test.
+
+Non-goal: the `opcodePc`/`op` spills at `[rbp-0x370]`/`[rbp-0x8C]` are
+EH-liveness-forced because the catch reads `opcodePc` and arithmetic arms
+read `op`. P1 can reduce `op` readers, but the spills are not a target while
+the catch needs that cursor.
+
 ## 2. Compiler proposals (bytecode emission; no ISA change)
 
 ### C3. TDZ hole-init elision for block lexicals
@@ -175,38 +225,13 @@ can propagate to the unit result.
 
 ## 3. VM arm proposals (JsRealm.VmLoop.cs; no ISA change)
 
-### V1 (accepted A21). Accumulator-local implementation
+### V1 (accepted A21). Accumulator-local implementation - ACCEPTED, moved
 
-Insight 1.15 proved the ceiling: -6% `Run` code, -11.3..-11.8% on numeric
-probes, with 244 test failures from helpers/boundaries still reading
-`JsRealm.acc`. Staged plan to make it semantic:
-
-1. Inventory every `this.acc` / `realm.acc` reader under `Execution/`
-   (the ceiling build's 244 failures are the checklist: `instanceof`,
-   spread, host calls, argument handling, generator drives).
-2. Stage A (semantic no-op, lands independently): convert helpers that can
-   take `ref JsValue acc` parameters; call sites currently passing
-   `ref this.acc` bind to the local for free later. Full suite green.
-3. Stage B: flip `Run` to a local `JsValue acc`, synchronizing
-   `this.acc = acc` before / `acc = this.acc` after the residual escape
-   arms only (call/construct/`CallRuntime`/generator/await/throw,
-   catch-entry). Numeric hot arms never synchronize.
-4. Acceptance: full suite + non-staging test262 sweep + bench-ab; the
-   ceiling bounds the win.
-
-Result (2026-08-28): accepted. `Run` now owns a value-local accumulator and
-publishes it only at re-entry, execution-checkpoint, exception, and exit
-boundaries. Okojo.Tests passed 2,165/2,169 with 4 existing skips; the
-non-staging Test262 sweep passed all 41,499 runnable variants. Final pgo-off
-A/B medians improved the numeric/property cases by 8.3-15.9%; a nine-round
-call-only confirmation improved 5.8%. Tier1 code fell 843 bytes and its frame
-fell 304 bytes. Evidence:
-`artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
-
-Bonus effect visible in the arm evidence: with acc as a stack local, the
-`Ldar` copy destination is a local (plain stores, no write barrier), so V2
-below only needs to handle the `Star` direction, and the `[rbp-0x338]`
-pointer reloads disappear from every arm.
+Accepted and recorded in `OKOJO_VM_ATTEMPT_LOG.md` (A21/V1) and insights
+1.15/1.18. Residual note for the proposals below: with acc as a stack local,
+the `Ldar` copy destination is a plain local store (no write barrier), so V2
+only needs to handle the `Star` direction, and the `[rbp-0x338]` pointer
+reloads disappeared from every arm.
 
 ### V2 (backlog A22). Star/Mov write-barrier elimination for ref-free values
 
@@ -365,7 +390,47 @@ on `stopwatch-modern` to split time between the call arms,
 machinery, and the `Date` host constructor, then write the follow-up
 proposals against that profile.
 
-## 4. Fusion revisit-trigger evidence (recorded, not proposed)
+## 4. Arithmetic and operand experiments (backlog A14-A19)
+
+Dump-driven experiments from section 1.4; one hypothesis per attempt, with
+isolated bench-ab medians and same-config assembly diffs before acceptance.
+
+- **A14 (P1) - arithmetic de-fusion:** give `Add`, `Sub`, and `Mul` separate
+  arms (F3). The top-level `RWD00` table already has separate entries, so
+  the dispatch target set and BTB shape should remain unchanged; only the
+  arm bodies specialize. Expected effect: remove 1-3 inner compares and a
+  second indirect jump on the mixed path, and potentially collapse F5's
+  cloned slow tails.
+- **A15 (P2) - operand snapshots:** read `acc` and `slotRef` into locals
+  once before multi-testing their tags (F4). A 16-byte `JsValue` local
+  whose `Obj` half is unused on the numeric path may promote to one GPR
+  and remove the aliasing barrier.
+- **A16 (P3) - integer numeric canonicalization:** test
+  `(bits & BoxMask) == BoxHdr` on the `vmovq` integer bits instead of the
+  floating self-compare (F2 residual). This follows the existing
+  box-header mask pattern, removes the xmm-to-flags dependency, preserves
+  the exact `JsValue` invariant, and may be centralized in one internal
+  `FromNumericResult(double)` helper.
+- **A17 (P4) - 32-bit overflow:** compare `int r = a + b` with
+  `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form)
+  against current semantics (F6). Tiny innermost-loop experiment; needs
+  exact Smi-to-Float64 promotion tests.
+- **A18 (P5) - entry clear ceiling:** test `[SkipLocalsInit]` on `Run` (or,
+  only after an assembly-wide audit, at assembly scope) after auditing all
+  managed-reference initialization (F1). Verify that the prologue loop
+  disappears in tiered-off asm and use re-entrant accessor/generator
+  workloads, not just `smi-sum-loop`.
+- **A19 (P6) - three-operand superinstructions (DEFERRED):** after T2 pair
+  frequencies and the A21 headroom result, fuse patterns such as
+  `Ldar rA; Add rB; Star rC` into `AddRR rA,rB -> rC`, bypassing the
+  accumulator and two dispatches. This follows the register-machine shape
+  used by LuaJIT/JSC; V8 Ignition avoids the same cost with a physical
+  accumulator that the current C# loop cannot provide per dynamic opcode.
+  Adding bytecode entries changes the BTB target set, so re-check the
+  dispatch evidence (insights 1.2). Deferred until A14-A18 results justify
+  an opcode-contract change.
+
+## 5. Fusion revisit-trigger evidence (recorded, not proposed)
 
 R3-R5 were closed with the trigger "a specific adjacent pair dominating
 real workload time AND explicit owner approval". The T2 dynamic pair data
@@ -388,7 +453,7 @@ C1-C2 removed several of these pairs without ISA growth. Re-collect this table
 after the remaining compiler proposals land; only the residual table is
 decision-grade input for the R3-R5 policy call.
 
-## 5. Tooling gaps found while collecting this evidence
+## 6. Tooling gaps found while collecting this evidence
 
 - `VmLoopProbe` cannot run the dromaeo suite cases: they crash on the
   missing `startTest` harness global (CLR exit 0xE0434352). A built-in
@@ -398,19 +463,43 @@ decision-grade input for the R3-R5 policy call.
 - The T2 profiler and `analyze-jit.ps1` both worked as designed; every
   finding above localized in one probe or one analyzer pass.
 
-## 6. Suggested order
+## 7. Consolidated backlog
+
+All open work items in one table. Completed items live in
+`OKOJO_VM_ATTEMPT_LOG.md`; do not duplicate them here.
+
+| ID | Item | Status | Detail |
+| -- | ---- | ------ | ------ |
+| A8 | Per-op implementation changes (smi fast paths etc.) | open | V8/Node reference observations per AGENTS tooling rules |
+| A9 | Opcode set streamlining | open | compiler-contract change; needs OkojoBytecodeTool evidence first |
+| A11 | Tree-walk interpreter alternative | open (last resort) | only if the bytecode path plateaus; requires its own feature note |
+| A14 | Arithmetic arm de-fusion | PLANNED | section 4 (P1) |
+| A15 | Operand snapshots before tag tests | PLANNED | section 4 (P2) |
+| A16 | Numeric result canonicalization | PLANNED | section 4 (P3) |
+| A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
+| A18 | `SkipLocalsInit` entry probe | PLANNED | section 4 (P5) |
+| A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
+| A22 | Star/Mov write-barrier elimination | PROPOSED | V2 |
+| A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends A14) |
+| A24 | Residual operand-scale stack traffic | PROPOSED | V4 |
+| A25 | Dispatch-edge store diet | PROPOSED | V6 |
+| A26 | Frame-scoped global-IC base caching | PROPOSED | V7 |
+| C3 | Block-lexical TDZ hole-init elision | PROPOSED | section 2 |
+| C4 | Completion-value write elision | PROPOSED | section 2 |
+| V8 | Call-path attribution investigation | next evidence target | section 3 |
+
+## 8. Suggested order
 
 1. C3 (block-lexical TDZ elision; `stopwatch-modern` has direct evidence).
 2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion + V2 barrier fast
    path (small VM patches with direct arm-level acceptance criteria).
-3. V1 staged accumulator local (largest proven VM win; Stage A can land
-   any time).
+3. A14-A17 (arithmetic/operand experiments from the F1-F6 dump findings).
 4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
 5. V7 global-IC base caching (after V1 frees frame budget).
 6. C4 (needs its own feature note before implementation).
 7. V8 call-path attribution run; write the next proposal batch from it.
-8. Re-collect the section 4 pair table; owner decides on R3-R5 revisit.
+8. Re-collect the section 5 pair table; owner decides on R3-R5 revisit.
 
 Each item follows the standing workflow: one attempt per change, first compare
 the relevant artifact (bytecode for compiler work, JIT/IL for VM work), then
