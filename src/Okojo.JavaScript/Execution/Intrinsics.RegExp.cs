@@ -839,7 +839,7 @@ public partial class Intrinsics
                     "[Symbol.match]"
                 );
 
-                var result = realm.CreateArrayObject();
+                JsArray? result = null;
                 uint resultIndex = 0;
 
                 // R8-regexp fast path: when exec still resolves to the
@@ -868,6 +868,7 @@ public partial class Intrinsics
                         var matchEntry = stepObj.TryGetProperty("0", out var stepValue)
                             ? stepValue
                             : JsValue.FromString(string.Empty);
+                        result ??= realm.CreateArrayObject();
                         FreshArrayOperations.DefineElement(result, resultIndex++, matchEntry);
 
                         var matchedStr = realm.ToJsStringSlowPath(matchEntry);
@@ -898,6 +899,7 @@ public partial class Intrinsics
                         break;
 
                     var m = input.Substring(engineStep.Value.Index, engineStep.Value.Length);
+                    result ??= realm.CreateArrayObject();
                     FreshArrayOperations.DefineElement(
                         result,
                         resultIndex++,
@@ -927,7 +929,7 @@ public partial class Intrinsics
                 if (resultIndex == 0)
                     return JsValue.Null;
 
-                result.SetLength(resultIndex);
+                result!.SetLength(resultIndex);
                 return result;
             },
             "[Symbol.match]",
