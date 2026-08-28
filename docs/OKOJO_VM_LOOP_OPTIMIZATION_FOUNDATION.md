@@ -76,6 +76,33 @@ minute). BenchmarkDotNet never runs automatically; pass `-Benchmark` once an
 attempt looks promising to add a confirmation run and copy its reports into
 the snapshot's `bench/` directory.
 
+### Arm-level JIT analysis (`tools/VmLoopProbe/analyze-jit.ps1`)
+
+Use the small T1 analyzer before reading a 6,000-line listing by hand:
+
+```powershell
+pwsh tools/VmLoopProbe/analyze-jit.ps1 `
+  -Path <listing>.jit.txt -Tier FullOpts
+
+pwsh tools/VmLoopProbe/analyze-jit.ps1 `
+  -Path <attempt>.jit.txt -ComparePath <baseline>.jit.txt `
+  -Tier Tier1 -ChangedOnly
+```
+
+It parses the `RWD00` jump table, maps each opcode to its IG arm, groups
+opcodes sharing a target, and reports instruction, memory-operation, call,
+indirect-jump, private-stack-slot, and (when available) per-arm code-byte
+counts. Comparison is keyed by opcode, so IG-label movement is visible instead
+of being mistaken for a semantic change. `-Tier` is required when a dump has
+multiple compilations.
+
+The normal diffable capture provides all counts except per-arm byte spans. To
+add those, pass a same-method, same-tier listing captured with
+`DOTNET_JitDisasmDiffable=0` as `-AddressPath`; its `;; offset=...` annotations
+are used only to calculate block sizes. The report is structural evidence, not
+a hotness profile; accept or reject an optimization only after benchmark and
+relevant-assembly checks.
+
 ### Comparing snapshots
 
 ```powershell
@@ -262,12 +289,13 @@ catch needs that cursor.
    `for-loop-sum`. A small ceiling kills the invasive path; a large one
    justifies the synchronization audit for calls, suspends, and exceptions.
 
-Execution order is T1 listing analysis, T2 opcode/pair profiling, the P7
-ceiling probe, then isolated P1-P5 attempts. P6 remains deferred until both
-the pair profile and ceiling are positive. T3-T6 are follow-on attribution
-tools when the isolated results remain unclear. When an F1-F6 hypothesis is
-confirmed, copy the measured result into `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`
-with its snapshot and tier; until then, keep it labeled as a hypothesis here.
+Execution order is the prepared T1 listing analyzer, T2 opcode/pair
+profiling, the P7 ceiling probe, then isolated P1-P5 attempts. P6 remains
+deferred until both the pair profile and ceiling are positive. T3-T6 are
+follow-on attribution tools when the isolated results remain unclear. When an
+F1-F6 hypothesis is confirmed, copy the measured result into
+`OKOJO_VM_OPTIMIZATION_INSIGHTS.md` with its snapshot and tier; until then,
+keep it labeled as a hypothesis here.
 
 ## Candidate Attempts
 
@@ -486,7 +514,7 @@ Compared with the fresh pre-attempt snapshot:
 | A11 tree walk | open (last resort) |
 | A12 Run local sharing | ACCEPTED (short A/B; BDN deferred) |
 | A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
-| T1 listing analyzer | PLANNED (arm-level `RWD00` report and diff) |
+| T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
 | T2 opcode/pair profiler | PLANNED (gates superinstruction selection) |
 | A14 arithmetic arm de-fusion | PLANNED (after T1/T2/P7 gates) |
 | A15 operand snapshots | PLANNED |

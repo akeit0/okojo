@@ -21,7 +21,7 @@ Every performance question about `JsRealm.Run` lives on one of four layers:
 | ----- | -------- | ---- |
 | C# source | the switch arm / helper | editor, `rg` |
 | IL | IL bytes, locals, EH regions | `VmLoopProbe --inspect-run` |
-| native code | tier-specific asm listing | `capture-jit.ps1`, `compare-jit.ps1` |
+| native code | tier-specific asm listing | `capture-jit.ps1`, `analyze-jit.ps1`, `compare-jit.ps1` |
 | CPU behavior | wall time (today); PMU/samples (planned) | `bench-ab.ps1`, probe medians |
 
 The core discipline: **a change is only understood when you can name the
@@ -123,13 +123,37 @@ Read in this order:
    stack home no matter what. Recognize these as immovable before
    spending an attempt on them.
 
-### 3.3 Diffs (`compare-jit.ps1`)
+### 3.3 Arm-level report (`analyze-jit.ps1`)
+
+The T1 analyzer turns the listing's `RWD00` table into a compact arm report:
+
+```powershell
+pwsh tools/VmLoopProbe/analyze-jit.ps1 `
+  -Path <listing>.jit.txt -Tier FullOpts
+
+pwsh tools/VmLoopProbe/analyze-jit.ps1 `
+  -Path <attempt>.jit.txt -ComparePath <baseline>.jit.txt `
+  -Tier Tier1 -ChangedOnly
+```
+
+The report is keyed by opcode and groups entries that target the same IG
+label. It counts instructions, approximate loads/stores, calls, indirect
+jumps, and private `[rbp-...]` slots. A non-diffable same-tier listing can be
+passed as `-AddressPath` to add per-arm byte spans from its `;; offset=...`
+annotations. This is structural attribution only: it does not identify hot
+arms or prove a speedup.
+
+Use `-ChangedOnly` for a compact A/B view. Since the comparison key is the
+opcode, a changed target label is reported as a target change rather than
+silently losing the arm in an IG-label diff.
+
+### 3.4 Diffs (`compare-jit.ps1`)
 
 Code-size delta first, then WHERE: a delta concentrated in the changed
 arm is explainable; a diff smeared across unrelated arms is layout churn
 - do not attribute timing shifts to your semantic change until re-run.
 
-### 3.4 From an asm signature to an isolated plan
+### 3.5 From an asm signature to an isolated plan
 
 Use the signature, not the source idea, to choose the next experiment:
 
@@ -153,7 +177,7 @@ the spill itself is not a target until the lifetime contract changes.
 
 ## 4. Known blind spots (and what fills them)
 
-The current toolchain answers "what does the code look like" but not:
+The current toolchain now answers structural opcode-to-arm costs, but not:
 
 | blind spot | consequence | fill |
 | ---------- | ----------- | ---- |
@@ -244,12 +268,12 @@ The recurring "how to think" checklist when a result surprises:
 
 In dependency order:
 
-1. **T1 - `analyze-jit`:** parse `RWD00`'s `dd` entries and IG blocks into a
-   per-opcode arm table containing code bytes, instruction count,
-   loads/stores, calls, private `[rbp-...]` slots, and indirect jumps. Diff
-   the table arm-by-arm between snapshots so layout churn is visible instead
-   of being inferred from a 6,000-line listing. A small PowerShell or C# tool
-   beside `VmLoopProbe` is sufficient.
+1. **T1 - `analyze-jit` (prepared):** the PowerShell analyzer parses `RWD00`'s
+   `dd` entries and IG blocks into a per-opcode arm table containing code
+   bytes, instruction count, loads/stores, calls, private `[rbp-...]` slots,
+   and indirect jumps. Its opcode-keyed comparison makes target-label churn
+   visible. Remaining work is validation against more cases and, if needed,
+   richer source/IL correlation; it is not a hotness profiler.
 2. **T2 - dynamic opcode/pair profile:** add an `OKOJO_VM_PROFILE` build
    constant, per-opcode execution counts, and the `(previous -> next)` opcode
    pair matrix, with a `--profile-opcodes` probe output. The normal build must
