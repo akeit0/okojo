@@ -322,11 +322,12 @@ catch needs that cursor.
    dynamic opcode. Adding bytecode entries changes the BTB target set, so
    re-check the dispatch evidence.
 7. **P7 / A20 - accumulator-local ceiling:** make a probe-only hacked build
-   with a local `ulong accBits` mirror used only by numeric
-   arithmetic/compare/`Ldar`/`Star` arms. It may be semantically wrong outside
-   numerics and is valid only for cases such as `smi-sum-loop` and
-   `for-loop-sum`. A small ceiling kills the invasive path; a large one
-   justifies the synchronization audit for calls, suspends, and exceptions.
+   with a local accumulator used only to measure the field-indirection ceiling.
+   The first probe used a value `JsValue` local rather than the narrower
+   `ulong accBits` mirror; it is semantically wrong at unsynchronized runtime
+   boundaries and valid only as a ceiling measurement. A large ceiling now
+   justifies a synchronization audit for calls, suspends, and exceptions, but
+   does not justify shipping the probe implementation.
 
 Execution order is the prepared T1 listing analyzer, T2 opcode/pair
 profiling, the P7 ceiling probe, then isolated P1-P5 attempts. P6 remains
@@ -363,7 +364,7 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A17 | 32-bit Smi overflow check | Test a 32-bit add/overflow test against the current 64-bit range checks; preserve exact JS integer/float promotion semantics |
 | A18 | `SkipLocalsInit` entry probe | Test removal of the `Run` prologue clear only after auditing managed-reference initialization and re-entry paths; use accessor/generator cases, not just a single loop |
 | A19 | Three-operand arithmetic superinstructions | Fuse measured register-op patterns such as `Ldar` + arithmetic + `Star`; require T2 pair frequencies, P7 headroom, compiler/bytecode evidence, and an explicit opcode-contract owner |
-| A20 | Accumulator-local ceiling probe | Probe-only local `ulong` accumulator mirror for numeric `Ldar`/`Star`/arithmetic/compare paths; semantically incomplete by design and never a shipping change |
+| A20 | Accumulator-local ceiling probe | Positive ceiling: Tier1 code -6.1% and numeric probe medians about -11%; probe failed 244/2,164 tests because runtime boundaries still read `JsRealm.acc`; implementation deferred, never ship the probe directly |
 
 Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
@@ -579,7 +580,7 @@ Initial smoke checks:
 | A17 32-bit overflow check | PLANNED |
 | A18 `SkipLocalsInit` entry probe | PLANNED |
 | A19 arithmetic superinstructions | DEFERRED (requires T2 and P7 evidence) |
-| A20 accumulator-local ceiling | PLANNED (probe-only gate) |
+| A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
 
 Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
 fresh 20260828 comparison for the current local-sharing + cold-split attempt

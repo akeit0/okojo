@@ -219,6 +219,43 @@ The instrumented binary is evidence-only. It must not be used for pgo-off
 benchmark or JIT-size acceptance, and a normal build has no profile dispatch
 work.
 
+### 1.15 A local accumulator has real JIT headroom, but boundary synchronization is the blocker
+
+A probe-only `CEILING_ACC_LOCAL` build changed `Run` from a field-backed
+`ref JsValue acc` to a value local and synchronized only at selected VM
+boundaries. This was intentionally a ceiling experiment, not a semantic
+implementation. The numeric profile justified the probe: in `smi-sum-loop`,
+the representative profile was dominated by `Star`/`Ldar` (~600k each per probe)
+followed by `Add`/`Inc`/`ToNumeric`/`Jump` (~200k each).
+
+The result was positive in both stable assembly modes:
+
+| listing | field-backed | local ceiling | delta |
+| ------- | -----------: | ------------: | ----: |
+| tiered-off `FullOpts` | 21,924 B | 20,598 B | -6.0% |
+| pgo-off `Tier1` | 21,927 B | 20,599 B | -6.1% |
+| pgo-off `Tier1-OSR` | 22,055 B | 20,790 B | -5.7% |
+
+The Tier1 stack frame fell from `0x4B8` (1,208 B) to 872 B. IL fell from
+7,734 to 7,435 bytes while the declared local count stayed at 44. The hot
+numeric arms changed from reloading the spilled accumulator field address to
+using the local `JsValue` slot directly.
+
+Five-round pgo-off probe medians also improved: `smi-sum-loop` 3.638 ms to
+3.208 ms (-11.8%), `for-loop-sum` 301.5 us to 267.4 us (-11.3%), and
+`date-subtract` 8.933 ms to 7.884 ms (-11.8%). `pure-function-call` was
+effectively unchanged (-0.7%), so this is not a universal call-path win.
+
+The probe is not shippable as-is. The ceiling build failed 244 of 2,164
+tests because helpers and runtime boundaries still read `JsRealm.acc`
+directly (`instanceof`, spread, host calls, and argument handling). The
+correct conclusion is **positive ceiling, deferred implementation**: pursue a
+small synchronization/boundary design or a guarded numeric-only local path,
+and require semantic coverage before changing the production accumulator.
+
+Evidence: `artifacts/vmloopopt/snapshots/20260828-132607-0014-ceiling-acc-local-pgo-off-tier1/`
+and `artifacts/vmloopopt/snapshots/20260828-132005-0011-ceiling-acc-local/`.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
