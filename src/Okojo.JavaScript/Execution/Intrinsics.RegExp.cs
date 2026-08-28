@@ -807,6 +807,7 @@ public partial class Intrinsics
             "test",
             1
         );
+        testFn.LeafBodyField = TryLeafRegExpTest;
 
         var matchSymbolFn = new JsHostFunction(
             Realm,
@@ -1665,6 +1666,7 @@ public partial class Intrinsics
                             continue;
                         }
 
+                        fastQ = step.Value.Index;
                         var e = step.Value.Index + step.Value.Length;
                         if (e > text.Length)
                             e = text.Length;
@@ -1862,5 +1864,23 @@ public partial class Intrinsics
             ),
         ];
         RegExpStringIteratorPrototype.DefineNewPropertiesNoCollision(Realm, iteratorProtoDefs);
+    }
+
+    private static bool TryLeafRegExpTest(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (!thisValue.TryGetObject(out var obj) || obj is not JsRegExpObject rx)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "RegExp.prototype.test called on incompatible receiver"
+            );
+
+        var input = realm.ToJsStringSlowPath(args.Length > 0 ? args[0] : JsValue.Undefined);
+        result = JsRegExpRuntime.Test(realm, rx, input) ? JsValue.True : JsValue.False;
+        return true;
     }
 }
