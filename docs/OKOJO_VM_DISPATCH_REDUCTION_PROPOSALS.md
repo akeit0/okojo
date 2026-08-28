@@ -371,23 +371,13 @@ on `stopwatch-modern` to split time between the call arms,
 machinery, and the `Date` host constructor, then write the follow-up
 proposals against that profile.
 
-## 4. Arithmetic and operand experiments (backlog A14-A19)
+## 4. Arithmetic and operand experiments (backlog)
 
 Dump-driven experiments from section 1.4; one hypothesis per attempt, with
 isolated bench-ab medians and same-config assembly diffs before acceptance.
+A14, A15, A16, and A18 from this series were accepted and moved to
+`OKOJO_VM_ATTEMPT_LOG.md`; only the still-open items are kept here.
 
-- **A14 (P1) - arithmetic de-fusion (DONE):** accepted as variant A:
-  `Add`/`Sub`/`Mul` have dedicated arms (straight-line int fast paths,
-  inline float resolution, op-literal slow-path calls); `Div`/`Mod`/`Exp`
-  remain fused. Three granularities were measured (see
-  `OKOJO_VM_ATTEMPT_LOG.md` for the matrix); all-six-split was rejected
-  as dominated. Result: for-loop-sum -14.6%, arith -4.1%, named-get
-  -4.2%, smi -1.0%; cost +1.9KB Tier1 (duplicated cold paths).
-- **A15 (P2) - operand snapshots (DONE):** accepted. Each hot arm reads
-  `slotRef.U`/`acc.U` once into two shared `ulong` locals; tag tests and
-  value extraction are register-local (F4 addressed). See
-  `OKOJO_VM_ATTEMPT_LOG.md`: Tier1 -1,031 B vs A14, calls -8, BDN-confirmed
-  broad wins (arith -9.8%, indexing -10.4%, named-get -9.6%).
 - **A17 (P4) - 32-bit overflow:** compare `int r = a + b` with
   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form)
   against current semantics (F6). Tiny innermost-loop experiment; needs
@@ -401,13 +391,6 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   Adding bytecode entries changes the BTB target set, so re-check the
   dispatch evidence (insights 1.2). Deferred until A17 results
   justify an opcode-contract change.
-
-(A16 / P3, integer numeric canonicalization with in-place result writes,
-was accepted and moved to `OKOJO_VM_ATTEMPT_LOG.md`; the `BoxMask` idea
-from the original proposal was refined to a full NaN predicate
-`(bits & 0x7FFF...) > 0x7FF0...` because `BoxMask` misses signaling NaNs.
-A18 / P5, the `SkipLocalsInit` entry-clear probe for F1, was also accepted
-and moved.)
 
 ## 5. Fusion revisit-trigger evidence (recorded, not proposed)
 
