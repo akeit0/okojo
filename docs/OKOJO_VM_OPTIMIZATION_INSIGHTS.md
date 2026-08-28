@@ -256,6 +256,34 @@ and require semantic coverage before changing the production accumulator.
 Evidence: `artifacts/vmloopopt/snapshots/20260828-132607-0014-ceiling-acc-local-pgo-off-tier1/`
 and `artifacts/vmloopopt/snapshots/20260828-132005-0011-ceiling-acc-local/`.
 
+### 1.16 Compound-assignment LHS temp elision is a confirmed compiler win
+
+C1 changes bytecode emission only. For an initialized, uncaptured
+current-frame local `x`, `x op= rhs` now emits the RHS followed by the
+register arithmetic operand and the final store, instead of materializing the
+old LHS through an extra `Ldar`/`Star` temporary. A RHS identifier-alias gate
+keeps cases such as `x += (x = 4)` on the original ordered path. The change
+does not alter `JsRealm.Run` IL or JIT assembly.
+
+The emitted stream fell from 13 to 11 dispatches per iteration in
+`smi-sum-loop`, and from 17 to 14 in the checked two-property `named-get`
+case. Five alternating pgo-off `bench-ab` rounds (`25` iterations, `250`
+warmup) measured these medians:
+
+| case | base | C1 | delta |
+| ---- | ---: | --: | ----: |
+| smi-sum-loop | 3,719,888 | 3,011,028 | -19.1% |
+| named-get | 5,320,368 | 4,388,608 | -17.5% |
+| for-loop-sum | 306,680 | 304,020 | -0.9% |
+| lexical-block | 6,214,700 | 6,273,328 | +0.9% |
+
+The unchanged controls are within noise. OkojoBytecodeTool and V8 show the
+same RHS-first operand order. `stopwatch-modern` baseline/current disassembly
+is opcode-equivalent for all 8 units with identical register counts; its
+separate +4.5% timing sample is control variance, not a C1 improvement or
+regression. AssignmentTests passed 47/47, and the full suite passed 2,161
+tests with 4 skips.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)

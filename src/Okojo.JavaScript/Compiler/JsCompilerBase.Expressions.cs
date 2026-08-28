@@ -2113,8 +2113,24 @@ internal abstract partial class JsCompilerBase
             case JsAssignmentOperator.BitwiseAndAssign:
             case JsAssignmentOperator.BitwiseOrAssign:
             case JsAssignmentOperator.BitwiseXorAssign:
-                EmitIdentifierLoad(name, nameId);
-                EmitCompoundRightExpression(ast, op, right);
+                var directLhsRegister =
+                    hasLocalBinding
+                    && !binding.Planned.IsCaptured
+                    && contextDepth == 0
+                    && binding.Register >= 0
+                    && binding.Planned.StorageKind
+                        is CompilerPlannedStorageKind.LocalRegister
+                            or CompilerPlannedStorageKind.LexicalRegister
+                    && (
+                        binding.Planned.StorageKind != CompilerPlannedStorageKind.LexicalRegister
+                        || IsKnownInitializedLexical(binding)
+                    )
+                    && !ExpressionReferencesIdentifier(ast, right, name)
+                        ? binding.Register
+                        : -1;
+                if (directLhsRegister < 0)
+                    EmitIdentifierLoad(name, nameId);
+                EmitCompoundRightExpression(ast, op, right, directLhsRegister);
                 EmitResolvedIdentifierStore(
                     name,
                     hasLocalBinding,
@@ -2149,32 +2165,50 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private void EmitCompoundRightExpression(JsAst ast, JsAssignmentOperator op, int right)
+    private void EmitCompoundRightExpression(
+        JsAst ast,
+        JsAssignmentOperator op,
+        int right,
+        int lhsRegister = -1
+    )
     {
         var binaryOp = MapCompoundAssignmentOperator(op);
-        if (
-            TryGetSmallIntLiteral(ast, right, out var rhsSmi)
-            && TryMapSmiBinaryOpcode(binaryOp, out var smiOpcode)
-        )
+        var rhsSmi = 0;
+        var smiOpcode = default(JsOpCode);
+        var hasSmiRight =
+            TryGetSmallIntLiteral(ast, right, out rhsSmi)
+            && TryMapSmiBinaryOpcode(binaryOp, out smiOpcode);
+        if (lhsRegister >= 0 && !hasSmiRight)
         {
-            EmitImmediateWithSlotOp(smiOpcode, rhsSmi);
-            return;
-        }
-
-        var lhsRegister = builder.AllocateTemporaryRegister();
-        try
-        {
-            EmitStar(lhsRegister);
             EmitExpression(ast, right);
             if (!TryMapBinaryOpcode(binaryOp, out var opcode))
                 throw new NotSupportedException(
                     $"{CompilerName} does not support assignment operator '{op}'."
                 );
             EmitRegisterWithSlotOp(opcode, lhsRegister);
+            return;
+        }
+
+        if (hasSmiRight)
+        {
+            EmitImmediateWithSlotOp(smiOpcode, rhsSmi);
+            return;
+        }
+
+        var rhsLhsRegister = builder.AllocateTemporaryRegister();
+        try
+        {
+            EmitStar(rhsLhsRegister);
+            EmitExpression(ast, right);
+            if (!TryMapBinaryOpcode(binaryOp, out var opcode))
+                throw new NotSupportedException(
+                    $"{CompilerName} does not support assignment operator '{op}'."
+                );
+            EmitRegisterWithSlotOp(opcode, rhsLhsRegister);
         }
         finally
         {
-            builder.ReleaseTemporaryRegister(lhsRegister);
+            builder.ReleaseTemporaryRegister(rhsLhsRegister);
         }
     }
 

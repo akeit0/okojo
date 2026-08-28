@@ -11,10 +11,11 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - static corpus research; section 1.5 records the
   no-ISA-growth policy and its revisit trigger.
 
-Status: PROPOSED. Every item below is backed by dynamic opcode profiles
-(T2, `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or
-per-arm JIT analysis (`analyze-jit.ps1` + listing reads) captured on
-2026-08-28. No implementation has landed from this document.
+Status: C1 IMPLEMENTED/CONFIRMED; C2-C4 and V1-V7 remain PROPOSED. Every
+item below is backed by dynamic opcode profiles (T2, `--profile-opcodes`),
+bytecode disassembly (OkojoBytecodeTool), or per-arm JIT analysis
+(`analyze-jit.ps1` + listing reads) captured on 2026-08-28. C1 is the first
+implementation from this document; the remaining items are not landed.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
 evidence in section 4 is recorded for the R3-R5 revisit trigger but is
@@ -30,7 +31,7 @@ explicitly NOT proposed here.
 `Ldar -> Star` / `Ldar -> Add` / `Ldar -> ToNumeric` /
 `ToNumeric -> Inc` / `Inc -> Star` / `Add -> Star` 1M each.
 
-`named-get` also executes 13 per iteration, dominated by
+The checked two-property `named-get` case executes 17 per iteration, dominated by
 `Star` x5 and the repeated triple
 `Star -> LdaNamedProperty -> Add -> Star` (2M pairs each per probe).
 
@@ -58,7 +59,7 @@ V8 reference for the identical source: `Ldar r1 / Add r0 / Star r0` and
 
 `namedGet` body: each `s += o.x` is `Ldar r1 / Star r3 /
 LdaNamedProperty / Add r3 / Star r1` (the second `+=` reuses acc and pays
-only one extra `Star r3`). Three of its thirteen per-iteration dispatches
+only one extra `Star r3`). Three of its seventeen per-iteration dispatches
 are C1-elidable temp traffic, one more is the C2 `ToNumeric`.
 
 `stopwatch-modern` `<script>` inner loop additionally shows:
@@ -142,6 +143,8 @@ post-call `Star r0` completion writes occur several times per iteration.
 
 ### C1. Compound-assignment LHS temp elision
 
+Status: IMPLEMENTED/CONFIRMED (2026-08-28).
+
 When the assignment target of `x op= rhs` is a plain, uncaptured local
 register, elide the `Ldar x / Star tmp` materialization and emit the RHS
 into acc followed by `<Op> xReg / Star xReg`. Nothing the RHS evaluates can
@@ -149,14 +152,23 @@ observe or modify an uncaptured local, so reading the register at the
 arithmetic instruction instead of before RHS evaluation is unobservable.
 This matches V8's emission for the same source.
 
-- Gate: LHS resolves to a local register; the binding is not captured by
-  any closure; not a context slot, global, or property reference.
+- Gate: LHS resolves to a current-frame local register; the binding is not
+  captured by any closure; storage is a local/lexical register that is already
+  initialized; and the RHS does not reference the target name. The last gate
+  deliberately keeps `x += (x = 4)` on the original ordered path.
 - Site: compound-assignment emission in `JsCompilerBase.Expressions.cs`.
 - Measured stream impact: `smi-sum-loop` 13 -> 11 dispatches/iteration;
-  `named-get` 13 -> 10.
-- Verification: OkojoBytecodeTool disasm of both cases must match the V8
-  shape; full suite; bench-ab on `smi-sum-loop`, `named-get`,
-  `for-loop-sum`, `lexical-block`.
+  the checked two-property `named-get` case 17 -> 14.
+- Five-round pgo-off `bench-ab` medians (`25` iterations, `250` warmup):
+  `smi-sum-loop` 3,719,888 -> 3,011,028 (-19.1%), `named-get` 5,320,368
+  -> 4,388,608 (-17.5%), while unchanged controls `for-loop-sum` (-0.9%)
+  and `lexical-block` (+0.9%) stayed within noise.
+- Verification: OkojoBytecodeTool disassembly matches the V8 operand order;
+  AssignmentTests 47/47 and the full suite 2,161 passed with 4 skips. The
+  compiler-only change leaves `Run` IL/JIT unchanged by design.
+- `stopwatch-modern` baseline/current disassembly is opcode-equivalent for
+  all 8 units with identical register counts. Its separate +4.5% timing
+  sample is control variance, not a C1 result.
 
 ### C2. Statement-position `ToNumeric` elision before `Inc`/`Dec`
 
@@ -178,7 +190,8 @@ identical (one coercion either way). V8 emits bare `Inc`.
   `i++` on string/object/BigInt locals in statement position; full suite.
 
 Combined C1+C2: `smi-sum-loop` 13 -> 10 dispatches/iteration (-23%),
-`named-get` 13 -> 9 (-31%). `named-get` is currently the case Okojo loses
+the checked two-property `named-get` case 17 -> 13 (-24%). `named-get` is
+currently the case Okojo loses
 to Jint (1.12x); this margin should flip it.
 
 ### C3. TDZ hole-init elision for block lexicals

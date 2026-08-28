@@ -51,6 +51,21 @@ public class AssignmentTests
     }
 
     [Test]
+    public void CompoundIdentifierAssignment_PreservesLhsBeforeRhsMutation()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            let x = 1;
+            x += (x = 4);
+            x;
+            """
+        );
+
+        Assert.That(result.Int32Value, Is.EqualTo(5));
+    }
+
+    [Test]
     public void ComputedMemberAssignment_Evaluates_RightHandSide_Before_ToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;
