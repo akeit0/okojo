@@ -1108,6 +1108,25 @@ public partial class Intrinsics
             return index + 1;
         }
 
+        static bool IsSimpleLiteralPatternChar(char value)
+        {
+            return value
+                is not '\\'
+                    and not '^'
+                    and not '$'
+                    and not '.'
+                    and not '*'
+                    and not '+'
+                    and not '?'
+                    and not '('
+                    and not ')'
+                    and not '['
+                    and not ']'
+                    and not '{'
+                    and not '}'
+                    and not '|';
+        }
+
         static long AdvanceStringIndexLong(string input, long index, bool unicode)
         {
             if (index >= int.MaxValue || index >= input.Length)
@@ -1632,6 +1651,29 @@ public partial class Intrinsics
                     // so segments are the individual code points; skip the
                     // engine entirely.
                     var splitPatternSource = fastSplitter.Pattern;
+                    if (
+                        splitPatternSource.Length == 1
+                        && !fastSplitter.IgnoreCase
+                        && IsSimpleLiteralPatternChar(splitPatternSource[0])
+                    )
+                    {
+                        var separator = splitPatternSource[0];
+                        while (fastLength < limit)
+                        {
+                            var match = text.IndexOf(separator, fastP);
+                            if (match < 0)
+                                break;
+
+                            resultBuilder.Add(JsValue.FromString(text[fastP..match]));
+                            fastLength++;
+                            fastP = match + 1;
+                        }
+
+                        if (fastLength < limit)
+                            resultBuilder.Add(JsValue.FromString(text[fastP..]));
+                        return realm.CreateArrayObjectFromDense(resultBuilder.ToArray());
+                    }
+
                     if (splitPatternSource.Length == 0 || splitPatternSource is "(?:)")
                     {
                         if (!unicodeMatching)
