@@ -28,7 +28,7 @@ public class BigIntBytecodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScript(
             [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
             Array.Empty<int>()
@@ -45,7 +45,7 @@ public class BigIntBytecodeTests
     {
         var script = new JsScript(
             [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
             Array.Empty<int>()

@@ -26,7 +26,7 @@ public class ToolingTests
                 9,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -51,7 +51,7 @@ public class ToolingTests
                 9,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -169,7 +169,9 @@ public class ToolingTests
         );
         Assert.That(
             builder.AddNumericConstant(BitConverter.UInt64BitsToDouble(0x7FF8000000000002)),
-            Is.Not.EqualTo(nanIndex)
+            // NaN payloads are canonicalized to JsNan at emission (raw bit
+            // table), so distinct payload NaNs dedup to the same slot.
+            Is.EqualTo(nanIndex)
         );
 
         var sharedObject = new object();
@@ -424,7 +426,7 @@ public class ToolingTests
     {
         var script = new JsScript(
             [(byte)JsOpCode.LdaSmi, 1, (byte)JsOpCode.Star, 0, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["x"],
             1,
             new[] { 1 }
@@ -462,7 +464,7 @@ public class ToolingTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
             Array.Empty<int>()
@@ -509,7 +511,7 @@ public class ToolingTests
                 0xFF, // -1
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -547,7 +549,7 @@ public class ToolingTests
                 0x00,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()

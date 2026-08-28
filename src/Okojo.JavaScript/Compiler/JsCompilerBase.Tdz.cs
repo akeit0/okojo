@@ -154,6 +154,258 @@ internal abstract partial class JsCompilerBase
             }
     }
 
+    /// <summary>
+    ///     Per-binding hole-initialization elision for a block's statement
+    ///     list. The hole-init for a lexical declaration is dead code when no
+    ///     read can observe the hole: the initializer must not reference the
+    ///     binding itself, must not create a closure (IIFE bodies execute
+    ///     during initialization), no preceding statement may reference the
+    ///     binding or create a closure that could capture it, and a captured
+    ///     binding additionally requires the block to contain no function
+    ///     declarations (hoisted closures exist from block entry).
+    /// </summary>
+    protected void PrepareBlockLexicalHoleInitializationSkips(
+        JsAst ast,
+        int scopeId,
+        int blockStart,
+        int blockEnd
+    )
+    {
+        skippedLexicalHoleInitializations?.Clear();
+        var statements = ast.ChildRange(blockStart, blockEnd);
+        var bindings = GetPlannedBindings(scopeId);
+        for (var i = 0; i < statements.Length; i++)
+        {
+            if (
+                !TryGetSafeLexicalDeclaration(ast, statements[i], out var name, out var initializer)
+                || ExpressionReferencesIdentifier(ast, initializer, name)
+                || InitializerContainsFunctionNode(ast, initializer)
+            )
+                continue;
+
+            CompilerPlannedBinding binding = default;
+            var found = false;
+            for (var b = 0; b < bindings.Length; b++)
+                if (string.Equals(bindings[b].Name, name, StringComparison.Ordinal))
+                {
+                    binding = bindings[b];
+                    found = true;
+                    break;
+                }
+
+            if (
+                !found
+                || binding.StorageKind
+                    is not (
+                        CompilerPlannedStorageKind.LexicalRegister
+                        or CompilerPlannedStorageKind.ContextSlot
+                    )
+            )
+                continue;
+
+            var blocked = false;
+            for (var j = 0; j < i && !blocked; j++)
+                if (
+                    StatementReferencesIdentifier(ast, statements[j], name)
+                    || StatementContainsFunctionNode(ast, statements[j])
+                )
+                    blocked = true;
+
+            if (!blocked && binding.IsCaptured)
+            {
+                for (var j = 0; j < statements.Length && !blocked; j++)
+                    if (ast[statements[j]].Kind == AstKind.FunctionDeclaration)
+                        blocked = true;
+            }
+
+            if (!blocked)
+                (skippedLexicalHoleInitializations ??= []).Add(binding);
+        }
+    }
+
+    private static bool InitializerContainsFunctionNode(JsAst ast, int nodeIndex)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.FunctionExpression:
+            case AstKind.ArrowFunctionExpression:
+            case AstKind.ClassExpression:
+                return true;
+            case AstKind.AssignmentExpression:
+            case AstKind.BinaryExpression:
+            case AstKind.ConditionalExpression:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || (node.Arg1 >= 0 && InitializerContainsFunctionNode(ast, node.Arg1))
+                    || (
+                        node.Kind == AstKind.ConditionalExpression
+                        && node.Arg2 >= 0
+                        && InitializerContainsFunctionNode(ast, node.Arg2)
+                    );
+            case AstKind.UnaryExpression:
+            case AstKind.UpdateExpression:
+            case AstKind.SpreadElement:
+            case AstKind.OptionalChainExpression:
+            case AstKind.YieldExpression:
+            case AstKind.AwaitExpression:
+                return node.Arg0 >= 0 && InitializerContainsFunctionNode(ast, node.Arg0);
+            case AstKind.ImportCallExpression:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || (node.Arg1 >= 0 && InitializerContainsFunctionNode(ast, node.Arg1));
+            case AstKind.CallExpression:
+            case AstKind.OptionalCallExpression:
+            case AstKind.NewExpression:
+            {
+                if (InitializerContainsFunctionNode(ast, node.Arg0))
+                    return true;
+                var arguments = ast.ChildRange(node.Arg1, node.Arg2);
+                for (var i = 0; i < arguments.Length; i++)
+                    if (InitializerContainsFunctionNode(ast, arguments[i]))
+                        return true;
+                return false;
+            }
+            case AstKind.MemberExpression:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || (node.Arg2 & (int)AstMemberFlags.Computed) != 0
+                        && InitializerContainsFunctionNode(ast, node.Arg1);
+            case AstKind.SequenceExpression:
+            case AstKind.TemplateExpression:
+            {
+                var expressions = ast.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < expressions.Length; i++)
+                    if (expressions[i] >= 0 && InitializerContainsFunctionNode(ast, expressions[i]))
+                        return true;
+                return false;
+            }
+            case AstKind.TaggedTemplateExpression:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || InitializerContainsFunctionNode(ast, node.Arg1);
+            case AstKind.ArrayExpression:
+            {
+                var elements = ast.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < elements.Length; i++)
+                    if (elements[i] >= 0 && InitializerContainsFunctionNode(ast, elements[i]))
+                        return true;
+                return false;
+            }
+            case AstKind.ObjectExpression:
+            {
+                var properties = ast.GetObjectProperties(node.Arg0, node.Arg1);
+                for (var i = 0; i < properties.Length; i++)
+                {
+                    ref readonly var property = ref properties[i];
+                    if (
+                        property.IsComputed && InitializerContainsFunctionNode(ast, property.Key)
+                        || InitializerContainsFunctionNode(ast, property.ValueNode)
+                    )
+                        return true;
+                }
+                return false;
+            }
+            default:
+                return false;
+        }
+    }
+
+    private static bool StatementContainsFunctionNode(JsAst ast, int nodeIndex)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.FunctionExpression:
+            case AstKind.ArrowFunctionExpression:
+            case AstKind.FunctionDeclaration:
+            case AstKind.ClassExpression:
+            case AstKind.ClassDeclaration:
+                return true;
+            case AstKind.ExpressionStatement:
+            case AstKind.ReturnStatement:
+            case AstKind.ThrowStatement:
+                return node.Arg0 >= 0 && InitializerContainsFunctionNode(ast, node.Arg0);
+            case AstKind.VariableDeclaration:
+            {
+                var declarators = ast.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < declarators.Length; i++)
+                {
+                    ref readonly var declarator = ref ast[declarators[i]];
+                    var initializer =
+                        declarator.Kind == AstKind.VariableDeclaratorPattern
+                            ? declarator.Arg1
+                            : declarator.Arg2;
+                    if (initializer >= 0 && InitializerContainsFunctionNode(ast, initializer))
+                        return true;
+                }
+                return false;
+            }
+            case AstKind.BlockStatement:
+            case AstKind.Program:
+            {
+                var statements = ast.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < statements.Length; i++)
+                    if (StatementContainsFunctionNode(ast, statements[i]))
+                        return true;
+                return false;
+            }
+            case AstKind.IfStatement:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || StatementContainsFunctionNode(ast, node.Arg1)
+                    || (node.Arg2 >= 0 && StatementContainsFunctionNode(ast, node.Arg2));
+            case AstKind.WhileStatement:
+            case AstKind.DoWhileStatement:
+                return InitializerContainsFunctionNode(ast, node.Arg0)
+                    || StatementContainsFunctionNode(ast, node.Arg1);
+            case AstKind.ForStatement:
+            case AstKind.ForInOfStatement:
+            {
+                var parts = ast.ChildRange(node.Arg0, node.Arg1);
+                for (var i = 0; i < parts.Length; i++)
+                    if (
+                        parts[i] >= 0
+                        && (
+                            ast[parts[i]].Kind
+                                is AstKind.VariableDeclaration
+                                    or AstKind.BlockStatement
+                                    or AstKind.ExpressionStatement
+                                ? StatementContainsFunctionNode(ast, parts[i])
+                                : InitializerContainsFunctionNode(ast, parts[i])
+                        )
+                    )
+                        return true;
+                return false;
+            }
+            case AstKind.LabeledStatement:
+                return StatementContainsFunctionNode(ast, node.Arg1);
+            case AstKind.TryStatement:
+                return StatementContainsFunctionNode(ast, node.Arg0)
+                    || (node.Arg1 >= 0 && StatementContainsFunctionNode(ast, node.Arg1))
+                    || (node.Arg2 >= 0 && StatementContainsFunctionNode(ast, node.Arg2));
+            case AstKind.SwitchStatement:
+            {
+                if (InitializerContainsFunctionNode(ast, node.Arg0))
+                    return true;
+                var cases = ast.ChildRange(node.Arg1, node.Arg2);
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    ref readonly var switchCase = ref ast[cases[i]];
+                    if (
+                        switchCase.Arg0 >= 0
+                        && InitializerContainsFunctionNode(ast, switchCase.Arg0)
+                    )
+                        return true;
+                    var statements = ast.ChildRange(switchCase.Arg1, switchCase.Arg2);
+                    for (var j = 0; j < statements.Length; j++)
+                        if (StatementContainsFunctionNode(ast, statements[j]))
+                            return true;
+                }
+                return false;
+            }
+            case AstKind.ExportDeclaration:
+                return node.Arg0 >= 0 && StatementContainsFunctionNode(ast, node.Arg0);
+            default:
+                return false;
+        }
+    }
+
     private bool TryGetSafeLexicalDeclaration(
         JsAst ast,
         int statementIndex,

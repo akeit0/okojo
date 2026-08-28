@@ -34,7 +34,7 @@ public class VirtualMachineTests
                 0, // reg 0, slot 0
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
             Array.Empty<int>()
@@ -62,7 +62,7 @@ public class VirtualMachineTests
                 1,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             2,
             Array.Empty<int>()

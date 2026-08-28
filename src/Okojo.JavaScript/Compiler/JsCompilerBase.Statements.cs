@@ -1650,6 +1650,7 @@ internal abstract partial class JsCompilerBase
             CompilerCollectedScopeKind.Block,
             ast.GetPosition(nodeIndex)
         );
+        PrepareBlockLexicalHoleInitializationSkips(ast, childScope.ScopeId, block.Arg0, block.Arg1);
         EnterScope(childScope.ScopeId);
         try
         {

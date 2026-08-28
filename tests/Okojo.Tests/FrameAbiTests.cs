@@ -15,7 +15,7 @@ public class FrameAbiTests
 
         var ctorScript = new JsScript(
             [(byte)JsOpCode.LdaNewTarget, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -37,7 +37,7 @@ public class FrameAbiTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Ctor"],
             1,
             [atom],
@@ -57,7 +57,7 @@ public class FrameAbiTests
 
         var ctorScript = new JsScript(
             [(byte)JsOpCode.LdaSmi, 7, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -79,7 +79,7 @@ public class FrameAbiTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Ctor"],
             1,
             [atom],
@@ -137,7 +137,7 @@ public class FrameAbiTests
                 1,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["h"],
             2,
             [atom],
@@ -192,7 +192,7 @@ public class FrameAbiTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["HostCtor"],
             1,
             [atom],
@@ -213,7 +213,7 @@ public class FrameAbiTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = new JsScript(
             [(byte)JsOpCode.LdaNewTarget, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -231,7 +231,7 @@ public class FrameAbiTests
 
         var derivedScript = new JsScript(
             [(byte)JsOpCode.LdaThis, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -258,7 +258,7 @@ public class FrameAbiTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Derived"],
             1,
             [atom],
@@ -276,7 +276,7 @@ public class FrameAbiTests
 
         var derivedScript = new JsScript(
             [(byte)JsOpCode.LdaSmi, 1, (byte)JsOpCode.Return],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
             Array.Empty<int>()
@@ -303,7 +303,7 @@ public class FrameAbiTests
                 0,
                 (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Derived"],
             1,
             [atom],

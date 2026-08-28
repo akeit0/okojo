@@ -492,6 +492,42 @@ Disassembler output verified (`Number(1.5)`); full suite 2,165 passed,
 
 Evidence: snapshot `20260828-204605-0007-numeric-bits-table`.
 
+### C3 block-lexical TDZ hole-init elision - ACCEPTED
+
+Compiler emission change (2026-08-28, feature note
+`OKOJO_C3_TDZ_ELISION_NOTE.md`): block scopes now run per-binding
+hole-initialization elision (`PrepareBlockLexicalHoleInitializationSkips`
+from `EmitBlockStatementCore`). A binding's hole-init is elided when the
+initializer does not reference the binding itself, contains no function/
+class node (IIFE risk), no preceding statement references the binding or
+creates a closure, and - for captured bindings (`Planned.IsCaptured`) - the
+block contains no hoisted `FunctionDeclaration` (closures exist from block
+entry). Storage-independent (register or context slot): the gate proves the
+slot's prior content is never read.
+
+Artifact: stopwatch-modern's inner loop emits zero `LdaTheHole` (was 3 per
+iteration, ~6 dispatches); V8 reference shows the identical shape
+(`node --print-bytecode`: no hole-init for computed const initializers).
+Kept cases (read-before-decl, self-reference, IIFE, closure-before-decl,
+assignment-before-decl, captured+hoisted function) verified to retain the
+hole-init.
+
+- bench-ab (5 rounds, pgo-off): stopwatch-modern -5.8%, named-get -5.4%,
+  smi-sum-loop -1.3%, lexical-block -0.3%. No regressions.
+- Full Okojo.Tests 2,176 passed (11 new C3 TDZ tests), 4 skipped.
+- Test262 language category: 22,200 passed, 0 failed (let/const/
+  block-scope subsets green).
+
+Also fixed in this attempt: test files constructing `JsScript` directly
+updated for the `ulong[]` numeric constant table (FrameAbi/BigIntBytecode/
+GeneratorAbi/VirtualMachine/Tooling tests; the earlier numeric-bits commit
+had left them stale - insights 3.5 staled-binary trap hit again), and
+ToolingTests NaN-dedup expectation updated to the canonicalization contract
+(distinct NaN payloads dedup to one JsNan slot; payloads unobservable
+through constants).
+
+Evidence: snapshot `20260828-212832-0008-c3-tdz-elision`.
+
 ## Attempt Log Status
 
 | ID | Verdict |
