@@ -35,7 +35,6 @@ pwsh tools/VmLoopProbe/capture-jit.ps1 -AttemptId 0002-x -Configs pgo-off,pgo-on
 param(
     [string]$AttemptId = "baseline",
     [string[]]$Cases = @("smi-sum-loop"),
-    [ValidateSet("pgo-on", "pgo-off", "tiered-off")]
     [string[]]$Configs = @("pgo-off"),
     [string]$MethodFilter = "*JsRealm:Run*",
     [int]$Iterations = 200,
@@ -47,8 +46,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Normalize "-Cases a,b,c" passed as a single string when invoked via pwsh -File.
+# Normalize comma-separated lists passed as a single string when invoked via pwsh -File.
 $Cases = @($Cases | ForEach-Object { $_ -split "," } | Where-Object { $_ })
+$Configs = @($Configs | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$validConfigs = @("pgo-on", "pgo-off", "tiered-off")
+$invalidConfigs = @($Configs | Where-Object { $_ -notin $validConfigs })
+if ($invalidConfigs.Count -gt 0) {
+    throw "Invalid config(s): $($invalidConfigs -join ', '). Valid configs: $($validConfigs -join ', ')."
+}
 
 $repoRoot = (git rev-parse --show-toplevel).Trim()
 if (-not $repoRoot) {

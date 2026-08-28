@@ -198,6 +198,11 @@ separate production-code experiment, not a measurement switch; applying it to
 an explicit candidate under both modes and accept it only when benchmark and
 assembly evidence agree.
 
+The probe accepts comma-separated configuration lists, for example:
+`pwsh tools/VmLoopProbe/capture-jit.ps1 -Cases smi-sum-loop -Configs tiered-off,pgo-off`.
+Use one representative case for this assembly capture;
+reserve multi-case runs for timing and coverage.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
