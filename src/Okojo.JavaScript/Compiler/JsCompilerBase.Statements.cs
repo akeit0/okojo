@@ -87,7 +87,10 @@ internal abstract partial class JsCompilerBase
                 );
                 return;
             case AstKind.ExpressionStatement:
-                EmitExpression(ast, node.Arg0);
+                if (CompletionSinkActive)
+                    EmitExpression(ast, node.Arg0);
+                else
+                    EmitExpressionForEffect(ast, node.Arg0);
                 CaptureCompletionValue();
                 return;
             case AstKind.ReturnStatement:

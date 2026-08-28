@@ -453,6 +453,75 @@ public class AssignmentTests
     }
 
     [Test]
+    public void StatementUpdates_UseIncDecNumericCoercion()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            var stringValue = "1";
+            stringValue++;
+            var decrementValue = "3";
+            decrementValue--;
+            var calls = 0;
+            var objectValue = { valueOf: function() { calls++; return 2; } };
+            objectValue++;
+            var bigintValue = 1n;
+            bigintValue++;
+            stringValue === 2 &&
+            decrementValue === 2 &&
+            objectValue === 3 &&
+            bigintValue === 2n &&
+            calls === 1;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void StatementUpdates_ElideToNumeric_ButValueUpdatesPreserveIt()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function effects() {
+                    let i = 0;
+                    for (; i < 2; i++) { }
+                    i++;
+                    --i;
+                }
+                function values() {
+                    let i = 0;
+                    return i++ + ++i;
+                }
+                effects();
+                values();
+                """
+            )
+        );
+
+        var effects = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(f => f.Name == "effects");
+        var effectsDisasm = Disassembler.Dump(
+            effects.Script,
+            new() { UnitKind = "function", UnitName = "effects" }
+        );
+        Assert.That(effectsDisasm, Does.Not.Contain("ToNumeric"));
+
+        var values = script
+            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .Single(f => f.Name == "values");
+        var valuesDisasm = Disassembler.Dump(
+            values.Script,
+            new() { UnitKind = "function", UnitName = "values" }
+        );
+        Assert.That(valuesDisasm, Does.Contain("ToNumeric"));
+    }
+
+    [Test]
     public void UpdateNamedMember_SharesFeedbackSlot_ForLoadAndStore()
     {
         var realm = JsRuntime.Create().DefaultRealm;

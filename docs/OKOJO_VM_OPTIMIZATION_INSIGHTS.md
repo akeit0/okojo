@@ -284,6 +284,21 @@ separate +4.5% timing sample is control variance, not a C1 improvement or
 regression. AssignmentTests passed 47/47, and the full suite passed 2,161
 tests with 4 skips.
 
+### 1.17 Statement-position `ToNumeric` elision is a confirmed compiler win
+
+C2 removes the explicit `ToNumeric` before identifier and member `Inc`/`Dec`
+when the update result is discarded. Expression statements use effect mode
+when no script completion sink is active; script-root completion and
+value-producing updates keep the existing value mode and coercion.
+
+The bytecode comparison is decisive: `smi-sum-loop` changes from the C1
+11-dispatch update to 10 (`Ldar / Inc / Star`), and `stopwatch-modern` removes
+`ToNumeric` before both loop increments in its script unit. Its other 7 units
+are opcode- and register-equivalent. Focused AssignmentTests passed 49/49,
+and the full suite passed 2,163 tests with 4 skips. The broad timing run was
+intentionally stopped after the clear opcode result; no C2 timing gain is
+claimed.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)

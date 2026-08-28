@@ -1764,7 +1764,8 @@ internal abstract partial class JsCompilerBase
         );
 
         EmitIdentifierLoad(name, argument.Arg1);
-        builder.Emit(JsOpCode.ToNumeric);
+        if (preserveResult)
+            builder.Emit(JsOpCode.ToNumeric);
         var oldValueRegister =
             preserveResult && node.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
         try
@@ -1873,7 +1874,8 @@ internal abstract partial class JsCompilerBase
         {
             var reference = PrepareMemberReference(ast, member, normalizeComputedKey: true);
             EmitPreparedMemberLoad(reference);
-            builder.Emit(JsOpCode.ToNumeric);
+            if (preserveResult)
+                builder.Emit(JsOpCode.ToNumeric);
             var oldValueRegister =
                 preserveResult && update.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
             if (oldValueRegister >= 0)

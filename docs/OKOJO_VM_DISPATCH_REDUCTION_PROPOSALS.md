@@ -5,17 +5,18 @@ Related documents:
 - `OKOJO_VM_LOOP_OPTIMIZATION_FOUNDATION.md` - workflow, tooling commands,
   attempt backlog (A-numbers referenced below) and log.
 - `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative findings; especially 1.14
-  (profile builds are evidence-only) and 1.15 (accumulator-local ceiling).
+  (profile builds are evidence-only), 1.15 (accumulator-local ceiling), and
+  1.16-1.17 (accepted compiler elisions).
 - `OKOJO_VM_DEEP_INSPECTION_METHOD.md` - layered model and artifact recipes
   used to produce the evidence here.
 - `OKOJO_A8_A9_RESEARCH.md` - static corpus research; section 1.5 records the
   no-ISA-growth policy and its revisit trigger.
 
-Status: ACTIVE PROPOSALS: C2-C4 and V1-V7. C1 was accepted and is recorded
-in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` and the foundation attempt log. Every
-item below is backed by dynamic opcode profiles (T2, `--profile-opcodes`),
-bytecode disassembly (OkojoBytecodeTool), or per-arm JIT analysis
-(`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
+Status: ACTIVE PROPOSALS: C3-C4 and V1-V7. C1-C2 were accepted and are
+recorded in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` and the foundation attempt
+log. Every item below is backed by dynamic opcode profiles (T2,
+`--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm JIT
+analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
 evidence in section 4 is recorded for the R3-R5 revisit trigger but is
@@ -44,15 +45,14 @@ dominated by `Star` x5 and the repeated triple
 
 ### 1.2 Bytecode disassembly (OkojoBytecodeTool)
 
-After C1, `smiSumLoop` emits the compound body as `Ldar r1 / Add r0 /
-Star r0`. The remaining update sequence is `Ldar r1 / ToNumeric / Inc /
-Star r1`; C2 targets that `ToNumeric`.
+After C1-C2, `smiSumLoop` emits the compound body as `Ldar r1 / Add r0 /
+Star r0` and the update as `Ldar r1 / Inc / Star r1`.
 
 V8 reference for the identical source: `Ldar r1 / Add r0 / Star r0` and
 `Ldar r1 / Inc / Star r1` (no temp copy, no `ToNumeric`).
 
 `namedGet` body after C1 is `LdaNamedProperty / Add r1 / Star r1` for each
-`s += o.x`; the remaining C2 opportunity is the loop update's `ToNumeric`.
+`s += o.x`; C2 removes `ToNumeric` from its loop update as well.
 
 `stopwatch-modern` `<script>` inner loop additionally shows:
 
@@ -132,30 +132,6 @@ post-call `Star r0` completion writes occur several times per iteration.
   per-call frame setup carries no hidden zeroing cost.
 
 ## 2. Compiler proposals (bytecode emission; no ISA change)
-
-### C2. Statement-position `ToNumeric` elision before `Inc`/`Dec`
-
-The update-expression emitters (`JsCompilerBase.Expressions.cs:1767`
-identifier path, `:1876` member path) emit `ToNumeric` unconditionally.
-When the old value is not materialized (statement `i++`, for-loop update
-clauses), the coercion is fully subsumed by the `Inc`/`Dec` arm: its fast
-paths test `IsInt32`/`IsNumber` and `IncrementSlowPath` performs
-`ToPrimitive` + BigInt dispatch + `ToNumber`. Observable side effects are
-identical (one coercion either way). V8 emits bare `Inc`.
-
-- Gate: `preserveResult == false` (no old-value register allocated). Keep
-  `ToNumeric` whenever the pre-increment value is stored, since the spec
-  requires the *numeric* old value as the expression result.
-- Measured stream impact: 1 dispatch/iteration in every counting loop
-  (7.7% of the `smi-sum-loop` stream; 1.96M dispatches in the
-  `stopwatch-modern` probe).
-- Verification: disasm shows `Ldar / Inc / Star`; regression tests for
-  `i++` on string/object/BigInt locals in statement position; full suite.
-
-Next C2 target after the accepted C1 change: `smi-sum-loop` 11 -> 10
-dispatches/iteration, and the checked two-property `named-get` case 14 -> 13.
-The `stopwatch-modern` probe contains 1.96M `ToNumeric`/`Inc` pairs, making
-it the primary end-to-end check for this candidate.
 
 ### C3. TDZ hole-init elision for block lexicals
 
@@ -399,7 +375,7 @@ costs five dispatches because no compare-accumulator-with-immediate form
 exists; a `TestEqualSmi imm` family would collapse it to two. Recorded for
 the policy call only.
 
-C1 removed several of these pairs without ISA growth. Re-collect this table
+C1-C2 removed several of these pairs without ISA growth. Re-collect this table
 after the remaining compiler proposals land; only the residual table is
 decision-grade input for the R3-R5 policy call.
 
@@ -415,20 +391,20 @@ decision-grade input for the R3-R5 policy call.
 
 ## 6. Suggested order
 
-1. C2 (same emitter area; lowest risk; `stopwatch-modern` has direct evidence).
+1. C3 (block-lexical TDZ elision; `stopwatch-modern` has direct evidence).
 2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion + V2 barrier fast
    path (small VM patches with direct arm-level acceptance criteria).
-3. C3 (block-lexical TDZ elision).
-4. V1 staged accumulator local (largest proven VM win; Stage A can land
+3. V1 staged accumulator local (largest proven VM win; Stage A can land
    any time).
-5. V4, V5, V6 (after V1, since it changes the acc addressing and frame
+4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
-6. V7 global-IC base caching (after V1 frees frame budget).
-7. C4 (needs its own feature note before implementation).
-8. V8 call-path attribution run; write the next proposal batch from it.
-9. Re-collect the section 4 pair table; owner decides on R3-R5 revisit.
+5. V7 global-IC base caching (after V1 frees frame budget).
+6. C4 (needs its own feature note before implementation).
+7. V8 call-path attribution run; write the next proposal batch from it.
+8. Re-collect the section 4 pair table; owner decides on R3-R5 revisit.
 
-Each item follows the standing workflow: one attempt per change,
-`bench-ab` alternating medians, same-config `analyze-jit.ps1` diff against
-the newest accepted snapshot, snapshot `notice.md` + insights entry
-regardless of outcome.
+Each item follows the standing workflow: one attempt per change, first compare
+the relevant artifact (bytecode for compiler work, JIT/IL for VM work), then
+run only a focused timing sanity check when the artifact changes; expand to
+`bench-ab` alternating medians only when the result is ambiguous. Record the
+artifact and outcome in `notice.md` + the insights entry regardless of outcome.

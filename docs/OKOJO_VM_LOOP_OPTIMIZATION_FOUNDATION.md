@@ -11,7 +11,7 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - bytecode/compiler research: corpus profile,
   fusion candidates, let-loop context lowering.
 - `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` - active 2026-08-28 proposals:
-  T2 dynamic profiles, compiler emission elisions (C2-C4), arm-level VM
+  T2 dynamic profiles, compiler emission elisions (C3-C4), arm-level VM
   work (V1-V5 = backlog A21-A24), fusion revisit-trigger evidence.
 
 Scope: establish a repeatable methodology for optimizing the interpreter
@@ -374,7 +374,7 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A24 | Residual operand-scale stack traffic | Post-A13, hot two-operand arms still zero `operandOffset` to `[rbp-0x78]` and reload `operandScale` from `[rbp-0x5C]` every execution (by-ref cold-reader signature + EH liveness). Restructure: scale-1 fast path reads bytes directly; cold wide decode takes inputs by value. Detail: proposals doc V4 |
 | A25 | Dispatch-edge store diet | Four bookkeeping stack stores per dispatch on IG07/IG08: `operandScale` reset (move to a post-wide-op stub), a dead `opcodePc` null store (EH-live local defeats dead-store elimination; restructure the init), and the `op` spill for cold resume paths (re-derive from `opcodePc` there). Small (A5 calibration: whole countdown was <=0.4%); accept on medians only. Detail: proposals doc V6 |
 | A26 | Frame-scoped global-IC base caching | `LdaGlobal` re-derives the global-IC entry base via a three-load chain + two bounds checks per execution (IG466-469); derive once per frame at ReloadFrame like `registerRef`. Watch register pressure against A21's frame shrink. Detail: proposals doc V7 |
-| C2-C4 | Compiler emission elisions | C2 statement `ToNumeric`, C3 block TDZ, and C4 completion-value elisions remain proposed. Detail: `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` section 2 |
+| C3-C4 | Compiler emission elisions | C3 block TDZ and C4 completion-value elisions remain proposed. Detail: `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` section 2 |
 
 Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
@@ -583,6 +583,20 @@ original ordered path.
 - `stopwatch-modern` has identical opcode sequences and register counts in
   all 8 baseline/current units, so its timing sample is not attributed to C1.
 
+### C2 statement-position ToNumeric elision - ACCEPTED
+
+The compiler now uses effect mode for expression statements when no script
+completion sink is active. This lets identifier and member `Inc`/`Dec` consume
+their own numeric coercion when the update result is discarded, while script
+completion and value-producing updates retain the explicit `ToNumeric`.
+
+- `smi-sum-loop`: 11 -> 10 dispatches/iteration after C1.
+- `stopwatch-modern`: the script unit loses `ToNumeric` before both loop
+  increments; the other 7 units are opcode-equivalent and register-equivalent.
+- Focused AssignmentTests 49/49 and the full suite 2,163 passed with 4 skips.
+- The opcode diff was unambiguous, so the broad timing run was stopped and no
+  timing improvement is claimed for C2.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -616,7 +630,8 @@ original ordered path.
 | A25 dispatch-edge store diet | PROPOSED (proposals doc V6; three independent micro-attempts) |
 | A26 frame-scoped global-IC base caching | PROPOSED (proposals doc V7) |
 | C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in the foundation log and insights 1.16) |
-| C2-C4 compiler emission elisions | PROPOSED (statement ToNumeric, block TDZ, completion values; proposals doc section 2) |
+| C2 compiler emission elision | ACCEPTED (compiler/test change; recorded in the foundation log and insights 1.17) |
+| C3-C4 compiler emission elisions | PROPOSED (block TDZ, completion values; proposals doc section 2) |
 
 Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
 fresh 20260828 comparison for the current local-sharing + cold-split attempt
