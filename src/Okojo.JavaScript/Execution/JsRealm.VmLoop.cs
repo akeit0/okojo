@@ -1685,32 +1685,26 @@ public sealed partial class JsRealm
                         case JsOpCode.StaNamedProperty:
                         case JsOpCode.StaNamedPropertyWide:
                             {
-                                boolTemp = op == JsOpCode.StaNamedPropertyWide;
-                                reg = boolTemp ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
-                                pc = ref Unsafe.Add(ref pc, boolTemp ? 2 : 1);
+                                if (op == JsOpCode.StaNamedPropertyWide)
+                                {
+                                    reg = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                    intNum1 = Unsafe.ReadUnaligned<ushort>(
+                                        ref Unsafe.Add(ref pc, 2)
+                                    );
+                                    intNum2 = Unsafe.ReadUnaligned<ushort>(
+                                        ref Unsafe.Add(ref pc, 4)
+                                    );
+                                    pc = ref Unsafe.Add(ref pc, 6);
+                                }
+                                else
+                                {
+                                    reg = pc;
+                                    intNum1 = Unsafe.Add(ref pc, 1);
+                                    intNum2 = Unsafe.Add(ref pc, 2);
+                                    pc = ref Unsafe.Add(ref pc, 3);
+                                }
+
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                if (boolTemp)
-                                {
-                                    intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    intNum1 = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
-                                if (boolTemp)
-                                {
-                                    intNum2 = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    pc = ref Unsafe.Add(ref pc, 2);
-                                }
-                                else
-                                {
-                                    intNum2 = pc;
-                                    pc = ref Unsafe.Add(ref pc, 1);
-                                }
-
                                 intNum1 = atomizedStringConstants[intNum1];
                                 ValidateAtomizedNameConstant(
                                     intNum1,
