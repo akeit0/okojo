@@ -19,6 +19,22 @@ public sealed class JsStringObject : JsObject
 
     public JsString Value => value;
 
+    internal override bool TryGetElementWithReceiver(
+        JsRealm realm,
+        JsObject receiver,
+        uint index,
+        out JsValue result
+    )
+    {
+        if (index < (uint)value.Length)
+        {
+            result = JsValue.FromLatin1Char(value[(int)index]);
+            return true;
+        }
+
+        return base.TryGetElementWithReceiver(realm, receiver, index, out result);
+    }
+
     private string GetFlatValue()
     {
         return flatValue ??= value.Flatten();
