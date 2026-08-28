@@ -153,11 +153,10 @@ internal static class JsRegExpRuntime
     );
 
     /// <summary>
-    ///     Raw match step anchored exactly at <paramref name="startIndex"/>
-    ///     (sticky semantics regardless of flags) with no lastIndex traffic.
-    ///     Powers the RegExp[Symbol.split] fast path, which positions every
-    ///     attempt explicitly and never lets user code observe the internal
-    ///     splitter's lastIndex between iterations.
+    ///     Raw match step at or after <paramref name="startIndex"/> with no
+    ///     lastIndex traffic. RegExp[Symbol.split] repeats sticky attempts at
+    ///     each position, so the default-exec fast path can search ahead to the
+    ///     next possible candidate without changing the observable result.
     /// </summary>
     internal static RegExpEngineStep? IntrinsicExecStepAt(
         JsRealm realm,
@@ -171,12 +170,17 @@ internal static class JsRegExpRuntime
                 rx.CompiledPattern,
                 input,
                 startIndex,
+                forceNonSticky: true,
                 out var index,
                 out var length,
                 out var ranges,
                 out var rangeCount
             )
         )
+            return null;
+
+        // The split loop itself does not attempt a position at input.Length.
+        if (index == input.Length && startIndex < input.Length)
             return null;
 
         return new RegExpEngineStep(index, length, ranges, rangeCount);

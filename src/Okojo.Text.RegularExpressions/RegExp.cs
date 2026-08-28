@@ -175,6 +175,13 @@ public sealed class RegExp
         out MatchRange match
     ) => TryMatchCore(input, startIndex, sticky: true, captures, out match);
 
+    internal bool TryMatchNonSticky(
+        ReadOnlySpan<char> input,
+        int startIndex,
+        Span<CaptureRange> captures,
+        out MatchRange match
+    ) => TryMatchCore(input, startIndex, sticky: false, captures, out match);
+
     /// <summary>
     /// Implements ECMAScript RegExpBuiltinExec-style <c>lastIndex</c> transitions for <c>g</c>/<c>y</c>.
     /// A failed stateful execution resets <paramref name="lastIndex"/> to zero.

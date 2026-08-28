@@ -39,6 +39,29 @@ internal sealed class RegExpEngine
         out int rangeCount
     )
     {
+        return TryMatchRanges(
+            compiled,
+            input,
+            startIndex,
+            forceNonSticky: false,
+            out index,
+            out length,
+            out ranges,
+            out rangeCount
+        );
+    }
+
+    public bool TryMatchRanges(
+        RegExpCompiledPattern compiled,
+        string input,
+        int startIndex,
+        bool forceNonSticky,
+        out int index,
+        out int length,
+        out CaptureRange[] ranges,
+        out int rangeCount
+    )
+    {
         if (
             compiled.EngineState is not CompiledRegExp regexp
             || startIndex > input.Length
@@ -58,7 +81,10 @@ internal sealed class RegExpEngine
             captures = new CaptureRange[Math.Max(required, 4)];
         t_reuseCaptures = captures;
 
-        if (!regexp.TryMatch(input, startIndex, captures.AsSpan(0, required), out _))
+        var matched = forceNonSticky
+            ? regexp.TryMatchNonSticky(input, startIndex, captures.AsSpan(0, required), out _)
+            : regexp.TryMatch(input, startIndex, captures.AsSpan(0, required), out _);
+        if (!matched)
         {
             index = 0;
             length = 0;
