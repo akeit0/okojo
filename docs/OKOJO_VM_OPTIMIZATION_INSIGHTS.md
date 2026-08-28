@@ -182,6 +182,22 @@ checking that a desired tier is reached, or studying PGO-on/tiering behavior.
 If a tier is missing, increase warmup/iterations before adding unrelated
 cases.
 
+### 1.13 Use tiered-off for deterministic `FullOpts` assembly
+
+`DOTNET_TieredCompilation=0` with `DOTNET_TieredPGO=0` produces one `FullOpts`
+body for `JsRealm.Run`, without Tier0/OSR/Tier1 selection affecting the
+assembly comparison. In the `20260823-015059-0000-baseline` snapshot, the four
+tiered-off cases had byte-identical `Run` bodies, each with 22,357 bytes and
+`No PGO data`.
+
+This is the most stable mode for assembly and code-size comparisons, but it is
+not the production-like timing mode: keep tiered PGO-off for performance
+acceptance and tier reach. `MethodImplOptions.AggressiveOptimization` is a
+separate production-code experiment, not a measurement switch; applying it to
+`Run` changes its JIT policy and may change tiering or PGO behavior. Test it as
+an explicit candidate under both modes and accept it only when benchmark and
+assembly evidence agree.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
@@ -294,9 +310,9 @@ Seven-round alternating pgo-off A/B medians against commit `5ff3c4c`:
 | math-call | 1.230 ms | 0.854 ms | -30.6% |
 | named-get | 4.756 ms | 4.786 ms | +0.6% |
 
-The pgo-on sanity run also completed without semantic failures. PGO-off
-remains the stable assembly comparison; pgo-on and tiered-off expose
-profile/tiering sensitivity.
+The pgo-on sanity run also completed without semantic failures. Tiered-off is
+the most deterministic assembly comparison; PGO-off remains the preferred
+tiered timing comparison, while pgo-on exposes profile specialization.
 
 ### 3.7 `in`/`out` aliasing can invalidate a failed fast-path probe
 
@@ -323,7 +339,7 @@ Date specialization has a stable benchmark and a clear Tier1 shape.
 | Ceiling measurement | disable feature entirely; max possible win = go/no-go for clever designs (killed A5 at ≤0.4%) |
 | bench-ab | git-worktree or working-tree isolation, alternating rounds, medians; single probe runs are not decisions |
 | decision order | benchmark median first, then PGO-off Tier1/OSR assembly, then IL/local count; locals alone never accept an attempt |
-| JIT configurations | PGO-off/Tier1 is the stable codegen comparison; pgo-on and tiered-off are sanity checks for profile/tiering sensitivity |
+| JIT configurations | tiered-off is the deterministic `FullOpts` assembly comparison; PGO-off is the tiered timing comparison; pgo-on studies profile specialization |
 | dasm determinism | diffable JIT dumps are byte-identical for identical code (validated); any nonzero compare-jit diff = your change |
 | tier awareness | short scripts may never reach final Tier1 in probe runs; OSR code dominates; note which listing you read |
 | sub-10us cells | flip sign between processes; BDN or bench-ab medians required |

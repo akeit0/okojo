@@ -22,10 +22,9 @@ Debug/Checked-runtime-only knobs (ignored by product runtime, set manually):
 
 Snapshot dir: artifacts/vmloopopt/snapshots/<timestamp>-<AttemptId>
 
-Default configs: pgo-off only - without profile-guided recompilation the
-optimized code shape is deterministic, giving fast, stable A/B comparisons.
-Add pgo-on / tiered-off explicitly only when studying specialization or
-tiering effects.
+Default config: pgo-off - without profile-guided recompilation it gives stable
+tiered A/B comparisons. Use tiered-off for one deterministic FullOpts assembly
+body, or add pgo-on when studying profile-guided specialization.
 
 .EXAMPLE
 pwsh tools/VmLoopProbe/capture-jit.ps1 -AttemptId 0000-baseline -Cases smi-sum-loop,for-loop-sum
