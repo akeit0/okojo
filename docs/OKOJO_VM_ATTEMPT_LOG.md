@@ -585,6 +585,42 @@ null-ref initialization store no longer lands on the per-dispatch join
 
 Evidence: snapshot `20260828-224232-0010-a25-2-opcodepc-init`.
 
+### Outer try/finally elimination - REJECTED (layout regression; revisit inside the RunCore restructure)
+
+Attempted the design-doc (OKOJO_EH_SPLIT_DESIGN.md) intermediate step:
+remove `Run`'s outer try/finally by making cleanup explicit - publication +
+`managedRunDepth--` centralized via a shared `End:` epilogue for the five
+normal-return sites, and `TryCatchRunCoreException` owning the
+exception-path cleanup internally (publish + decrement on every
+propagation path, with a cold guard-catch for failures inside the handler,
+e.g. error-construction re-entrancy).
+
+Full suite green (2,176 passed). Arm evidence: the dispatch edge is
+BYTE-IDENTICAL between the finally-present and finally-removed builds
+(IG08/IG09 compared instruction-by-instruction) - the hot path is provably
+untouched. Code size: Tier1 -58 B, Tier0 -46 B, calls -1.
+
+But bench-ab REPRODUCED regressions across two independent runs:
+smi-sum-loop +14.3%/+13.1%, dromaeo-3d-cube-modern +1.5%/+8.0%,
+named-get +1.7%/+1.1%, stopwatch +3.5%/+0.2%. With identical edge code,
+this is pure JIT code-layout perturbation (insights 1.11): removing the
+finally shifted the method's overall layout and the hot arms landed worse.
+
+Rejected per the no-regressions rule. The restructure remains sound and
+should be attempted ONLY as part of the full RunCore restructure
+(design doc section 3), where the loop moves wholesale and the layout
+dice are re-rolled anyway - its explicit-exit cleanup design (End
+epilogue + handler-owned cleanup) carries over unchanged.
+
+Post-mortem noise floor: a same-code self-test (bench-ab HEAD vs a
+comment-only working-tree change) measured +/-0.9% across
+smi/dromaeo/named-get - the harness and CPU are stable, so the
+finally-elim regression was real layout effect, and A25.2's -11.9%/-14.5%
+"wins" were likewise mostly favorable layout luck (one dead store cannot
+buy 12%). Lesson: bench-ab resolves ~1% reliably on this machine; larger
+swings from tiny Run edits are layout, and should be re-verified with a
+dedicated re-run before being trusted in either direction.
+
 ## Attempt Log Status
 
 | ID | Verdict |
