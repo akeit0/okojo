@@ -4,6 +4,8 @@ Related documents:
 
 - `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` - cumulative technical knowledge base
   (JIT/codegen, CPU, C# pitfalls, measurement methodology).
+- `OKOJO_VM_DEEP_INSPECTION_METHOD.md` - investigation method: layered
+  model, artifact-reading recipes, IL-to-native mapping tool design.
 - `OKOJO_A7_DISPATCH_DESIGN.md` - dispatch-structure analysis and E1
   microbench evidence.
 - `OKOJO_A8_A9_RESEARCH.md` - bytecode/compiler research: corpus profile,
@@ -64,10 +66,10 @@ Configs: `pgo-on` (`DOTNET_TieredPGO=1`), `pgo-off` (`DOTNET_TieredPGO=0`),
 `DOTNET_JitStdOutFile`.
 
 **Default config set is `pgo-off` only.** Without profile-guided
-recompilation the optimized code shape is deterministic (single Tier1-OSR +
-Tier1 listing, no PGO specialization churn), so attempt-vs-baseline A/B
-comparisons run faster and stay stable. Add `-Configs pgo-off,pgo-on`
-explicitly when studying specialization effects.
+recompilation the tiered timing/code-shape comparison is stable. Use
+`tiered-off` when the artifact under inspection must be one deterministic
+`FullOpts` body, and add `pgo-on` when studying profile specialization. Config
+lists may be comma-separated, for example `-Configs tiered-off,pgo-off`.
 
 The default workflow is deliberately light (probe + JIT dumps only, about a
 minute). BenchmarkDotNet never runs automatically; pass `-Benchmark` once an
@@ -176,6 +178,37 @@ Two consequences drive the attempt backlog:
    in the loop head (and per-arm temps) measurably changes frame setup and
    reg pressure.
 
+## Next plan: dump-driven arithmetic and entry costs
+
+The current tiered-off `Run` listing is 21,924 bytes with 44 IL locals. It
+gives the following working hypotheses; none is an accepted optimization until
+it has an isolated bench-ab median and a same-config assembly diff:
+
+1. **Entry zeroing (F1):** the `init_locals` prologue clears about 1.1KB of
+   stack on every `Run` entry. Test this only with re-entrant cases such as
+   accessors, function invocation, and generator drives.
+2. **Accumulator indirection (F2):** arithmetic arms repeatedly reload the
+   spilled `&acc`, then clear the `Obj` half after numeric writes. Measure an
+   accumulator-local ceiling before attempting an invasive representation
+   change.
+3. **Arithmetic re-dispatch (F3):** the fused arithmetic arm compares `op`
+   again and uses a secondary table. De-fuse `Add`/`Sub`/`Mul` as separate
+   arms, keeping the existing top-level opcode table.
+4. **Aliasing-blocked CSE (F4):** mixed numeric paths reload and mask-test the
+   accumulator more than once. Copy operands to locals before multi-testing.
+5. **Cloned slow tails (F5):** one non-number slow-path call is emitted along
+   several flows with separate temporary slots. Check whether de-fusing or a
+   single exit removes the copies.
+6. **Wide overflow math (F6):** the int-plus-int path uses sign extension and
+   64-bit range checks. Test a 32-bit overflow form with exact Smi semantics.
+
+Execution order is: build T1's arm-level listing report, build T2's opcode and
+pair profile, run the P7 accumulator-local ceiling probe, then try P1-P5 as
+separate attempts. P6 superinstructions require both the pair profile and a
+positive ceiling; do not start that bytecode/compiler change from source
+intuition alone. T3-T6 are follow-on attribution tools if the isolated results
+remain unclear.
+
 ## Candidate Attempts
 
 Order = proposed execution order (cheap/measurable first). Each attempt:
@@ -197,6 +230,13 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A11 | Tree-walk interpreter alternative | Largest change; diverges from the V8/Ignition reference model. Only if the bytecode path plateaus after A1-A10; requires its own feature note before starting |
 | A12 | `Run` C# local sharing | Use the PDB-backed local report to preserve frame/stack-machine state, but share short-lived same-type temporaries. Measure benchmark first, then Tier1 frame/calls, then IL locals |
 | A13 | Scaled operand reader fast/cold split | Keep the common single-byte operand read inline and share wide/extra-wide/invalid decoding in one cold NoInlining helper |
+| A14 | Arithmetic arm de-fusion | Give `Add`, `Sub`, and `Mul` separate arms so mixed numeric paths do not re-dispatch on `op`; verify the top-level jump-table target set is unchanged and measure mixed arithmetic |
+| A15 | Operand snapshots before tag tests | Copy `acc` and `slotRef` to locals before repeated numeric/type tests; inspect whether byref reloads and duplicate mask loads disappear without enlarging the frame |
+| A16 | Numeric result canonicalization | Replace the floating self-compare used for box-header avoidance with the integer mask invariant; add NaN/number regression coverage before accepting a helper |
+| A17 | 32-bit Smi overflow check | Test a 32-bit add/overflow test against the current 64-bit range checks; preserve exact JS integer/float promotion semantics |
+| A18 | `SkipLocalsInit` entry probe | Test removal of the `Run` prologue clear only after auditing managed-reference initialization and re-entry paths; use accessor/generator cases, not just a single loop |
+| A19 | Three-operand arithmetic superinstructions | Fuse measured register-op patterns such as `Ldar` + arithmetic + `Star`; require T2 pair frequencies, P7 headroom, compiler/bytecode evidence, and an explicit opcode-contract owner |
+| A20 | Accumulator-local ceiling probe | Probe-only local `ulong` accumulator mirror for numeric `Ldar`/`Star`/arithmetic/compare paths; semantically incomplete by design and never a shipping change |
 
 Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
@@ -386,6 +426,15 @@ Compared with the fresh pre-attempt snapshot:
 | A11 tree walk | open (last resort) |
 | A12 Run local sharing | ACCEPTED (short A/B; BDN deferred) |
 | A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
+| T1 listing analyzer | PLANNED (arm-level `RWD00` report and diff) |
+| T2 opcode/pair profiler | PLANNED (gates superinstruction selection) |
+| A14 arithmetic arm de-fusion | PLANNED (after T1/T2/P7 gates) |
+| A15 operand snapshots | PLANNED |
+| A16 numeric canonicalization | PLANNED |
+| A17 32-bit overflow check | PLANNED |
+| A18 `SkipLocalsInit` entry probe | PLANNED |
+| A19 arithmetic superinstructions | DEFERRED (requires T2 and P7 evidence) |
+| A20 accumulator-local ceiling | PLANNED (probe-only gate) |
 
 Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
 fresh 20260828 comparison for the current local-sharing + cold-split attempt
@@ -411,8 +460,9 @@ Rules for every attempt:
 
 1. One hypothesis per attempt; fill `notice.md` from the template.
 2. Compare dasm of the SAME case/config against the newest accepted baseline
-   snapshot with `compare-jit.ps1`; use `pgo-off` as the default comparison
-   config so diffs reflect engine changes, not PGO specialization drift.
+   snapshot with `compare-jit.ps1`; use `tiered-off` with one representative
+   case for deterministic `FullOpts` assembly, and `pgo-off` for tiered timing
+   and Tier1/OSR behavior.
 3. Confirm with BenchmarkDotNet before changing engine code defaults.
 4. Language/compiler/VM decisions reference V8 (`tools/V8BytecodeTool`);
    built-in/runtime API decisions reference Node.
