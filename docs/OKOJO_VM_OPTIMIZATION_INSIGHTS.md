@@ -167,6 +167,21 @@ separately, and re-run a stack comparison before describing a total
 improvement. Benchmark medians remain the decision gate; assembly and IL
 explain the result but do not override it.
 
+### 1.12 One hot case is enough for PGO-off `Run` assembly
+
+`JsRealm.Run` is a non-generic method whose PGO-off code generation does not
+depend on which JavaScript case invokes it. Multi-case PGO-off captures showed
+the same Tier0 and Tier1-OSR bodies across the cases; in the stacked snapshot,
+the common sizes were 18,334 and 22,097 bytes. The final Tier1 body was also
+the same for every case that reached that tier. Cases that did not show a
+final Tier1 dump simply did not trigger that compilation during the probe.
+
+Consequence: use one sufficiently hot representative case when comparing
+`Run` assembly. Keep multiple cases for timing medians, semantic coverage,
+checking that a desired tier is reached, or studying PGO-on/tiering behavior.
+If a tier is missing, increase warmup/iterations before adding unrelated
+cases.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
@@ -313,3 +328,4 @@ Date specialization has a stable benchmark and a clear Tier1 shape.
 | tier awareness | short scripts may never reach final Tier1 in probe runs; OSR code dominates; note which listing you read |
 | sub-10us cells | flip sign between processes; BDN or bench-ab medians required |
 | Run edits | independently benchmark each source change, then benchmark the intended stack; JIT layout can defeat additive source wins |
+| PGO-off Run asm | one hot representative case is sufficient; use multiple cases for timing, tier reach, or PGO-on specialization |
