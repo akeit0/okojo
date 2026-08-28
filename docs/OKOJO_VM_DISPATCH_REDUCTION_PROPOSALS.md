@@ -11,11 +11,11 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - static corpus research; section 1.5 records the
   no-ISA-growth policy and its revisit trigger.
 
-Status: C1 IMPLEMENTED/CONFIRMED; C2-C4 and V1-V7 remain PROPOSED. Every
+Status: ACTIVE PROPOSALS: C2-C4 and V1-V7. C1 was accepted and is recorded
+in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` and the foundation attempt log. Every
 item below is backed by dynamic opcode profiles (T2, `--profile-opcodes`),
 bytecode disassembly (OkojoBytecodeTool), or per-arm JIT analysis
-(`analyze-jit.ps1` + listing reads) captured on 2026-08-28. C1 is the first
-implementation from this document; the remaining items are not landed.
+(`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
 evidence in section 4 is recorded for the R3-R5 revisit trigger but is
@@ -25,14 +25,15 @@ explicitly NOT proposed here.
 
 ### 1.1 Dynamic opcode profiles (T2 build, `--profile-opcodes`)
 
-`smi-sum-loop` executes 13 dispatches per loop iteration:
+The pre-C1 baseline for `smi-sum-loop` executes 13 dispatches per loop
+iteration:
 `Star` x3, `Ldar` x3, `LdaSmiExtraWide`, `TestLessThan`, `JumpIfFalse`,
 `Add`, `Inc`, `ToNumeric`, `Jump` (each x1). Top pairs: `Star -> Ldar` 2M,
 `Ldar -> Star` / `Ldar -> Add` / `Ldar -> ToNumeric` /
 `ToNumeric -> Inc` / `Inc -> Star` / `Add -> Star` 1M each.
 
-The checked two-property `named-get` case executes 17 per iteration, dominated by
-`Star` x5 and the repeated triple
+The pre-C1 checked two-property `named-get` case executes 17 per iteration,
+dominated by `Star` x5 and the repeated triple
 `Star -> LdaNamedProperty -> Add -> Star` (2M pairs each per probe).
 
 `stopwatch-modern` (~1.56M inner iterations per probe): `Star` 33.5M
@@ -43,24 +44,15 @@ The checked two-property `named-get` case executes 17 per iteration, dominated b
 
 ### 1.2 Bytecode disassembly (OkojoBytecodeTool)
 
-`smiSumLoop` body - `s += i` costs 5 dispatches where V8 Ignition emits 3:
-
-```
-0017  Ldar r0      ; acc = s          <- elidable (C1)
-0019  Star r2      ; temp = s         <- elidable (C1)
-0021  Ldar r1      ; acc = i
-0023  Add r2       ; acc = temp + acc
-0026  Star r0      ; s = acc
-0028  Ldar r2 / ToNumeric / Inc / Star r2   ; ToNumeric elidable (C2)
-```
+After C1, `smiSumLoop` emits the compound body as `Ldar r1 / Add r0 /
+Star r0`. The remaining update sequence is `Ldar r1 / ToNumeric / Inc /
+Star r1`; C2 targets that `ToNumeric`.
 
 V8 reference for the identical source: `Ldar r1 / Add r0 / Star r0` and
-`Ldar r1 / Inc / Star r1` (no temp copy, no ToNumeric).
+`Ldar r1 / Inc / Star r1` (no temp copy, no `ToNumeric`).
 
-`namedGet` body: each `s += o.x` is `Ldar r1 / Star r3 /
-LdaNamedProperty / Add r3 / Star r1` (the second `+=` reuses acc and pays
-only one extra `Star r3`). Three of its seventeen per-iteration dispatches
-are C1-elidable temp traffic, one more is the C2 `ToNumeric`.
+`namedGet` body after C1 is `LdaNamedProperty / Add r1 / Star r1` for each
+`s += o.x`; the remaining C2 opportunity is the loop update's `ToNumeric`.
 
 `stopwatch-modern` `<script>` inner loop additionally shows:
 
@@ -141,35 +133,6 @@ post-call `Star r0` completion writes occur several times per iteration.
 
 ## 2. Compiler proposals (bytecode emission; no ISA change)
 
-### C1. Compound-assignment LHS temp elision
-
-Status: IMPLEMENTED/CONFIRMED (2026-08-28).
-
-When the assignment target of `x op= rhs` is a plain, uncaptured local
-register, elide the `Ldar x / Star tmp` materialization and emit the RHS
-into acc followed by `<Op> xReg / Star xReg`. Nothing the RHS evaluates can
-observe or modify an uncaptured local, so reading the register at the
-arithmetic instruction instead of before RHS evaluation is unobservable.
-This matches V8's emission for the same source.
-
-- Gate: LHS resolves to a current-frame local register; the binding is not
-  captured by any closure; storage is a local/lexical register that is already
-  initialized; and the RHS does not reference the target name. The last gate
-  deliberately keeps `x += (x = 4)` on the original ordered path.
-- Site: compound-assignment emission in `JsCompilerBase.Expressions.cs`.
-- Measured stream impact: `smi-sum-loop` 13 -> 11 dispatches/iteration;
-  the checked two-property `named-get` case 17 -> 14.
-- Five-round pgo-off `bench-ab` medians (`25` iterations, `250` warmup):
-  `smi-sum-loop` 3,719,888 -> 3,011,028 (-19.1%), `named-get` 5,320,368
-  -> 4,388,608 (-17.5%), while unchanged controls `for-loop-sum` (-0.9%)
-  and `lexical-block` (+0.9%) stayed within noise.
-- Verification: OkojoBytecodeTool disassembly matches the V8 operand order;
-  AssignmentTests 47/47 and the full suite 2,161 passed with 4 skips. The
-  compiler-only change leaves `Run` IL/JIT unchanged by design.
-- `stopwatch-modern` baseline/current disassembly is opcode-equivalent for
-  all 8 units with identical register counts. Its separate +4.5% timing
-  sample is control variance, not a C1 result.
-
 ### C2. Statement-position `ToNumeric` elision before `Inc`/`Dec`
 
 The update-expression emitters (`JsCompilerBase.Expressions.cs:1767`
@@ -189,10 +152,10 @@ identical (one coercion either way). V8 emits bare `Inc`.
 - Verification: disasm shows `Ldar / Inc / Star`; regression tests for
   `i++` on string/object/BigInt locals in statement position; full suite.
 
-Combined C1+C2: `smi-sum-loop` 13 -> 10 dispatches/iteration (-23%),
-the checked two-property `named-get` case 17 -> 13 (-24%). `named-get` is
-currently the case Okojo loses
-to Jint (1.12x); this margin should flip it.
+Next C2 target after the accepted C1 change: `smi-sum-loop` 11 -> 10
+dispatches/iteration, and the checked two-property `named-get` case 14 -> 13.
+The `stopwatch-modern` probe contains 1.96M `ToNumeric`/`Inc` pairs, making
+it the primary end-to-end check for this candidate.
 
 ### C3. TDZ hole-init elision for block lexicals
 
@@ -436,9 +399,9 @@ costs five dispatches because no compare-accumulator-with-immediate form
 exists; a `TestEqualSmi imm` family would collapse it to two. Recorded for
 the policy call only.
 
-C1/C2 remove several of these pairs without ISA growth, so this table must
-be re-collected after the compiler proposals land; only the residual table
-is decision-grade input for the R3-R5 policy call.
+C1 removed several of these pairs without ISA growth. Re-collect this table
+after the remaining compiler proposals land; only the residual table is
+decision-grade input for the R3-R5 policy call.
 
 ## 5. Tooling gaps found while collecting this evidence
 
@@ -452,7 +415,7 @@ is decision-grade input for the R3-R5 policy call.
 
 ## 6. Suggested order
 
-1. C1 + C2 (same emitter area; biggest ratio, lowest risk).
+1. C2 (same emitter area; lowest risk; `stopwatch-modern` has direct evidence).
 2. V3 `TestEqual`/`LdaNamedProperty`/`Star` de-fusion + V2 barrier fast
    path (small VM patches with direct arm-level acceptance criteria).
 3. C3 (block-lexical TDZ elision).
