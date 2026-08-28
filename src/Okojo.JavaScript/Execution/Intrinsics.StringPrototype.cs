@@ -593,6 +593,7 @@ public partial class Intrinsics
             "slice",
             2
         );
+        sliceFn.LeafBodyField = TryLeafSlice;
 
         var substringFn = new JsHostFunction(
             Realm,
@@ -617,6 +618,7 @@ public partial class Intrinsics
             "substring",
             2
         );
+        substringFn.LeafBodyField = TryLeafSubstring;
 
         var substrFn = new JsHostFunction(
             Realm,
@@ -653,6 +655,7 @@ public partial class Intrinsics
             "substr",
             2
         );
+        substrFn.LeafBodyField = TryLeafSubstr;
 
         var startsWithFn = new JsHostFunction(
             Realm,
@@ -2092,6 +2095,109 @@ public partial class Intrinsics
             : (int)position;
         result = JsValue.FromInt32(text.LastIndexOf(search, start));
         return true;
+    }
+
+    private static bool TryLeafSlice(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.slice called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        long length = text.Length;
+        var start = Intrinsics.NormalizeRelativeIndex(
+            args.Length > 0 ? realm.ToIntegerOrInfinity(args[0]) : 0d,
+            length
+        );
+        var end =
+            args.Length > 1 && !args[1].IsUndefined
+                ? Intrinsics.NormalizeRelativeIndex(realm.ToIntegerOrInfinity(args[1]), length)
+                : length;
+        var from = (int)start;
+        var to = (int)Math.Max(start, end);
+        result = JsValue.FromString(to <= from ? JsString.Empty : text.Slice(from, to - from));
+        return true;
+    }
+
+    private static bool TryLeafSubstring(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.substring called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var length = text.Length;
+        var startNumber = args.Length > 0 ? realm.ToIntegerOrInfinity(args[0]) : 0d;
+        var endNumber =
+            args.Length > 1 && !args[1].IsUndefined ? realm.ToIntegerOrInfinity(args[1]) : length;
+        var start = ClampStringPositionForLeaf(startNumber, length);
+        var end = ClampStringPositionForLeaf(endNumber, length);
+        var from = Math.Min(start, end);
+        var to = Math.Max(start, end);
+        result = JsValue.FromString(to <= from ? JsString.Empty : text.Slice(from, to - from));
+        return true;
+    }
+
+    private static bool TryLeafSubstr(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.substr called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var length = text.Length;
+        var startNumber = args.Length > 0 ? realm.ToIntegerOrInfinity(args[0]) : 0d;
+        var start =
+            double.IsNegativeInfinity(startNumber) ? 0
+            : startNumber < 0 ? Math.Max(length + (int)startNumber, 0)
+            : Math.Min((int)startNumber, length);
+
+        int size;
+        if (args.Length < 2 || args[1].IsUndefined)
+        {
+            size = length - start;
+        }
+        else
+        {
+            var lengthNumber = realm.ToIntegerOrInfinity(args[1]);
+            size = double.IsPositiveInfinity(lengthNumber)
+                ? length - start
+                : Math.Max(0, (int)lengthNumber);
+        }
+
+        var end = Math.Min(start + size, length);
+        result = JsValue.FromString(end <= start ? JsString.Empty : text.Slice(start, end - start));
+        return true;
+    }
+
+    private static int ClampStringPositionForLeaf(double position, int length)
+    {
+        if (double.IsNegativeInfinity(position) || position <= 0d)
+            return 0;
+        if (double.IsPositiveInfinity(position) || position >= length)
+            return length;
+        return (int)position;
     }
 
     private static bool TryLeafFromCharCode(
