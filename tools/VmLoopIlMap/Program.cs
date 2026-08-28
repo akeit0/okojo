@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Iced.Intel;
 using Microsoft.Diagnostics.Runtime;
 
@@ -19,17 +21,16 @@ internal static class Program
 
         try
         {
-            var options = ParseOptions(args);
-            var report = Inspect(options);
-
-            if (options.OutputPath is null)
-                Console.WriteLine(string.Join(Environment.NewLine, report));
-            else
+            if (GetOption(args, "--from") is { } fromPath)
             {
-                File.WriteAllLines(options.OutputPath, report);
-                Console.WriteLine($"Saved: {options.OutputPath}");
+                var view = ViewFromReport(fromPath, args);
+                WriteOutput(view, GetOption(args, "--output"));
+                return 0;
             }
 
+            var options = ParseOptions(args);
+            var report = Inspect(options);
+            WriteOutput(report, options.OutputPath);
             return 0;
         }
         catch (Exception ex)
@@ -37,6 +38,17 @@ internal static class Program
         {
             Console.Error.WriteLine($"VmLoopIlMap: {ex.Message}");
             return 1;
+        }
+    }
+
+    private static void WriteOutput(List<string> lines, string? outputPath)
+    {
+        if (outputPath is null)
+            Console.WriteLine(string.Join(Environment.NewLine, lines));
+        else
+        {
+            File.WriteAllLines(outputPath, lines);
+            Console.WriteLine($"Saved: {outputPath}");
         }
     }
 
@@ -57,7 +69,7 @@ internal static class Program
 
     private static string? GetOption(string[] args, string name)
     {
-        for (var i = 1; i < args.Length; i++)
+        for (var i = 0; i < args.Length; i++)
         {
             if (!string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -167,6 +179,7 @@ internal static class Program
             .OrderBy(map => map.StartAddress)
             .ToArray();
         var formatter = new IntelFormatter();
+        var instructions = new List<NativeInstruction>();
         foreach (var (name, start, size) in GetNativeRegions(method.HotColdInfo))
         {
             report.Add($"[asm-region] name={name} start=0x{start:X} size=0x{size:X}");
@@ -187,8 +200,250 @@ internal static class Program
                 report.Add(
                     $"[asm] native=0x{instruction.IP:X} il={ilOffset?.ToString() ?? "-"} source={FindSource(sourcePoints, ilOffset ?? -1)} {output}"
                 );
+                if (instructions.Count > 0)
+                {
+                    var previous = instructions[^1];
+                    instructions[^1] = previous with
+                    {
+                        Length = (int)(instruction.IP - previous.Address),
+                    };
+                }
+
+                instructions.Add(
+                    new NativeInstruction(
+                        instruction.IP,
+                        instruction.FlowControl,
+                        instruction.MemoryBase != Register.None
+                            || instruction.MemoryIndex != Register.None,
+                        ExtractSourceLine(sourcePoints, ilOffset ?? -1),
+                        1,
+                        output.ToString()
+                    )
+                );
+            }
+
+            // Tail length: the last instruction extends to the region end.
+            if (instructions.Count > 0)
+            {
+                var last = instructions[^1];
+                instructions[^1] = last with
+                {
+                    Length = (int)(start + size - last.Address),
+                };
             }
         }
+
+        AppendLineMap(report, instructions);
+        AppendSummary(report, instructions, sourcePoints);
+    }
+
+    private static void AppendLineMap(
+        List<string> report,
+        IReadOnlyList<NativeInstruction> instructions
+    )
+    {
+        // Source line -> native positions: one entry per contiguous native
+        // range per source line, with exact counts taken from the decoded
+        // flow control and memory operands. Read this file offline instead of
+        // re-attaching to the process for every view.
+        report.Add("[line-map] line range=0xSTART-0xEND size instr calls loads");
+        var index = 0;
+        while (index < instructions.Count)
+        {
+            var line = instructions[index].SourceLine;
+            var rangeStart = index;
+            var rangeEnd = 0UL;
+            var bytes = 0UL;
+            var count = 0;
+            var calls = 0;
+            var loads = 0;
+            while (
+                index < instructions.Count
+                && instructions[index].SourceLine.Equals(line)
+                && (
+                    index == rangeStart
+                    || instructions[index].Address == rangeEnd
+                )
+            )
+            {
+                var item = instructions[index];
+                bytes += (ulong)item.Length;
+                count++;
+                if (item.HasMemoryOperand)
+                    loads++;
+                if (item.FlowControl is FlowControl.Call or FlowControl.IndirectCall)
+                    calls++;
+                rangeEnd = item.Address + (ulong)item.Length;
+                index++;
+            }
+
+            report.Add(
+                $"[line-map] line={line?.ToString() ?? "-"} range=0x{instructions[rangeStart].Address:X}-0x{rangeEnd:X} size={bytes} instr={count} calls={calls} loads={loads}"
+            );
+        }
+    }
+
+    private static void AppendSummary(
+        List<string> report,
+        IReadOnlyList<NativeInstruction> instructions,
+        IReadOnlyList<SourcePoint> sourcePoints
+    )
+    {
+        // Attribute native code to opcode arms through the PDB source lines of
+        // the `case JsOpCode.X:` labels: consecutive case labels form one
+        // shared arm group; attribution uses a per-line owner table (source
+        // order), because the JIT does not emit arms in address order.
+        var sourcePath = sourcePoints
+            .Select(point => point.Document)
+            .Where(document => document != "<unknown>" && File.Exists(document))
+            .GroupBy(document => document)
+            .OrderByDescending(group => group.Count())
+            .Select(group => group.Key)
+            .FirstOrDefault();
+        if (sourcePath is null)
+        {
+            report.Add("[summary] unavailable: no source document");
+            return;
+        }
+
+        var sourceLines = File.ReadAllLines(sourcePath);
+        var firstLine = sourcePoints.Min(point => point.Line);
+        var lastLine = sourcePoints.Max(point => point.Line);
+        var groups = new List<(int Line, string Names)>();
+        var pending = new List<string>();
+        for (var line = firstLine; line <= lastLine; line++)
+        {
+            if (line - 1 >= sourceLines.Length)
+                break;
+            var match = Regex.Match(
+                sourceLines[line - 1],
+                @"^\s*case JsOpCode\.([A-Za-z0-9_]+)\s*:"
+            );
+            if (match.Success)
+            {
+                pending.Add(match.Groups[1].Value);
+                continue;
+            }
+
+            if (pending.Count > 0)
+            {
+                groups.Add((line, string.Join("+", pending)));
+                pending.Clear();
+            }
+        }
+
+        var ownerByLine = new string[lastLine + 1];
+        var currentOwner = "prologue";
+        var groupIndex = 0;
+        for (var line = firstLine; line <= lastLine; line++)
+        {
+            if (groupIndex < groups.Count && groups[groupIndex].Line == line)
+            {
+                currentOwner = groups[groupIndex].Names;
+                groupIndex++;
+            }
+
+            ownerByLine[line] = currentOwner;
+        }
+
+        var aggregates = new Dictionary<string, int[]>(StringComparer.Ordinal);
+        foreach (var instruction in instructions)
+        {
+            var owner =
+                instruction.SourceLine is int line && line < ownerByLine.Length
+                    ? ownerByLine[line]
+                    : currentOwner;
+
+            if (!aggregates.TryGetValue(owner, out var stats))
+            {
+                stats = new int[4]; // instr, bytes, loads, calls
+                aggregates[owner] = stats;
+            }
+
+            stats[0]++;
+            stats[1] += instruction.Length;
+            if (instruction.HasMemoryOperand)
+                stats[2]++;
+            if (
+                instruction.FlowControl
+                is FlowControl.Call
+                    or FlowControl.IndirectCall
+            )
+                stats[3]++;
+        }
+
+        report.Add($"[summary] arms={aggregates.Count} instructions={instructions.Count}");
+        report.Add(
+            "[summary-arm] opcode instr bytes loads calls (sorted by bytes; group names joined by +)"
+        );
+        foreach (var entry in aggregates.OrderByDescending(item => item.Value[1]))
+        {
+            report.Add(
+                $"[summary-arm] {entry.Key} {entry.Value[0]} {entry.Value[1]} {entry.Value[2]} {entry.Value[3]}"
+            );
+        }
+    }
+
+    private static List<string> ViewFromReport(string fromPath, string[] args)
+    {
+        var lines = File.ReadAllLines(fromPath);
+        var wantSourceMap = args.Contains("--source-map", StringComparer.OrdinalIgnoreCase);
+        var wantSummary = args.Contains("--summary", StringComparer.OrdinalIgnoreCase);
+        var lineFilter = GetOption(args, "--line");
+        var filteredLines =
+            lineFilter is null
+                ? null
+                : lineFilter
+                    .Split(',')
+                    .Select(static value => int.Parse(value, CultureInfo.InvariantCulture))
+                    .ToArray();
+        var output = new List<string> { $"[view] from={fromPath}" };
+
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("[asm] ", StringComparison.Ordinal))
+            {
+                if (filteredLines is null)
+                    continue;
+                var match = Regex.Match(
+                    line,
+                    @"^\[asm\] native=0x[0-9A-Fa-f]+ il=\S+ source=.+:(\d+) "
+                );
+                if (
+                    match.Success
+                    && int.TryParse(match.Groups[1].Value, out var sourceLine)
+                    && filteredLines.Contains(sourceLine)
+                )
+                    output.Add(line);
+                continue;
+            }
+
+            if (line.StartsWith("[line-map]", StringComparison.Ordinal))
+            {
+                if (wantSourceMap || (filteredLines is null && !wantSummary))
+                    output.Add(line);
+                continue;
+            }
+
+            if (line.StartsWith("[summary-arm]", StringComparison.Ordinal))
+            {
+                if (wantSummary || (filteredLines is null && !wantSourceMap))
+                    output.Add(line);
+                continue;
+            }
+
+            if (line.StartsWith("[summary]", StringComparison.Ordinal))
+            {
+                if (wantSummary || (filteredLines is null && !wantSourceMap))
+                    output.Add(line);
+                continue;
+            }
+
+            // headers ([target]/[method]/[native]/[map]/[asm-region]) pass through
+            output.Add(line);
+        }
+
+        return output;
     }
 
     private static IEnumerable<(string Name, ulong Start, uint Size)> GetNativeRegions(
@@ -281,13 +536,35 @@ internal static class Program
         return selected is null ? "-" : $"{selected.Document}:{selected.Line}";
     }
 
+    private static int? ExtractSourceLine(
+        IReadOnlyList<SourcePoint> sourcePoints,
+        int ilOffset
+    )
+    {
+        SourcePoint? selected = null;
+        foreach (var point in sourcePoints)
+        {
+            if (point.IlOffset > ilOffset)
+                break;
+            selected = point;
+        }
+
+        return selected?.Line;
+    }
+
     private static void PrintUsage()
     {
         Console.Error.WriteLine(
             "usage: VmLoopIlMap <pid|dump-path> [--type <full-name>] [--method <name>] [--output <path>]"
         );
         Console.Error.WriteLine(
-            "       inspect a paused/snapshot .NET process and print CLRMD IL-to-native ranges"
+            "       capture once: full IL/native map, per-instruction asm, line-map, arm summary"
+        );
+        Console.Error.WriteLine(
+            "       VmLoopIlMap --from <report-file> [--source-map] [--summary] [--line 1200,1477] [--output <path>]"
+        );
+        Console.Error.WriteLine(
+            "       offline views over a saved capture (no process attach, no repeated execution)"
         );
     }
 
@@ -299,4 +576,13 @@ internal static class Program
     );
 
     private sealed record SourcePoint(int IlOffset, string Document, int Line);
+
+    private sealed record NativeInstruction(
+        ulong Address,
+        FlowControl FlowControl,
+        bool HasMemoryOperand,
+        int? SourceLine,
+        int Length = 1,
+        string Text = ""
+    );
 }

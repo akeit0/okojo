@@ -144,11 +144,41 @@ dotnet tools/VmLoopIlMap/bin/Release/net10.0/VmLoopIlMap.dll <pid> `
 `VmLoopIlMap` accepts either a PID or a dump path. CLRMD reads the current
 jitted `JsRealm.Run` method, its hot/cold regions, and `ILOffsetMap`; Iced
 decodes x86/x64 native bytes; and the portable PDB adds source file/line
-locations. The output contains `[map]` ranges and `[asm]` instruction lines.
-`--hold` blocks on stdin after warmup; press Enter after inspection. This is a
-mapping/disassembly artifact, not a timing result, and the `capture-jit.ps1
--IlMap` automatic integration plus per-line/per-arm rollups remain follow-up
-work.
+locations. `--hold` blocks on stdin after warmup; press Enter after
+inspection. This is a mapping/disassembly artifact, not a timing result.
+
+Capture once, view offline. One capture writes the full report: `[map]`
+IL-to-native ranges, per-instruction `[asm]` lines (native address, IL
+offset, PDB source line), `[line-map]` (source line -> contiguous native
+ranges with exact instr/calls/loads counts), and `[summary-arm]` (native
+bytes attributed to `case JsOpCode.X:` arm groups, sorted by size). Views
+over a saved report need no process attach and no repeated execution:
+
+```powershell
+dotnet tools/VmLoopIlMap/bin/Release/net10.0/VmLoopIlMap.dll `
+  --from run.ilmap.txt --summary          # arm-size rollup
+dotnet tools/VmLoopIlMap/bin/Release/net10.0/VmLoopIlMap.dll `
+  --from run.ilmap.txt --source-map       # line -> native ranges table
+dotnet tools/VmLoopIlMap/bin/Release/net10.0/VmLoopIlMap.dll `
+  --from run.ilmap.txt --line 2102,2103   # disassembly of those source lines
+```
+
+Multi-case capture driver: `tools/VmLoopIlMap/capture-ilmap.ps1` starts the
+probe with a held-open stdin pipe (so `--hold` blocks), attaches, saves one
+report per case/env, and prints the tier (`compilation=`) and hot/cold
+region sizes:
+
+```powershell
+pwsh tools/VmLoopIlMap/capture-ilmap.ps1 `
+  -Cases smi-sum-loop,dromaeo-3d-cube-modern -Env tiered-off
+```
+
+Notes: attribution is line-based through the PDB - the JIT does not emit
+arms in source order, and shared locals that are passed byref anywhere in
+`Run` are memory-homed, so per-line native sizes reflect where the code
+landed, not source complexity. tiered-off produces one identical FullOpts
+body across cases (insights 1.12); tiered/pgo-off captures show which tier
+each case actually reached.
 
 ### Comparing snapshots
 
