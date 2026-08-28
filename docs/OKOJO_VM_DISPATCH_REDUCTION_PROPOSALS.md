@@ -20,11 +20,12 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C3-C4, A14-A19 (section 4), and V2-V8. C1-C2 and
-V1 were accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the
-insights document. Every item below is backed by dynamic opcode profiles (T2,
-`--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm JIT
-analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
+Status: ACTIVE PROPOSALS: C3-C4, A14-A17 and A19 (section 4), and V2-V8.
+C1-C2, V1 (A21), and A18 (`SkipLocalsInit`) were accepted and are recorded
+in `OKOJO_VM_ATTEMPT_LOG.md` and the insights document. Every item below is
+backed by dynamic opcode profiles (T2, `--profile-opcodes`), bytecode
+disassembly (OkojoBytecodeTool), or per-arm JIT analysis (`analyze-jit.ps1`
++ listing reads) captured on 2026-08-28.
 
 Policy note: none of the C/V proposals require new opcodes. The fusion
 evidence in section 5 is recorded for the R3-R5 revisit trigger but is
@@ -151,6 +152,8 @@ isolated bench-ab median and same-config assembly diff land.
    `add rax,48`, `jne`). About 1.1KB is cleared on every `Run` entry.
    Mostly irrelevant to a single long-running loop, but matters for
    accessor getters, `InvokeFunction` re-entry, and generator drives.
+   ADDRESSED: removed by `[SkipLocalsInit]` (A18 accepted, see the attempt
+   log and insights 1.19).
 2. **Accumulator indirection (F2):** arms repeatedly reload
    `mov rax,bword ptr [rbp-0x338]` for the spilled `&this.acc` and then
    dereference it. Numeric results also use a `vucomisd` self-compare,
@@ -415,11 +418,6 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   `((a ^ r) & (b ^ r)) < 0` (or the smaller `(int)res == res` form)
   against current semantics (F6). Tiny innermost-loop experiment; needs
   exact Smi-to-Float64 promotion tests.
-- **A18 (P5) - entry clear ceiling:** test `[SkipLocalsInit]` on `Run` (or,
-  only after an assembly-wide audit, at assembly scope) after auditing all
-  managed-reference initialization (F1). Verify that the prologue loop
-  disappears in tiered-off asm and use re-entrant accessor/generator
-  workloads, not just `smi-sum-loop`.
 - **A19 (P6) - three-operand superinstructions (DEFERRED):** after T2 pair
   frequencies and the A21 headroom result, fuse patterns such as
   `Ldar rA; Add rB; Star rC` into `AddRR rA,rB -> rC`, bypassing the
@@ -427,8 +425,11 @@ isolated bench-ab medians and same-config assembly diffs before acceptance.
   used by LuaJIT/JSC; V8 Ignition avoids the same cost with a physical
   accumulator that the current C# loop cannot provide per dynamic opcode.
   Adding bytecode entries changes the BTB target set, so re-check the
-  dispatch evidence (insights 1.2). Deferred until A14-A18 results justify
+  dispatch evidence (insights 1.2). Deferred until A14-A17 results justify
   an opcode-contract change.
+
+(A18 / P5, the `SkipLocalsInit` entry-clear probe for F1, was accepted and
+moved to `OKOJO_VM_ATTEMPT_LOG.md`.)
 
 ## 5. Fusion revisit-trigger evidence (recorded, not proposed)
 
@@ -477,7 +478,6 @@ All open work items in one table. Completed items live in
 | A15 | Operand snapshots before tag tests | PLANNED | section 4 (P2) |
 | A16 | Numeric result canonicalization | PLANNED | section 4 (P3) |
 | A17 | 32-bit Smi overflow check | PLANNED | section 4 (P4) |
-| A18 | `SkipLocalsInit` entry probe | PLANNED | section 4 (P5) |
 | A19 | Three-operand arithmetic superinstructions | DEFERRED | section 4 (P6) |
 | A22 | Star/Mov write-barrier elimination | PROPOSED | V2 |
 | A23 | Hot-arm de-fusion beyond arithmetic | PROPOSED | V3 (extends A14) |

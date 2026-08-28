@@ -280,6 +280,38 @@ proposal V2 only needs to handle the `Star` direction, and the
 
 Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
 
+### A18 / P5 `SkipLocalsInit` entry probe - ACCEPTED
+
+`[SkipLocalsInit]` on `JsRealm.Run` removes the prologue init-locals zeroing
+loop (F1, proposals doc section 1.4): ~1.1KB of frame clear per `Run` entry.
+Managed-reference initialization was audited first - every ref local is
+assigned before any read along all entry/resume paths (frame reload, catch
+resume, cold slow-path returns), so skipping the CLR zeroing is safe here.
+The attribute pays off for re-entrant workloads (accessor invocations,
+host->JS callbacks, generator drives), which re-enter `Run` frequently;
+loop-dominated cases never pay the prologue more than once anyway.
+
+Results (2026-08-28, on top of A21/V1):
+
+- Tier1 code size 21,084 -> 20,861 bytes (-223 B); the prologue clear loop
+  is gone from the assembly.
+- VsJintBenchmarks (BDN, pgo-off): no regressions. Improved medians beyond
+  noise: arith 1.405 -> 1.240 us (-11.7%), smi-sum-loop 2,432 -> 2,229 us
+  (-8.4%), lexical-block 4,979 -> 4,558 us (-8.5%), named-get 3,424 ->
+  3,281 us (-4.2%), for-loop-sum 238 -> 225 us (-5.2%). Others within
+  noise (closure-heavy, pure-function-call, math-call, object, many-object,
+  indexing all stable or slightly better).
+- Full Okojo.Tests suite passed.
+
+Lesson: F1's ceiling estimate was conservative ("mostly irrelevant to a
+single long-running loop"); the measured wins on loop-dominated cases
+(arith, smi-sum-loop) show the prologue also perturbed code layout and
+register allocation beyond the clear loop itself. Re-entrant entry cost
+removes for free.
+
+Evidence: working-tree attempt; numbers from the user-supplied
+VsJintBenchmarks before/after run and the Tier1 code-size report.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -296,6 +328,7 @@ Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
 | A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
 | T1 listing analyzer | PREPARED (`analyze-jit.ps1`; validate against current `FullOpts`/`Tier1` dumps) |
 | T2 opcode/pair profiler | PREPARED (`OkojoVmProfile=true` + `--profile-opcodes`; gates superinstruction selection) |
+| A18 `SkipLocalsInit` entry probe | ACCEPTED (prologue clear removed; Tier1 -223 B; suite green) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
 | A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
 | C1 compiler emission elision | ACCEPTED (compiler/test change; recorded in insights 1.16) |

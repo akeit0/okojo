@@ -335,6 +335,26 @@ the key and is worth the one additional IL local.
 
 Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
 
+### 1.19 `[SkipLocalsInit]` on `Run` removes the prologue clear and perturbs layout favorably
+
+`Run` had `init_locals=True`: the prologue cleared ~1.1KB of the
+`0x4B8`-byte frame on every entry (F1 in the proposals doc). After auditing
+that every managed-reference local is assigned before any read on all
+entry/resume paths, `[SkipLocalsInit]` on `Run` removed the clear loop:
+Tier1 code fell 21,084 -> 20,861 bytes and BDN medians improved
+4-12% on arith, smi-sum-loop, lexical-block, named-get, and for-loop-sum
+with no regressions.
+
+Two lessons beyond the expected re-entrant-entry saving: the win also
+showed up on loop-dominated cases that enter `Run` once, so the prologue's
+cost was not only the clear loop itself but its effect on code layout and
+register allocation; and an audit-based removal of a JIT safety net is only
+acceptable when the "every local is assigned before read" invariant is
+written down - future edits to `Run` must preserve it (a read of
+uninitialized ref/local memory is silent corruption, not an exception).
+
+Evidence: `OKOJO_VM_ATTEMPT_LOG.md` A18 entry.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)

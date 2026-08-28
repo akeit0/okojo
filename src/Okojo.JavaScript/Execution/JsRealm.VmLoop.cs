@@ -1183,6 +1183,7 @@ public sealed partial class JsRealm
         return true;
     }
 
+    [SkipLocalsInit]
     private void Run(int stopAtCallerFp = -1, int startPc = 0)
     {
         managedRunDepth++;
