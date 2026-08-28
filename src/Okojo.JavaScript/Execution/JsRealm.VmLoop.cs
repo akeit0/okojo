@@ -2117,6 +2117,14 @@ public sealed partial class JsRealm
                                 || !JsValue.TryGetNumberValueFromUlong(uRhs, out num2)
                             )
                             {
+                                if (uLhs == JsValue.JsStringBits && uRhs == JsValue.JsStringBits)
+                                {
+                                    acc = JsValue.FromString(
+                                        JsString.Concat(slotRef.AsJsString(), acc.AsJsString())
+                                    );
+                                    break;
+                                }
+
                                 acc = HandleArithmeticNonNumberSlowPath(
                                     this,
                                     JsOpCode.Add,
