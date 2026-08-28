@@ -66,6 +66,37 @@ public class AssignmentTests
     }
 
     [Test]
+    public void CompoundIdentifierAssignment_WithImmediate_LoadsLhs()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            let x = 0;
+            if (true) {}
+            x += 2;
+            x;
+            """
+        );
+
+        Assert.That(result.Int32Value, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void KeyedAssignment_UndefinedKey_IsNamedProperty()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        _ = realm.Eval(
+            """
+            var y = [];
+            y[undefined] = 0;
+            """
+        );
+
+        Assert.That(realm.Eval("y[0]").IsUndefined, Is.True);
+        Assert.That(realm.Eval("y[\"undefined\"]").Int32Value, Is.EqualTo(0));
+    }
+
+    [Test]
     public void ComputedMemberAssignment_Evaluates_RightHandSide_Before_ToPropertyKey()
     {
         var realm = JsRuntime.Create().DefaultRealm;

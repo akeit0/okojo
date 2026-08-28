@@ -144,7 +144,8 @@ public sealed partial class JsRealm
         int atom,
         bool isInitializationStore,
         bool useFunctionDeclarationSemantics,
-        bool strict
+        bool strict,
+        ref JsValue acc
     )
     {
         var globalBindingIcEntries = script.GlobalBindingIcEntries;
@@ -184,7 +185,8 @@ public sealed partial class JsRealm
             atom,
             isInitializationStore,
             useFunctionDeclarationSemantics,
-            strict
+            strict,
+            ref acc
         );
     }
 
@@ -200,7 +202,8 @@ public sealed partial class JsRealm
         int atom,
         bool isInitializationStore,
         bool useFunctionDeclarationSemantics,
-        bool strict
+        bool strict,
+        ref JsValue acc
     )
     {
         if (
@@ -232,7 +235,8 @@ public sealed partial class JsRealm
             atom,
             isInitializationStore,
             useFunctionDeclarationSemantics,
-            strict
+            strict,
+            ref acc
         );
 
         if (
@@ -259,7 +263,8 @@ public sealed partial class JsRealm
         int atom,
         bool isInitializationStore,
         bool useFunctionDeclarationSemantics,
-        bool strict
+        bool strict,
+        ref JsValue acc
     )
     {
         var result = GlobalObject.StoreGlobalAtom(

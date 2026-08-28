@@ -284,6 +284,12 @@ separate +4.5% timing sample is control variance, not a C1 improvement or
 regression. AssignmentTests passed 47/47, and the full suite passed 2,161
 tests with 4 skips.
 
+The A21 acceptance sweep later found one missed immediate case: when the RHS
+was an Smi literal, direct-local mode emitted `AddSmi` without first loading
+the LHS. Emitting one `Ldar` before that immediate opcode restores the opcode
+contract and fixed the affected switch, generator, try/finally, Intl, and
+Function-to-string Test262 clusters.
+
 ### 1.17 Statement-position `ToNumeric` elision is a confirmed compiler win
 
 C2 removes the explicit `ToNumeric` before identifier and member `Inc`/`Dec`
@@ -298,6 +304,34 @@ are opcode- and register-equivalent. Focused AssignmentTests passed 49/49,
 and the full suite passed 2,163 tests with 4 skips. The broad timing run was
 intentionally stopped after the clear opcode result; no C2 timing gain is
 claimed.
+
+### 1.18 A semantic local accumulator retains most of the ceiling
+
+A21 replaced the field-backed accumulator byref with a `JsValue` local whose
+scope includes `finally`. The scope detail is semantic: declaring the local
+inside `try` made the final `this.acc = acc` resolve field-to-field, so nested
+`Run` results disappeared. Declaring it before `try` makes exception-safe exit
+publication explicit.
+
+Helpers now mutate the local through `ref JsValue`. The realm field is
+published only before re-entrant calls/runtime helpers, execution checkpoints,
+exception routing, and final exit. This is cleaner than storing a stack
+pointer in the realm: it needs no unsafe lifetime protocol, pinning, or boxed
+`GCHandle`, and nested runs communicate through ordinary boundary copies.
+
+Against the post-C1 snapshot, final Tier1 code fell 21,927 -> 21,084 bytes and
+the frame fell 1,208 -> 904 bytes; Tier1-OSR fell 22,055 -> 20,872 bytes and
+960 -> 624 frame bytes. Five-round pgo-off A/B medians improved smi 14.8%,
+for-loop 15.9%, Date subtraction 8.3%, and named-get 10.2%. A noisy call result
+was repeated alone for nine rounds and improved 5.8%.
+
+The full Okojo suite passed 2,165 tests with 4 skips. The non-staging Test262
+sweep passed all 41,499 runnable variants with 9,239 intentional skips. That
+sweep also caught an `out acc` alias in keyed loads: a failed element probe
+overwrote the key before slow fallback. A dedicated result temporary preserves
+the key and is worth the one additional IL local.
+
+Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
 
 ## 2. CPU / microarchitecture layer
 

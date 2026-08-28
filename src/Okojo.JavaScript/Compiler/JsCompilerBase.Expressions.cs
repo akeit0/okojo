@@ -2180,6 +2180,8 @@ internal abstract partial class JsCompilerBase
         var hasSmiRight =
             TryGetSmallIntLiteral(ast, right, out rhsSmi)
             && TryMapSmiBinaryOpcode(binaryOp, out smiOpcode);
+        if (lhsRegister >= 0 && hasSmiRight)
+            EmitLdar(lhsRegister);
         if (lhsRegister >= 0 && !hasSmiRight)
         {
             EmitExpression(ast, right);

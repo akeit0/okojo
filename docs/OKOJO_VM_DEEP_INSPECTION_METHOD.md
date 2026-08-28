@@ -187,7 +187,7 @@ Use the signature, not the source idea, to choose the next experiment:
 | listing signature | first experiment |
 | ----------------- | ---------------- |
 | `vmovdqa`/`jne` frame-clear loop in `IG01` | `SkipLocalsInit` ceiling on re-entrant workloads; audit managed-reference initialization first |
-| repeated reload of the spilled `&acc` | numeric accumulator-local ceiling; preserve machine-stack and call/suspend synchronization in any real attempt |
+| repeated reload of the spilled `&acc` | A21 value-local accumulator; publish only at re-entry, observable, exception, and exit boundaries; verify `finally` can see the local |
 | `op` compares or a secondary `RWD` table inside arithmetic | separate `Add`/`Sub`/`Mul` arms; top-level dispatch is the control |
 | repeated tag masks from the same byref | copy the operand to one local, then re-read the arm assembly |
 | repeated slow-call tail with distinct temp slots | make one shared exit or de-fuse the flows, then inspect code-size and call-count deltas |

@@ -423,7 +423,7 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void CreateArgumentsObjectForFrame(int frameFp)
+    private void CreateArgumentsObjectForFrame(int frameFp, ref JsValue acc)
     {
         ref readonly var callFrame = ref GetCurrentCallFrame(Stack, frameFp);
         var currentFunc = Unsafe.As<JsBytecodeFunction>(callFrame.Function);
@@ -449,7 +449,7 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void CreateRestParameterForFrame(int frameFp, int startIndex)
+    private void CreateRestParameterForFrame(int frameFp, int startIndex, ref JsValue acc)
     {
         var args = GetFrameArgumentsSpan(frameFp);
         var actualCount = args.Length;
@@ -1402,7 +1402,8 @@ public sealed partial class JsRealm
         int argCount,
         bool isConstruct,
         int callerPc,
-        ref JsValue registers
+        ref JsValue registers,
+        ref JsValue acc
     )
     {
         var args = Stack.AsSpan(fp + HeaderSize + argStartReg, argCount).ToArray();
@@ -1444,7 +1445,8 @@ public sealed partial class JsRealm
         bool allowTailCall,
         int callerPc,
         ref JsBytecodeFunction currentFunc,
-        ref JsValue registers
+        ref JsValue registers,
+        ref JsValue acc
     )
     {
         var argOffset = fp + HeaderSize + argStartReg;
@@ -1459,7 +1461,8 @@ public sealed partial class JsRealm
                 argCount,
                 allowTailCall,
                 callerPc,
-                ref currentFunc
+                ref currentFunc,
+                ref acc
             );
         }
 
@@ -1490,7 +1493,8 @@ public sealed partial class JsRealm
             allowTailCall,
             callerPc,
             ref currentFunc,
-            ref registers
+            ref registers,
+            ref acc
         );
     }
 
@@ -1504,7 +1508,8 @@ public sealed partial class JsRealm
         bool allowTailCall,
         int callerPc,
         ref JsBytecodeFunction currentFunc,
-        ref JsValue registers
+        ref JsValue registers,
+        ref JsValue acc
     )
     {
         JsValue thisValue;
@@ -1541,7 +1546,8 @@ public sealed partial class JsRealm
                     ref preparedConstruct,
                     ref frameKind,
                     ref prependedArgs,
-                    ref targetBytecode
+                    ref targetBytecode,
+                    ref acc
                 )
             )
                 return false;
@@ -1582,7 +1588,8 @@ public sealed partial class JsRealm
                 targetBytecode,
                 bytecodeArgOffset,
                 bytecodeArgCount,
-                thisValue
+                thisValue,
+                ref acc
             );
         else
             EnterBytecodeFrameFromVmStack(
@@ -1593,7 +1600,8 @@ public sealed partial class JsRealm
                 thisValue,
                 preparedConstruct.NewTarget,
                 frameKind,
-                preparedConstruct.Flags
+                preparedConstruct.Flags,
+                ref acc
             );
 
         currentFunc = targetBytecode;
@@ -1607,7 +1615,8 @@ public sealed partial class JsRealm
         int argCount,
         bool allowTailCall,
         int callerPc,
-        ref JsBytecodeFunction currentFunc
+        ref JsBytecodeFunction currentFunc,
+        ref JsValue acc
     )
     {
         thisValue = PrepareBytecodeThisValueNotConstruct(targetBytecode, thisValue);
@@ -1625,7 +1634,13 @@ public sealed partial class JsRealm
         }
 
         if (allowTailCall && !HasActiveExceptionHandlersForFrame(fp))
-            ReplaceCurrentBytecodeFrameFromVmStack(targetBytecode, argOffset, argCount, thisValue);
+            ReplaceCurrentBytecodeFrameFromVmStack(
+                targetBytecode,
+                argOffset,
+                argCount,
+                thisValue,
+                ref acc
+            );
         else
             EnterBytecodeFrameFromVmStack(
                 targetBytecode,
@@ -1635,7 +1650,8 @@ public sealed partial class JsRealm
                 thisValue,
                 JsValue.Undefined,
                 CallFrameKind.FunctionFrame,
-                CallFrameFlag.None
+                CallFrameFlag.None,
+                ref acc
             );
 
         currentFunc = targetBytecode;
@@ -1668,7 +1684,8 @@ public sealed partial class JsRealm
         JsBytecodeFunction targetBytecode,
         int bytecodeArgOffset,
         int bytecodeArgCount,
-        JsValue thisValue
+        JsValue thisValue,
+        ref JsValue acc
     )
     {
         var fullStack = Stack.AsSpan();
@@ -1712,7 +1729,8 @@ public sealed partial class JsRealm
         JsValue thisValue,
         JsValue newTarget,
         CallFrameKind frameKind,
-        CallFrameFlag frameFlags
+        CallFrameFlag frameFlags,
+        ref JsValue acc
     )
     {
         var newFp = StackTop;
@@ -1740,6 +1758,7 @@ public sealed partial class JsRealm
             frameKind,
             frameFlags
         );
+        acc = JsValue.Undefined;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1753,10 +1772,10 @@ public sealed partial class JsRealm
         ref PreparedConstruct preparedConstruct,
         ref CallFrameKind frameKind,
         ref ReadOnlySpan<JsValue> prependedArgs,
-        ref JsBytecodeFunction? targetBytecode
+        ref JsBytecodeFunction? targetBytecode,
+        ref JsValue acc
     )
     {
-        ref var acc = ref this.acc;
         if (callee is JsHostFunction jsHostFunction)
             acc = InvokeHostFunctionFromStackWithExitFrame(
                 jsHostFunction,
@@ -3079,73 +3098,6 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void InstanceOfSlowPath(JsRealm realm, in JsValue candidate)
-    {
-        var ctor = realm.acc;
-        if (!ctor.TryGetObject(out var ctorObj))
-            ThrowTypeError(
-                "INSTANCEOF_RHS_NOT_CALLABLE",
-                "Right-hand side of 'instanceof' is not callable"
-            );
-
-        if (
-            ctorObj.TryGetPropertyAtom(realm, IdSymbolHasInstance, out var hasInstanceMethod, out _)
-            && !hasInstanceMethod.IsUndefined
-            && !hasInstanceMethod.IsNull
-        )
-        {
-            JsFunction? hasInstanceFn = null;
-            if (
-                hasInstanceMethod.TryGetObject(out var hasInstanceObj)
-                && hasInstanceObj is JsFunction okojoFn
-            )
-                hasInstanceFn = okojoFn;
-            if (hasInstanceFn is null)
-                ThrowTypeError(
-                    "INSTANCEOF_HASINSTANCE_NOT_CALLABLE",
-                    "Symbol.hasInstance is not callable"
-                );
-
-            var arg = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in candidate), 1);
-            var result = realm.InvokeFunction(hasInstanceFn, ctor, arg);
-            realm.acc = ToBoolean(result) ? JsValue.True : JsValue.False;
-            return;
-        }
-
-        if (ctorObj is not JsFunction)
-            ThrowTypeError(
-                "INSTANCEOF_RHS_NOT_CALLABLE",
-                "Right-hand side of 'instanceof' is not callable"
-            );
-
-        if (!ctorObj.TryGetPropertyAtom(realm, IdPrototype, out var prototypeValue, out _))
-            ThrowTypeError(
-                "INSTANCEOF_BAD_PROTOTYPE",
-                "Function has non-object prototype in instanceof check"
-            );
-        if (!prototypeValue.TryGetObject(out var prototypeObj))
-            ThrowTypeError(
-                "INSTANCEOF_BAD_PROTOTYPE",
-                "Function has non-object prototype in instanceof check"
-            );
-
-        if (!candidate.TryGetObject(out var candidateObj))
-        {
-            realm.acc = JsValue.False;
-            return;
-        }
-
-        for (var current = candidateObj.Prototype; current is not null; current = current.Prototype)
-            if (ReferenceEquals(current, prototypeObj))
-            {
-                realm.acc = JsValue.True;
-                return;
-            }
-
-        realm.acc = JsValue.False;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool InstanceOfSlowPath(JsRealm realm, in JsValue candidate, in JsValue ctor)
     {
         if (!ctor.TryGetObject(out var ctorObj))
@@ -3740,17 +3692,6 @@ public sealed partial class JsRealm
             ThrowTypeError("IN_RHS_NOT_OBJECT", "Right-hand side of 'in' should be an object");
 
         return HasPropertySlowPath(realm, target, NormalizePropertyKey(realm, key));
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void InOperatorSlowPath(in JsValue key)
-    {
-        if (!acc.TryGetObject(out var target))
-            ThrowTypeError("IN_RHS_NOT_OBJECT", "Right-hand side of 'in' should be an object");
-
-        acc = HasPropertySlowPath(this, target, NormalizePropertyKey(this, key))
-            ? JsValue.True
-            : JsValue.False;
     }
 
     internal static bool HasPropertySlowPath(JsRealm realm, JsObject? target, in JsValue key)

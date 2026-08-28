@@ -12,7 +12,8 @@ Related documents:
   fusion candidates, let-loop context lowering.
 - `OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md` - active 2026-08-28 proposals:
   T2 dynamic profiles, compiler emission elisions (C3-C4), arm-level VM
-  work (V1-V5 = backlog A21-A24), fusion revisit-trigger evidence.
+  work (accepted V1/A21 plus V2-V5 backlog A22-A24), fusion revisit-trigger
+  evidence.
 
 Scope: establish a repeatable methodology for optimizing the interpreter
 dispatch loop (`JsRealm.Run`, `src/Okojo.JavaScript/Execution/JsRealm.VmLoop.cs`)
@@ -368,7 +369,7 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A18 | `SkipLocalsInit` entry probe | Test removal of the `Run` prologue clear only after auditing managed-reference initialization and re-entry paths; use accessor/generator cases, not just a single loop |
 | A19 | Three-operand arithmetic superinstructions | Fuse measured register-op patterns such as `Ldar` + arithmetic + `Star`; require T2 pair frequencies, P7 headroom, compiler/bytecode evidence, and an explicit opcode-contract owner |
 | A20 | Accumulator-local ceiling probe | Positive ceiling: Tier1 code -6.1% and numeric probe medians about -11%; probe failed 244/2,164 tests because runtime boundaries still read `JsRealm.acc`; implementation deferred, never ship the probe directly |
-| A21 | Accumulator-local implementation (staged) | Make the A20 ceiling semantic: Stage A converts `this.acc` helper readers to `ref JsValue` parameters (semantic no-op, lands independently); Stage B flips `Run` to a local acc with sync only at escape arms (call/construct/CallRuntime/generator/throw/catch-entry). The 244 A20 failures are the boundary checklist. Detail: OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md V1 |
+| A21 | Accumulator-local implementation | ACCEPTED: value-local `acc`, helper mutation via `ref`, and publication only at re-entry/observable/exception/exit boundaries. Okojo.Tests 2,165 passed + 4 skipped; non-staging Test262 41,499 passed + 9,239 intentional skips; pgo-off numeric/property medians -8.3% to -15.9%; Tier1 -843 B and frame -304 B. Detail: proposals V1 and snapshot `20260828-164803-a21-acc-local-final` |
 | A22 | Star/Mov write-barrier elimination for ref-free values | `Star`'s 16-byte struct copy through a byref emits `movsq + CORINFO_HELP_ASSIGN_BYREF` per execution of the hottest opcode; listing proves null Obj stores are barrier-free (IG536). Branch on `acc.Obj is null` in a shared `CopyValueTo` helper: numeric path becomes two plain stores. Detail: proposals doc V2 |
 | A23 | Hot-arm de-fusion beyond arithmetic | Extends A14 with per-arm evidence: `Star/StarWide` re-dispatch `cmp edx,150` per execution, `Ldar` family range test + hole-check branch, `Inc/Dec` delta select, `TestEqual` family inner `op switch` + unconditional `AbstractEquals` with no inline int32 compare (4.1M/probe in stopwatch). Split arms; jump-table shape unchanged. Detail: proposals doc V3 |
 | A24 | Residual operand-scale stack traffic | Post-A13, hot two-operand arms still zero `operandOffset` to `[rbp-0x78]` and reload `operandScale` from `[rbp-0x5C]` every execution (by-ref cold-reader signature + EH liveness). Restructure: scale-1 fast path reads bytes directly; cold wide decode takes inputs by value. Detail: proposals doc V4 |
@@ -597,6 +598,27 @@ completion and value-producing updates retain the explicit `ToNumeric`.
 - The opcode diff was unambiguous, so the broad timing run was stopped and no
   timing improvement is claimed for C2.
 
+### A21 accumulator-local implementation - ACCEPTED
+
+`Run` now copies `JsRealm.acc` into a value local before entering the EH
+region and publishes it back in `finally`. Helpers that mutate accumulator
+state receive `ref JsValue`; residual realm publication occurs only before
+re-entrant calls/runtime helpers, debugger/constraint checkpoints, exception
+routing, and method exit. No stack pointer, pinning, or `GCHandle` is used.
+
+- Okojo.Tests: 2,165 passed, 4 skipped.
+- Non-staging Test262: 41,499 passed, 0 failed, 9,239 intentionally skipped.
+- Five-round pgo-off A/B: smi -14.8%, for-loop -15.9%, Date subtraction
+  -8.3%, named-get -10.2%. The noisy call control was repeated for nine rounds
+  and improved 5.8%.
+- Tier1: 21,927 -> 21,084 B; frame 1,208 -> 904 B; calls 218 -> 198.
+  Tier1-OSR: 22,055 -> 20,872 B; frame 960 -> 624 B.
+- The sweep exposed and fixed two independent correctness bugs: immediate
+  compound assignments had elided their required LHS load, and failed keyed
+  element probes overwrote the key through `out acc` before slow fallback.
+
+Evidence: `artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -623,7 +645,7 @@ completion and value-producing updates retain the explicit `ToNumeric`.
 | A18 `SkipLocalsInit` entry probe | PLANNED |
 | A19 arithmetic superinstructions | DEFERRED (requires T2 and P7 evidence) |
 | A20 accumulator-local ceiling | POSITIVE CEILING (probe-only; implementation deferred after 244 semantic failures) |
-| A21 accumulator-local implementation | PROPOSED (staged plan in OKOJO_VM_DISPATCH_REDUCTION_PROPOSALS.md V1) |
+| A21 accumulator-local implementation | ACCEPTED (full suite + non-staging Test262 green; measured JIT/frame and pgo-off wins) |
 | A22 Star/Mov write-barrier elimination | PROPOSED (proposals doc V2; arm evidence: `CORINFO_HELP_ASSIGN_BYREF` per Star/Ldar execution) |
 | A23 hot-arm de-fusion beyond arithmetic | PROPOSED (proposals doc V3; extends A14 to Star/Ldar/Inc/TestEqual families) |
 | A24 residual operand-scale stack traffic | PROPOSED (proposals doc V4; follows A13) |

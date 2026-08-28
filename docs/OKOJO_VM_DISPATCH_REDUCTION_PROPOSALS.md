@@ -12,7 +12,7 @@ Related documents:
 - `OKOJO_A8_A9_RESEARCH.md` - static corpus research; section 1.5 records the
   no-ISA-growth policy and its revisit trigger.
 
-Status: ACTIVE PROPOSALS: C3-C4 and V1-V7. C1-C2 were accepted and are
+Status: ACTIVE PROPOSALS: C3-C4 and V2-V7. C1-C2 and V1 were accepted and are
 recorded in `OKOJO_VM_OPTIMIZATION_INSIGHTS.md` and the foundation attempt
 log. Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm JIT
@@ -175,7 +175,7 @@ can propagate to the unit result.
 
 ## 3. VM arm proposals (JsRealm.VmLoop.cs; no ISA change)
 
-### V1 (backlog A21). Accumulator-local implementation
+### V1 (accepted A21). Accumulator-local implementation
 
 Insight 1.15 proved the ceiling: -6% `Run` code, -11.3..-11.8% on numeric
 probes, with 244 test failures from helpers/boundaries still reading
@@ -193,6 +193,15 @@ probes, with 244 test failures from helpers/boundaries still reading
    catch-entry). Numeric hot arms never synchronize.
 4. Acceptance: full suite + non-staging test262 sweep + bench-ab; the
    ceiling bounds the win.
+
+Result (2026-08-28): accepted. `Run` now owns a value-local accumulator and
+publishes it only at re-entry, execution-checkpoint, exception, and exit
+boundaries. Okojo.Tests passed 2,165/2,169 with 4 existing skips; the
+non-staging Test262 sweep passed all 41,499 runnable variants. Final pgo-off
+A/B medians improved the numeric/property cases by 8.3-15.9%; a nine-round
+call-only confirmation improved 5.8%. Tier1 code fell 843 bytes and its frame
+fell 304 bytes. Evidence:
+`artifacts/vmloopopt/snapshots/20260828-164803-a21-acc-local-final/`.
 
 Bonus effect visible in the arm evidence: with acc as a stack local, the
 `Ldar` copy destination is a local (plain stores, no write barrier), so V2

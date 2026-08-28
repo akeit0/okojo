@@ -492,7 +492,8 @@ public sealed partial class JsRealm
     private int ExecuteInitPrivateField(
         JsBytecodeFunction currentFunc,
         ref JsValue registers,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         int objReg = pc;
@@ -513,7 +514,8 @@ public sealed partial class JsRealm
     private int ExecuteInitPrivateAccessor(
         JsBytecodeFunction currentFunc,
         ref JsValue registers,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         int objReg = pc;
@@ -552,7 +554,8 @@ public sealed partial class JsRealm
     private int ExecuteInitPrivateMethod(
         JsBytecodeFunction currentFunc,
         ref JsValue registers,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         int objReg = pc;
@@ -576,7 +579,8 @@ public sealed partial class JsRealm
     private int ExecuteGetPrivateField(
         JsBytecodeFunction currentFunc,
         ref JsValue registers,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         int objReg = pc;
@@ -636,7 +640,8 @@ public sealed partial class JsRealm
     private int ExecuteSetPrivateField(
         JsBytecodeFunction currentFunc,
         ref JsValue registers,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         int objReg = pc;
@@ -1005,7 +1010,8 @@ public sealed partial class JsRealm
         bool isStrict,
         int[] atomizedStringConstants,
         ref byte bytecode,
-        ref byte pc
+        ref byte pc,
+        ref JsValue acc
     )
     {
         var startOffset = GetPcOffset(ref bytecode, ref pc);
@@ -1045,7 +1051,8 @@ public sealed partial class JsRealm
             atom,
             isInitializationStore,
             useFunctionDeclarationSemantics,
-            isStrict
+            isStrict,
+            ref acc
         );
         return pcOffset - startOffset;
     }
@@ -1145,7 +1152,8 @@ public sealed partial class JsRealm
         ref byte pc,
         int stopAtCallerFp,
         ref int startPc,
-        out JsRuntimeException? ex
+        out JsRuntimeException? ex,
+        ref JsValue acc
     )
     {
         var isJsRuntimeException = e is JsRuntimeException;
@@ -1178,6 +1186,7 @@ public sealed partial class JsRealm
     private void Run(int stopAtCallerFp = -1, int startPc = 0)
     {
         managedRunDepth++;
+        var acc = this.acc;
 #if OKOJO_VM_PROFILE
         s_vmProfileRunEntries++;
         var previousOpcode = -1;
@@ -1187,7 +1196,6 @@ public sealed partial class JsRealm
             var fullStack = Stack.AsSpan();
 
             ref var pc = ref Unsafe.NullRef<byte>();
-            ref var acc = ref this.acc;
             ref var fp = ref this.fp;
 
             ReloadFrame:
@@ -1231,8 +1239,9 @@ public sealed partial class JsRealm
                     opcodePc = ref pc;
                     var op = (JsOpCode)opcodePc;
                     pc = ref Unsafe.Add(ref pc, 1);
-
                     if (--nextCheck == 0)
+                    {
+                        this.acc = acc;
                         CheckExecutionSlowPath(
                             fullStack,
                             fp,
@@ -1241,6 +1250,7 @@ public sealed partial class JsRealm
                             op,
                             ref nextCheck
                         );
+                    }
 #if OKOJO_VM_PROFILE
                     var opcodeValue = (byte)op;
                     s_vmProfileOpcodeCounts[opcodeValue]++;
@@ -1562,7 +1572,8 @@ public sealed partial class JsRealm
                                     currentFunc.IsStrict,
                                     atomizedStringConstants,
                                     ref bytecode,
-                                    ref pc
+                                    ref pc,
+                                    ref acc
                                 )
                             );
                             break;
@@ -1584,14 +1595,14 @@ public sealed partial class JsRealm
                             break;
                         case JsOpCode.CreateMappedArguments:
                             {
-                                CreateArgumentsObjectForFrame(fp);
+                                CreateArgumentsObjectForFrame(fp, ref acc);
                             }
                             break;
                         case JsOpCode.CreateRestParameter:
                             {
                                 intNum1 = pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                CreateRestParameterForFrame(fp, intNum1);
+                                CreateRestParameterForFrame(fp, intNum1, ref acc);
                             }
                             break;
 
@@ -1765,18 +1776,23 @@ public sealed partial class JsRealm
                                     intNum1 = acc.Int32Value;
                                     if (intNum1 >= 0)
                                     {
+                                        JsValue keyedValue;
                                         if (
                                             obj is JsArray
                                             && Unsafe
                                                 .As<JsArray>(obj)
-                                                .TryGetDenseElement((uint)intNum1, out acc)
+                                                .TryGetDenseElement((uint)intNum1, out keyedValue)
                                         )
                                         {
+                                            acc = keyedValue;
                                             break;
                                         }
 
-                                        if (obj.TryGetElement((uint)intNum1, out acc))
+                                        if (obj.TryGetElement((uint)intNum1, out keyedValue))
+                                        {
+                                            acc = keyedValue;
                                             break;
+                                        }
                                     }
                                 }
 
@@ -1991,31 +2007,56 @@ public sealed partial class JsRealm
                         case JsOpCode.InitPrivateField:
                             pc = ref Unsafe.Add(
                                 ref pc,
-                                ExecuteInitPrivateField(currentFunc, ref registerRef, ref pc)
+                                ExecuteInitPrivateField(
+                                    currentFunc,
+                                    ref registerRef,
+                                    ref pc,
+                                    ref acc
+                                )
                             );
                             break;
                         case JsOpCode.InitPrivateAccessor:
                             pc = ref Unsafe.Add(
                                 ref pc,
-                                ExecuteInitPrivateAccessor(currentFunc, ref registerRef, ref pc)
+                                ExecuteInitPrivateAccessor(
+                                    currentFunc,
+                                    ref registerRef,
+                                    ref pc,
+                                    ref acc
+                                )
                             );
                             break;
                         case JsOpCode.InitPrivateMethod:
                             pc = ref Unsafe.Add(
                                 ref pc,
-                                ExecuteInitPrivateMethod(currentFunc, ref registerRef, ref pc)
+                                ExecuteInitPrivateMethod(
+                                    currentFunc,
+                                    ref registerRef,
+                                    ref pc,
+                                    ref acc
+                                )
                             );
                             break;
                         case JsOpCode.GetPrivateField:
                             pc = ref Unsafe.Add(
                                 ref pc,
-                                ExecuteGetPrivateField(currentFunc, ref registerRef, ref pc)
+                                ExecuteGetPrivateField(
+                                    currentFunc,
+                                    ref registerRef,
+                                    ref pc,
+                                    ref acc
+                                )
                             );
                             break;
                         case JsOpCode.SetPrivateField:
                             pc = ref Unsafe.Add(
                                 ref pc,
-                                ExecuteSetPrivateField(currentFunc, ref registerRef, ref pc)
+                                ExecuteSetPrivateField(
+                                    currentFunc,
+                                    ref registerRef,
+                                    ref pc,
+                                    ref acc
+                                )
                             );
                             break;
 
@@ -2167,6 +2208,7 @@ public sealed partial class JsRealm
                             }
                             else
                             {
+                                this.acc = acc;
                                 acc =
                                     acc.U == JsValue.JsBigIntBits
                                         ? IncrementBigIntSlowPath(acc, intNum1)
@@ -2255,13 +2297,17 @@ public sealed partial class JsRealm
                                 }
                                 else
                                 {
+                                    this.acc = acc;
                                     acc = new(this.ToNumberSlowPath(acc));
                                 }
                             }
                             break;
                         case JsOpCode.ToString:
                             if (!acc.IsString)
+                            {
+                                this.acc = acc;
                                 acc = JsValue.FromString(this.ToJsStringSlowPath(acc));
+                            }
                             break;
                         case JsOpCode.ToNumeric:
                             {
@@ -2271,6 +2317,7 @@ public sealed partial class JsRealm
                                 }
                                 else
                                 {
+                                    this.acc = acc;
                                     acc = this.ToNumericSlowPath(acc);
                                 }
                             }
@@ -2401,7 +2448,10 @@ public sealed partial class JsRealm
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
-                            InstanceOfSlowPath(this, slotRef);
+                            this.acc = acc;
+                            acc = InstanceOfSlowPath(this, slotRef, acc)
+                                ? JsValue.True
+                                : JsValue.False;
                             break;
                         }
                         case JsOpCode.TestIn:
@@ -2416,7 +2466,10 @@ public sealed partial class JsRealm
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
                             ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
-                            InOperatorSlowPath(slotRef);
+                            this.acc = acc;
+                            acc = InOperatorSlowPath(this, slotRef, acc)
+                                ? JsValue.True
+                                : JsValue.False;
                             break;
                         }
                         case JsOpCode.TestLessThanSmi:
@@ -2588,6 +2641,7 @@ public sealed partial class JsRealm
                                         operandScale
                                     );
                                     pc = ref Unsafe.Add(ref pc, operandOffset);
+                                    this.acc = acc;
                                     if (
                                         (
                                             Agent.ExecutionCheckpointHookBits
@@ -2610,7 +2664,8 @@ public sealed partial class JsRealm
                                             intNum2,
                                             op == JsOpCode.Construct,
                                             GetPcOffset(ref bytecode, ref pc),
-                                            ref registerRef
+                                            ref registerRef,
+                                            ref acc
                                         );
                                     }
                                     else if (
@@ -2625,7 +2680,8 @@ public sealed partial class JsRealm
                                                 && pc == (byte)JsOpCode.Return,
                                             GetPcOffset(ref bytecode, ref pc),
                                             ref currentFunc,
-                                            ref registerRef
+                                            ref registerRef,
+                                            ref acc
                                         )
                                     )
                                     {
@@ -2641,6 +2697,7 @@ public sealed partial class JsRealm
                             break;
                         case JsOpCode.CallRuntime:
                             {
+                                this.acc = acc;
                                 pc = ref Unsafe.Add(
                                     ref pc,
                                     CallRuntime(
@@ -2650,7 +2707,8 @@ public sealed partial class JsRealm
                                         ref pc,
                                         ref registerRef,
                                         fp,
-                                        operandScale
+                                        operandScale,
+                                        ref acc
                                     )
                                 );
 
@@ -2662,7 +2720,8 @@ public sealed partial class JsRealm
                                     ref byte pc,
                                     ref JsValue registerRef,
                                     int fp,
-                                    BytecodeInfo.OperandScale operandScale
+                                    BytecodeInfo.OperandScale operandScale,
+                                    ref JsValue acc
                                 )
                                 {
                                     var startOffset = GetPcOffset(ref bytecode, ref pc);
@@ -2694,7 +2753,7 @@ public sealed partial class JsRealm
                                             fp,
                                             argStart,
                                             argCount,
-                                            ref realm.acc
+                                            ref acc
                                         );
                                     }
                                     catch (Exception ex)
@@ -2797,6 +2856,8 @@ public sealed partial class JsRealm
                                     & (int)ExecutionCheckpointHooks.Return
                                 ) != 0
                             )
+                            {
+                                this.acc = acc;
                                 EmitExecutionBoundaryCheckpoint(
                                     fullStack,
                                     fp,
@@ -2804,6 +2865,7 @@ public sealed partial class JsRealm
                                     ref bytecode,
                                     ref opcodePc
                                 );
+                            }
 
                             ref var callFrame = ref Unsafe.As<JsValue, CallFrame>(
                                 ref Unsafe.Subtract(ref registerRef, HeaderSize)
@@ -2856,6 +2918,7 @@ public sealed partial class JsRealm
                         }
                         case JsOpCode.Debugger:
                         {
+                            this.acc = acc;
                             if (
                                 (
                                     Agent.ExecutionCheckpointHookBits
@@ -2884,13 +2947,15 @@ public sealed partial class JsRealm
                 }
                 catch (Exception e)
                 {
+                    this.acc = acc;
                     if (
                         TryCatchRunCoreException(
                             e,
                             ref opcodePc,
                             stopAtCallerFp,
                             ref startPc,
-                            out var newEx
+                            out var newEx,
+                            ref acc
                         )
                     )
                         goto ReloadFrame;
@@ -2903,6 +2968,7 @@ public sealed partial class JsRealm
         }
         finally
         {
+            this.acc = acc;
             managedRunDepth--;
         }
     }
