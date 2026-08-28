@@ -28,7 +28,15 @@ internal abstract partial class JsCompilerBase
     ///     (function bodies compile through their own compiler instance).
     /// </summary>
     private int completionSinkRegister = -1;
-    protected bool CompletionSinkActive => completionSinkRegister >= 0;
+
+    /// <summary>
+    ///     C4: sink traffic in root statements that precede the last
+    ///     sink-killing statement is unobservable (later writes overwrite it
+    ///     before the unit end reads the sink), so the sink is disabled there.
+    /// </summary>
+    private bool suppressCompletionSink;
+
+    protected bool CompletionSinkActive => completionSinkRegister >= 0 && !suppressCompletionSink;
 
     /// <summary>
     ///     Depth of enclosing breakable constructs (iterations, switch, labeled
@@ -44,6 +52,9 @@ internal abstract partial class JsCompilerBase
     private protected void ExitBreakableContext() => breakableContextDepth--;
 
     private protected void SetCompletionSink(int register) => completionSinkRegister = register;
+
+    private protected void SetSuppressCompletionSink(bool suppress) =>
+        suppressCompletionSink = suppress;
 
     private protected void ClearCompletionSink() => completionSinkRegister = -1;
 
@@ -122,7 +133,7 @@ internal abstract partial class JsCompilerBase
 
     protected void CaptureCompletionValue()
     {
-        if (completionSinkRegister >= 0)
+        if (CompletionSinkActive)
             EmitStar(completionSinkRegister);
     }
 

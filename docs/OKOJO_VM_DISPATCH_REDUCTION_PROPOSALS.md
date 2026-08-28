@@ -20,10 +20,10 @@ order live here. Completed attempts are recorded in
 `OKOJO_VM_ATTEMPT_LOG.md`; durable conclusions in
 `OKOJO_VM_OPTIMIZATION_INSIGHTS.md`.
 
-Status: ACTIVE PROPOSALS: C4, A17/A19 (section 4), and V4-V8.
-C1-C2, C3, V1 (A21), V2 (A22), V3 (A23), A18, A16, A14, and A15 were
+Status: ACTIVE PROPOSALS: A19 (section 4) and V4-V8.
+C1-C2, C3, C4.1, V1 (A21), V2 (A22), V3 (A23), A18, A16, A14, and A15 were
 accepted and are recorded in `OKOJO_VM_ATTEMPT_LOG.md` and the insights
-document. Every item below is backed by dynamic opcode profiles (T2,
+document. A17 was attempted and rejected (layout-dominated; see the log). Every item below is backed by dynamic opcode profiles (T2,
 `--profile-opcodes`), bytecode disassembly (OkojoBytecodeTool), or per-arm
 JIT analysis (`analyze-jit.ps1` + listing reads) captured on 2026-08-28.
 
@@ -199,7 +199,13 @@ Accepted and recorded in `OKOJO_VM_ATTEMPT_LOG.md` (design notes:
 `LdaTheHole`; the evidence above remains as background for C4.
 
 
-### C4. Completion-value write elision for script/eval units
+### C4. Completion-value write elision for script/eval units - C4.1 ACCEPTED, moved
+
+C4.1 (root-list backward sink-kill) is accepted and recorded in
+`OKOJO_VM_ATTEMPT_LOG.md`: stopwatch-modern -7.8%, inner-loop sink traffic
+eliminated. Remaining follow-ups (C4.2 loop-internal elision, module
+units) are deferred there. The evidence below motivated the original
+proposal.
 
 Script units thread a completion register through every statement:
 `LdaUndefined / Star rC` resets before statements and `Star rC` after each
@@ -435,13 +441,12 @@ All open work items in one table. Completed items live in
 | A24 | Residual operand-scale stack traffic | PROPOSED | V4 |
 | A25 | Dispatch-edge store diet | PROPOSED | V6 |
 | A26 | Frame-scoped global-IC base caching | PROPOSED | V7 |
-| C4 | Completion-value write elision | PROPOSED | section 2 |
 | V8 | Call-path attribution investigation | next evidence target | section 3 |
 
 ## 8. Suggested order
 
-1. A17 (arithmetic/operand experiments from the F1-F6 dump
-   findings; A14/A15 landed).
+1. C4.2 loop-internal sink-write elision (deferred; see the C4.1 log
+   entry) and V4/V6 re-evidence after the C-series compiler changes.
 4. V4, V5, V6 (after V1, since it changes the acc addressing and frame
    pressure they interact with).
 5. V7 global-IC base caching (after V1 frees frame budget).

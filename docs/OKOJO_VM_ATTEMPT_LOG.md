@@ -655,6 +655,35 @@ layout-stable; A17's theoretical saving is not observable. Closed; do not
 re-attempt without a layout-addressed build (e.g. after the RunCore
 restructure).
 
+### C4.1 root-list completion-sink elision - ACCEPTED
+
+Compiler emission change (2026-08-29, feature note
+`OKOJO_C4_COMPLETION_ELISION_NOTE.md`): backward scan of the script root
+statement list for the last sink-killing statement (guarantees a value or
+carries a reset); all earlier statements emit with the sink suppressed
+(`suppressCompletionSink` gating resets, captures, and value-mode
+emission). Sink traffic is only read at unit end, so suppressed writes are
+provably overwritten. V8 reference behavior verified via node eval and
+preserved exactly (including the arms-disagree reset corner:
+`1; if (false) 2;` -> undefined).
+
+Artifact: stopwatch-modern inner-loop body emits ZERO sink traffic (was
+~11-13 dispatches/iteration over 391k iterations). Compiler-only - `Run`
+IL/asm untouched.
+
+- bench-ab (5 rounds, pgo-off, medians): stopwatch-modern -7.8%,
+  dromaeo-3d-cube-modern -5.0%, smi-sum-loop -4.1%, named-get +1.3%
+  (noise band).
+- Full Okojo.Tests: 2,185 passed (9 new completion-value tests), 4 skipped.
+- Test262 language category: 22,200 passed, 0 failed (cptn-* assertions
+  green).
+
+Deferred (future C4.2): loop-internal sink-write elision (only the final
+iteration's writes are live; needs path analysis); module units (sink is
+unobservable - separate decision).
+
+Evidence: snapshot `20260829-001013-0013-c4-completion-elision`.
+
 ## Attempt Log Status
 
 | ID | Verdict |

@@ -127,12 +127,33 @@ internal sealed partial class JsScriptCompiler
     ///     are prefixed with an undefined store so they reset the completion
     ///     instead of carrying a stale value forward; value-producing statements
     ///     capture through the active completion sink; blocks and labels recurse.
+    ///     C4: statements before the last sink-killing statement (one that
+    ///     guarantees a value or carries a reset) emit with the sink suppressed -
+    ///     their completion values are overwritten before the unit end reads it.
     /// </summary>
     private void EmitScriptRootStatements(JsAst ast, int bodyOffset, int bodyCount)
     {
         var statements = ast.ChildRange(bodyOffset, bodyCount);
+        var firstLiveIndex = statements.Length;
+        for (var i = statements.Length - 1; i >= 0; i--)
+            if (
+                StatementGuaranteesCompletionValue(ast, statements[i])
+                || StatementNeedsCompletionReset(ast, statements[i])
+            )
+            {
+                // Largest kill index: every earlier statement's sink traffic
+                // is overwritten here before the unit end reads the sink.
+                firstLiveIndex = i;
+                break;
+            }
+
         for (var i = 0; i < statements.Length; i++)
+        {
+            SetSuppressCompletionSink(i < firstLiveIndex);
             EmitStatement(ast, statements[i]);
+        }
+
+        SetSuppressCompletionSink(false);
     }
 
     private void ValidateGlobalDeclarations(
