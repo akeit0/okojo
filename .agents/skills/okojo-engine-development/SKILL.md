@@ -31,11 +31,13 @@ follow the focused-test/full-suite workflow in `AGENTS.md`. Use V8 for
 language/compiler/VM behavior and Node for built-in behavior when a semantic
 reference is needed.
 
-For compiler optimization experiments, compare the changed result with the
-target opcode/IL/JIT shape first. Run the shortest representative benchmark
-only after the artifact reaches a plausible target or the artifact comparison
-is inconclusive. Use longer benchmark runs only after that focused check
-warrants them.
+For compiler-only optimization experiments, compare the emitted Okojo
+bytecode/opcodes with the target first; do not inspect C# IL/JIT for a change
+that cannot affect them. Run the shortest representative benchmark only after
+the opcode artifact reaches a plausible target or the comparison is
+inconclusive. Use C# IL/JIT inspection only when the VM/runtime implementation
+changed and that native code can be affected; use longer benchmark runs only
+after the focused check warrants them.
 
 Do not load the deep references or specialist skills unless the current task
 actually needs them.
