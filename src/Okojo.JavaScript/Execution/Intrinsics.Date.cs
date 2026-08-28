@@ -1212,7 +1212,7 @@ public partial class Intrinsics
     internal bool TryGetDateSubtraction(
         in JsValue leftValue,
         in JsValue rightValue,
-        out JsValue result
+        ref JsValue result
     )
     {
         if (
@@ -1232,10 +1232,7 @@ public partial class Intrinsics
                 dateToPrimitiveFunction
             )
         )
-        {
-            result = default;
             return false;
-        }
 
         result = new(left.TimeValue - right.TimeValue);
         return true;

@@ -35,6 +35,9 @@ dotnet tools/VmLoopProbe/bin/Release/net10.0/VmLoopProbe.dll <case> [iterations]
   tiers up.
 - Prints `[env]`, `[mode]`, `[result]` lines; `[result]` carries
   mean/median/min/max ns per execution.
+- `--inspect-run` reports `Run` IL bytes, maxstack, local count, per-type
+  counts, and portable-PDB source-local names. This identifies which C#
+  declarations become dedicated IL locals.
 
 ### 2. JIT capture (`tools/VmLoopProbe/capture-jit.ps1`)
 
@@ -51,6 +54,7 @@ Creates `artifacts/vmloopopt/snapshots/<yyyyMMdd-HHmmss>-<AttemptId>/`
 | `patch.diff` | working-tree diff at capture time (the "attempt code") |
 | `commit.txt` / `status.txt` | exact source state |
 | `results.txt` | one `[result]` line per case x config |
+| `run-locals.txt` | reflected IL locals and PDB source-local mapping |
 | `jit/<case>.<config>.jit.txt` | diffable JIT disassembly |
 | `jit/<case>.<config>.stdout.txt` / `.result.txt` | probe program output |
 
@@ -80,7 +84,9 @@ Diffs `jit/<case>.<config>.jit.txt` between two snapshots (defaults: newest
 vs newest baseline), prints per-listing code-size deltas, saves a unified
 diff into the newer snapshot as
 `jit/<case>.<config>.vs-<fromSnapshot>.diff.txt`, and shows the first diff
-hunk inline.
+hunk inline. It also prints Tier1/Tier1-OSR code bytes, stack reservation,
+and call-count deltas, plus the `Run` IL/local summary when both snapshots
+contain `run-locals.txt`.
 
 JIT dump knobs follow the dotnet/runtime document
 "Viewing JIT disassembly and dumps"
@@ -109,7 +115,17 @@ pwsh tools/VmLoopProbe/capture-jit.ps1 -AttemptId 0002-x -Benchmark
 dotnet run -c Release --project benchmarks/Okojo.Benchmarks --no-build -- --filter *VmLoopDispatchBenchmarks*
 ```
 
-BDN numbers are the go/no-go signal; probe numbers are directional only.
+For an uncommitted working tree, use the short alternating probe first:
+
+```powershell
+pwsh tools/VmLoopProbe/bench-ab.ps1 -BaseRef HEAD -AttemptWorkingTree `
+  -Config pgo-off -Iterations 75 -Warmup 150 -Rounds 3
+```
+
+`bench-ab.ps1` also accepts `pgo-on` and `tiered-off` for sanity checks.
+BenchmarkDotNet numbers are the final go/no-go signal when its runtime is
+acceptable; the short A/B probe is the first-check alternative for a slow
+microbenchmark matrix.
 
 ## Baseline Findings (attempt 0000-baseline)
 
@@ -179,6 +195,8 @@ one hypothesis, `capture-jit.ps1` snapshot with default pgo-off, dasm diff via
 | A9 | Opcode set streamlining | Compiler-contract change (frame layout/operand rules): only after A1/A2 measurements justify it; needs OkojoBytecodeTool evidence first |
 | A10 | IC-helper devirtualization friendliness | Help PGO guard/guarded-devirtualize named-property IC calls (sealed/final shapes, explicit type tests) |
 | A11 | Tree-walk interpreter alternative | Largest change; diverges from the V8/Ignition reference model. Only if the bytecode path plateaus after A1-A10; requires its own feature note before starting |
+| A12 | `Run` C# local sharing | Use the PDB-backed local report to preserve frame/stack-machine state, but share short-lived same-type temporaries. Measure benchmark first, then Tier1 frame/calls, then IL locals |
+| A13 | Scaled operand reader fast/cold split | Keep the common single-byte operand read inline and share wide/extra-wide/invalid decoding in one cold NoInlining helper |
 
 Deferred/rejected ideas stay recorded here with reasons instead of being
 retried silently (AGENTS.md: no old fast-path experiments without profiling
@@ -312,6 +330,45 @@ Knowledge:
    AggressiveInlining statics; Get/SetNamedByCachedSlotInfo non-virtual) -
    A10's win was hidden casts, not devirtualization per se.
 
+### a12-run-local-sharing - ACCEPTED (working-tree attempt)
+
+Added `VmLoopProbe --inspect-run` with portable-PDB source names, then
+converted avoidable per-arm C# temporaries to method-loop shared locals.
+Frame/operand state and the machine stack remain unchanged; stack-machine
+references and already-shared locals were preserved.
+
+- Fresh `Run` report: **98 -> 44 IL locals**, **7,880 -> 7,810 IL bytes**.
+- Int32 locals: 23 -> 5; JsObject locals: 6 -> 1; SlotInfo locals: 4 -> 1;
+  Boolean locals: 12 -> 4.
+- Five-round short pgo-off A/B (`100` samples, `200` warmup) improved the
+  main cases: smi-sum-loop -6.4%, for-loop-sum -5.5%, named-get -8.8%.
+  Arithmetic and prototype/closure checks were within noise.
+- A failed Date fast-path alias attempt was caught by the focused test; the
+  helper now uses `ref` output and does not write on a failed guard, keeping
+  accumulator/RHS semantics intact.
+
+### a13-scaled-reader-cold-split - ACCEPTED (working-tree attempt)
+
+`ReadScaledUnsignedOperand` keeps the `Single` byte read inline and routes
+wide, extra-wide, and invalid scales to one shared NoInlining helper. This
+removes repeated cold decode blocks from `Run` without changing opcode
+operands or frame layout.
+
+Compared with the fresh pre-attempt snapshot:
+
+- Tier1: **22,503 -> 21,925 bytes** (-578); Tier1-OSR:
+  **22,779 -> 22,281 bytes** (-498).
+- Tier1 calls: 228 -> 222; Tier1-OSR calls: 229 -> 222.
+- Tier1 stack reservation: 1,464 -> 1,272 bytes; OSR reservation changed
+  992 -> 1,008 bytes.
+- Final short pgo-off A/B against `HEAD`: smi -3.6%, for -11.0%, named
+  -6.1%, pure-call -3.6%, prototype -1.1%; closure +1.5% (noise).
+- A shorter pgo-on sanity pass showed profile sensitivity (main loops near
+  neutral-to-better, named-get +4.9%, pure-call/closure much faster); it is
+  not used to override the pgo-off/Tier1 decision.
+- The full BenchmarkDotNet matrix was stopped because its fixed 15-case run
+  was too slow for this iteration; no benchmark-project source was changed.
+
 ## Attempt Log Status
 
 | ID | Verdict |
@@ -327,11 +384,14 @@ Knowledge:
 | A9 opcode set | open (needs bytecode evidence) |
 | A10 IC devirt friendliness | ACCEPTED (merged) |
 | A11 tree walk | open (last resort) |
+| A12 Run local sharing | ACCEPTED (short A/B; BDN deferred) |
+| A13 scaled operand reader | ACCEPTED (short A/B; BDN deferred) |
 
-Cumulative vs 0000-baseline: Tier1 code 22373 -> 20562 (-8.1%), IL locals
-137 -> 93 (-32%), residual hot-accessor calls eliminated, timings neutral
-to better (for-loop-sum -4.1%, closure-heavy -1.6%), full suite green at
-every merge.
+Cumulative historical baseline remains Tier1 22373 -> 20562 (-8.1%). The
+fresh 20260828 comparison for the current local-sharing + cold-split attempt
+is 22503 -> 21925 Tier1 bytes (-2.6%), 98 -> 44 IL locals, with the full
+suite green. Local count is recorded as a means to improve generated code,
+not as an acceptance criterion by itself.
 
 ## Optimization Work Rules (binding for this effort)
 

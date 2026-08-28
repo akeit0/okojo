@@ -96,6 +96,33 @@ Removed (A3). Contrast: host-conversion and typed-array length `checked`
 math is SEMANTIC (spec requires throws) and must stay. Classification table
 lives in the a3 snapshot notice.
 
+### 1.7 C# local count is a pressure signal, not the objective
+
+The PDB-backed `VmLoopProbe --inspect-run` report distinguishes persistent
+frame/operand state from short-lived per-op declarations. Preserve the
+machine-stack state (`fullStack`, `pc`, `acc`, `fp`, bytecode/register refs,
+and `slotRef`); share same-type temporaries only when their lifetimes do not
+overlap.
+
+On the 20260828 attempt, `Run` changed from 98 to 44 IL locals and from
+7,880 to 7,810 IL bytes. The first sharing pass made Tier1 code slightly
+larger while reducing frame pressure, but short alternating A/B improved
+the main smi/for/named cases by 5.5-8.8%. Therefore the acceptance order is
+benchmark, generated assembly, then IL/local count. A lower local count with
+slower benchmark output is a rejection.
+
+### 1.8 Keep common operand decoding inline; share only the cold widths
+
+`ReadScaledUnsignedOperand` originally contained single-, wide-, extra-wide,
+and invalid-scale branches at every inline call site. Keeping the single-byte
+read in the inline helper and routing the other cases through one
+NoInlining helper reduced Tier1 by 578 bytes and Tier1-OSR by 498 bytes,
+with six/seven fewer call instructions in the Run listings. The common path
+kept its original byte read; only rare wide/extra-wide code pays a call.
+
+This is the useful fast-path/cold-path split shape for this C# interpreter:
+share cold implementation, do not add a call to the hot bytecode path.
+
 ## 2. CPU / microarchitecture layer
 
 ### 2.1 The dispatch sequence anatomy (current, post-A10)
@@ -208,16 +235,27 @@ Seven-round alternating pgo-off A/B medians against commit `5ff3c4c`:
 | math-call | 1.230 ms | 0.854 ms | -30.6% |
 | named-get | 4.756 ms | 4.786 ms | +0.6% |
 
-The pgo-on sanity run also completed without semantic failures; pgo-off
-remains the decision configuration.
+The pgo-on sanity run also completed without semantic failures. PGO-off
+remains the stable assembly comparison; pgo-on and tiered-off expose
+profile/tiering sensitivity.
+
+### 3.7 `in`/`out` aliasing can invalidate a failed fast-path probe
+
+Passing the accumulator as both an `in` RHS and an `out` result is only safe
+when the helper leaves the result untouched on failure. The Date subtraction
+probe initially wrote `default` on a failed guard, which changed generic
+subtraction semantics. The internal helper now takes `ref` output and writes
+only on success; the focused regression test caught the issue before the
+benchmark run.
 
 ## 4. Measurement methodology
 
 | rule | detail |
 | ---- | ------ |
 | Ceiling measurement | disable feature entirely; max possible win = go/no-go for clever designs (killed A5 at ≤0.4%) |
-| bench-ab | git-worktree isolation, alternating rounds, medians; single probe runs are not decisions |
-| pgo-off decides | Dynamic PGO specializes one route and can hide engine changes; compare attempts pgo-off vs same-config baseline; pgo-on is a shipping sanity check |
+| bench-ab | git-worktree or working-tree isolation, alternating rounds, medians; single probe runs are not decisions |
+| decision order | benchmark median first, then PGO-off Tier1/OSR assembly, then IL/local count; locals alone never accept an attempt |
+| JIT configurations | PGO-off/Tier1 is the stable codegen comparison; pgo-on and tiered-off are sanity checks for profile/tiering sensitivity |
 | dasm determinism | diffable JIT dumps are byte-identical for identical code (validated); any nonzero compare-jit diff = your change |
 | tier awareness | short scripts may never reach final Tier1 in probe runs; OSR code dominates; note which listing you read |
 | sub-10us cells | flip sign between processes; BDN or bench-ab medians required |

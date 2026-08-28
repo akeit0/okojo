@@ -88,6 +88,10 @@ if ((Test-Path $noticeTemplate) -and -not (Test-Path $noticePath)) {
     Copy-Item $noticeTemplate $noticePath
 }
 
+$runLocalsPath = Join-Path $snapshotDir "run-locals.txt"
+& dotnet $probeDll --inspect-run | Set-Content $runLocalsPath
+if ($LASTEXITCODE -ne 0) { throw "Run local inspection failed." }
+
 $configSettings = @{
     "pgo-on"     = @{ "DOTNET_TieredCompilation" = "1"; "DOTNET_TieredPGO" = "1" }
     "pgo-off"    = @{ "DOTNET_TieredCompilation" = "1"; "DOTNET_TieredPGO" = "0" }

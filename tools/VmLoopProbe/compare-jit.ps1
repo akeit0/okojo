@@ -84,6 +84,71 @@ function Get-CodeSizes([string]$Path) {
         ForEach-Object { $_.Trim() }
 }
 
+function Get-JitListingSummary([string]$Path) {
+    $lines = @(Get-Content $Path)
+    $headers = @(
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^; Assembly listing for method') {
+                [pscustomobject]@{ Index = $i; Text = $lines[$i].Trim() }
+            }
+        }
+    )
+
+    $summaries = New-Object System.Collections.Generic.List[object]
+    for ($i = 0; $i -lt $headers.Count; $i++) {
+        $start = $headers[$i].Index
+        $end = if ($i + 1 -lt $headers.Count) { $headers[$i + 1].Index } else { $lines.Count }
+        $listing = $lines[$start..($end - 1)]
+        $stackLine = $listing |
+            Where-Object { $_ -match '^\s*sub\s+rsp,\s+(0x[0-9A-Fa-f]+|\d+)' } |
+            Select-Object -First 1
+        $stackBytes = $null
+        if ($stackLine) {
+            $stackValue = [regex]::Match(
+                $stackLine,
+                '^\s*sub\s+rsp,\s+(?<value>0x[0-9A-Fa-f]+|\d+)'
+            ).Groups['value'].Value
+            $stackBytes = if ($stackValue.StartsWith('0x')) {
+                [Convert]::ToInt32($stackValue.Substring(2), 16)
+            } else {
+                [int]$stackValue
+            }
+        }
+
+        $codeLine = $listing | Where-Object { $_ -match '^; Total bytes of code' } | Select-Object -First 1
+        $codeBytes = if ($codeLine) { [int](($codeLine -replace '\D', '')) } else { $null }
+        $summaries.Add(
+            [pscustomobject]@{
+                Name = ($headers[$i].Text -replace '^; Assembly listing for method ', '')
+                CodeBytes = $codeBytes
+                StackBytes = $stackBytes
+                Calls = @($listing | Where-Object { $_ -match '^\s*call\s+' }).Count
+            }
+        )
+    }
+    return $summaries
+}
+
+function Get-RunLocalSummary([string]$Path) {
+    $line = Get-Content $Path |
+        Where-Object { $_ -match '^\[run\]' } |
+        Select-Object -First 1
+    if (-not $line) { return $null }
+
+    $match = [regex]::Match(
+        $line,
+        'il_bytes=(?<il>\d+)\s+max_stack=(?<stack>\d+)\s+init_locals=(?<init>\w+)\s+locals=(?<locals>\d+)'
+    )
+    if (-not $match.Success) { return $null }
+
+    return [pscustomobject]@{
+        IlBytes = [int]$match.Groups['il'].Value
+        MaxStack = [int]$match.Groups['stack'].Value
+        InitLocals = $match.Groups['init'].Value
+        Locals = [int]$match.Groups['locals'].Value
+    }
+}
+
 $sizesFrom = Get-CodeSizes $fromFile
 $sizesTo = Get-CodeSizes $toFile
 $listingCount = [Math]::Max(@($sizesFrom | Where-Object { $_ -like '; Assembly listing*' }).Count,
@@ -104,6 +169,70 @@ for ($i = 0; $i -lt $listingCount; $i++) {
     Write-Host ("  {0,-80} from={1,-6} to={2,-6}{3}" -f $name, $bytesF, $bytesT, $delta)
 }
 Write-Host ""
+
+$asmFrom = Get-JitListingSummary $fromFile
+$asmTo = Get-JitListingSummary $toFile
+$asmNames = @(
+    @($asmFrom | Where-Object { $_.Name -match 'Tier1' } | ForEach-Object Name) +
+    @($asmTo | Where-Object { $_.Name -match 'Tier1' } | ForEach-Object Name) |
+    Sort-Object -Unique
+)
+if ($asmNames.Count -gt 0) {
+    Write-Host "=== Tier1/OSR JIT summary ===" -ForegroundColor Green
+    foreach ($name in $asmNames) {
+        $a = $asmFrom | Where-Object Name -eq $name | Select-Object -First 1
+        $b = $asmTo | Where-Object Name -eq $name | Select-Object -First 1
+        if (-not $a -or -not $b) { continue }
+        $label = if ($name -match '\((?<tier>Tier1(?:-OSR)?)\)$') {
+            $Matches['tier']
+        } else {
+            $name
+        }
+        Write-Host (
+            "  {0,-9} code {1,6}->{2,6} [{3:+#;-#;=0}]  stack {4,5}->{5,5} [{6:+#;-#;=0}]  calls {7,3}->{8,3} [{9:+#;-#;=0}]" -f
+                $label,
+                $a.CodeBytes,
+                $b.CodeBytes,
+                ($b.CodeBytes - $a.CodeBytes),
+                $a.StackBytes,
+                $b.StackBytes,
+                ($b.StackBytes - $a.StackBytes),
+                $a.Calls,
+                $b.Calls,
+                ($b.Calls - $a.Calls)
+        )
+    }
+    Write-Host ""
+}
+
+$fromLocalFile = Join-Path $fromDir "run-locals.txt"
+$toLocalFile = Join-Path $toDir "run-locals.txt"
+if ((Test-Path $fromLocalFile) -and (Test-Path $toLocalFile)) {
+    $localFrom = Get-RunLocalSummary $fromLocalFile
+    $localTo = Get-RunLocalSummary $toLocalFile
+    if ($localFrom -and $localTo) {
+        Write-Host "=== Run IL/local summary ===" -ForegroundColor Green
+        Write-Host (
+            "  IL bytes       from={0,-6} to={1,-6}  [{2:+#;-#;=0} bytes]" -f
+                $localFrom.IlBytes,
+                $localTo.IlBytes,
+                ($localTo.IlBytes - $localFrom.IlBytes)
+        )
+        Write-Host (
+            "  max stack      from={0,-6} to={1,-6}" -f
+                $localFrom.MaxStack,
+                $localTo.MaxStack
+        )
+        Write-Host (
+            "  IL locals      from={0,-6} to={1,-6}  [{2:+#;-#;=0} locals]" -f
+                $localFrom.Locals,
+                $localTo.Locals,
+                ($localTo.Locals - $localFrom.Locals)
+        )
+        Write-Host "  Per-type counts: see run-locals.txt in each snapshot."
+        Write-Host ""
+    }
+}
 
 $diffFile = Join-Path $toDir "jit/$Case.$Config.vs-$(Split-Path -Leaf $fromDir).diff.txt"
 # 2>$null: untracked artifact files trigger noisy CRLF normalization warnings.

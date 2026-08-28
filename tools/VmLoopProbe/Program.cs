@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
@@ -7,10 +10,13 @@ using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
+if (args.Length == 1 && string.Equals(args[0], "--inspect-run", StringComparison.OrdinalIgnoreCase))
+    return InspectRun();
+
 if (args.Length < 1)
 {
     Console.Error.WriteLine(
-        "usage: VmLoopProbe <case> [iterations] [warmup] [--strict] [--phase <name>]"
+        "usage: VmLoopProbe <case> [iterations] [warmup] [--strict] [--phase <name>] | --inspect-run"
     );
     return 1;
 }
@@ -137,6 +143,68 @@ static string? GetOption(string[] arguments, string name)
                 : throw new ArgumentException($"Missing value for {name}.");
 
     return null;
+}
+
+static int InspectRun()
+{
+    var method = typeof(JsRealm).GetMethod("Run", BindingFlags.Instance | BindingFlags.NonPublic);
+    if (method is null)
+    {
+        Console.Error.WriteLine("Run method was not found.");
+        return 1;
+    }
+
+    var body = method.GetMethodBody();
+    if (body is null)
+    {
+        Console.Error.WriteLine("Run method has no method body.");
+        return 1;
+    }
+
+    var locals = body.LocalVariables;
+    Console.WriteLine(
+        $"[run] method={method.DeclaringType!.FullName}.{method.Name} il_bytes={body.GetILAsByteArray()?.Length ?? 0} max_stack={body.MaxStackSize} init_locals={body.InitLocals} locals={locals.Count}"
+    );
+    foreach (
+        var group in locals.GroupBy(static local =>
+            local.LocalType.FullName ?? local.LocalType.Name
+        )
+    )
+        Console.WriteLine($"[run-type] type={group.Key} count={group.Count()}");
+    foreach (var local in locals)
+        Console.WriteLine($"[run-local] index={local.LocalIndex} type={local.LocalType}");
+    PrintRunSourceLocals(method, locals);
+
+    return 0;
+}
+
+static void PrintRunSourceLocals(MethodInfo method, IList<LocalVariableInfo> locals)
+{
+    var assemblyPath = method.Module.Assembly.Location;
+    var pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+    if (!File.Exists(pdbPath))
+    {
+        Console.WriteLine("[run-source] pdb=missing");
+        return;
+    }
+
+    using var pdbStream = File.OpenRead(pdbPath);
+    using var pdbProvider = MetadataReaderProvider.FromPortablePdbStream(pdbStream);
+    var pdbReader = pdbProvider.GetMetadataReader();
+    var methodHandle = MetadataTokens.MethodDefinitionHandle(method.MetadataToken);
+    foreach (var scopeHandle in pdbReader.GetLocalScopes(methodHandle))
+    {
+        var scope = pdbReader.GetLocalScope(scopeHandle);
+        foreach (var localHandle in scope.GetLocalVariables())
+        {
+            var local = pdbReader.GetLocalVariable(localHandle);
+            var name = pdbReader.GetString(local.Name);
+            var type = local.Index < locals.Count ? locals[local.Index].LocalType : null;
+            Console.WriteLine(
+                $"[run-source-local] scope={scope.StartOffset}:{scope.Length} index={local.Index} type={type} name={name}"
+            );
+        }
+    }
 }
 
 static int RunPhaseProbe(string source, string phase, int iterations, int warmup)

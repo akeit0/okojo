@@ -35,6 +35,17 @@ public sealed partial class JsRealm
     {
         if (operandScale == BytecodeInfo.OperandScale.Single)
             return Unsafe.Add(ref pc, operandOffset++);
+
+        return ReadScaledUnsignedOperandSlow(ref pc, ref operandOffset, operandScale);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static int ReadScaledUnsignedOperandSlow(
+        ref byte pc,
+        ref int operandOffset,
+        BytecodeInfo.OperandScale operandScale
+    )
+    {
         if (operandScale == BytecodeInfo.OperandScale.Wide)
         {
             int value = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, operandOffset));
@@ -1108,6 +1119,10 @@ public sealed partial class JsRealm
                 int reg;
                 int operandOffset;
                 ref var slotRef = ref Unsafe.NullRef<JsValue>();
+                JsObject? obj;
+                SlotInfo slotInfo;
+                bool boolTemp;
+                long longNum;
                 try
                 {
                     NextOp:
@@ -1177,7 +1192,7 @@ public sealed partial class JsRealm
                         case JsOpCode.LdaTypedConst:
                         case JsOpCode.LdaTypedConstWide:
                             {
-                                var tag = (Tag)pc;
+                                intNum2 = pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 if (op == JsOpCode.LdaTypedConstWide)
                                 {
@@ -1190,7 +1205,7 @@ public sealed partial class JsRealm
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                acc = new(tag, obj: objectPool[intNum1]);
+                                acc = new((Tag)intNum2, obj: objectPool[intNum1]);
                             }
                             break;
                         case JsOpCode.LdaThis:
@@ -1267,8 +1282,11 @@ public sealed partial class JsRealm
                             break;
                         case JsOpCode.PopContext:
                             {
-                                var current = GetCurrentContext(fullStack);
-                                SetFrameContext(fullStack, fp, current?.Parent);
+                                SetFrameContext(
+                                    fullStack,
+                                    fp,
+                                    GetCurrentContext(fullStack)?.Parent
+                                );
                             }
                             break;
                         case JsOpCode.LdaCurrentContextSlot:
@@ -1411,15 +1429,13 @@ public sealed partial class JsRealm
 
                                 intNum1 = atomizedStringConstants[intNum1];
                                 if (
-                                    TryGetGlobalBindingByAtom(
+                                    !TryGetGlobalBindingByAtom(
                                         currentFunc.Script,
                                         intNum2,
                                         intNum1,
-                                        out var val
+                                        out acc
                                     )
                                 )
-                                    acc = val;
-                                else
                                     ThrowLdaGlobalReferenceError(intNum1);
                             }
                             break;
@@ -1494,10 +1510,15 @@ public sealed partial class JsRealm
                             {
                                 intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                 pc = ref Unsafe.Add(ref pc, 2);
-                                if (objectPool[intNum1] is JsValue[] literalElements)
-                                    acc = CreateArrayObject(literalElements);
-                                else if (objectPool[intNum1] is int arrayLength && arrayLength >= 0)
-                                    acc = CreateArrayObjectWithLength(arrayLength);
+                                if (objectPool[intNum1] is JsValue[])
+                                    acc = CreateArrayObject(
+                                        Unsafe.As<JsValue[]>(objectPool[intNum1])
+                                    );
+                                else if (
+                                    objectPool[intNum1] is int
+                                    && (intNum2 = (int)objectPool[intNum1]) >= 0
+                                )
+                                    acc = CreateArrayObjectWithLength(intNum2);
                                 else
                                     acc = CreateArrayObject();
                             }
@@ -1509,7 +1530,7 @@ public sealed partial class JsRealm
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
                                 intNum1 = pc | (Unsafe.Add(ref pc, 1) << 8);
                                 pc = ref Unsafe.Add(ref pc, 2);
-                                var obj = slotRef.AsObject();
+                                obj = slotRef.AsObject();
                                 obj.InitializeLiteralNamedSlot(intNum1, acc);
                             }
                             break;
@@ -1517,99 +1538,93 @@ public sealed partial class JsRealm
                         case JsOpCode.LdaNamedProperty:
                         case JsOpCode.LdaNamedPropertyWide:
                             {
-                                var isWide = op == JsOpCode.LdaNamedPropertyWide;
-                                reg = isWide ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
-                                pc = ref Unsafe.Add(ref pc, isWide ? 2 : 1);
+                                boolTemp = op == JsOpCode.LdaNamedPropertyWide;
+                                reg = boolTemp ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
+                                pc = ref Unsafe.Add(ref pc, boolTemp ? 2 : 1);
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                int nameIdx;
-                                if (isWide)
+                                if (boolTemp)
                                 {
-                                    nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                    intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                     pc = ref Unsafe.Add(ref pc, 2);
                                 }
                                 else
                                 {
-                                    nameIdx = pc;
+                                    intNum1 = pc;
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                var atom = atomizedStringConstants[nameIdx];
+                                intNum1 = atomizedStringConstants[intNum1];
 
                                 ValidateAtomizedNameConstant(
-                                    atom,
+                                    intNum1,
                                     "LdaNamedProperty requires atomized name constant."
                                 );
-                                int icSlot;
-                                if (isWide)
+                                if (boolTemp)
                                 {
-                                    icSlot = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                    intNum2 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                     pc = ref Unsafe.Add(ref pc, 2);
                                 }
                                 else
                                 {
-                                    icSlot = pc;
+                                    intNum2 = pc;
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                var receiverIsObject = slotRef.TryGetObject(out var obj);
-                                if (!receiverIsObject)
+                                boolTemp = slotRef.TryGetObject(out obj);
+                                if (!boolTemp)
                                     obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
                                 if (
                                     CanUseNamedPropertyIc(
                                         namedPropertyIcEntries,
-                                        icSlot,
-                                        receiverIsObject,
+                                        intNum2,
+                                        boolTemp,
                                         obj!,
-                                        atom,
-                                        out var cachedSlotInfo
+                                        intNum1,
+                                        out slotInfo
                                     )
                                 )
                                 {
-                                    acc = obj!.GetNamedByCachedSlotInfo(this, cachedSlotInfo);
+                                    acc = obj!.GetNamedByCachedSlotInfo(this, slotInfo);
                                     break;
                                 }
 
                                 if (
                                     prototypeNamedPropertyIcEntries is not null
-                                    && prototypeNamedPropertyIcEntries[icSlot].Holder is not null
+                                    && prototypeNamedPropertyIcEntries[intNum2].Holder is not null
                                     && TryGetNamedPropertyFromPrototypeIc(
                                         prototypeNamedPropertyIcEntries,
-                                        icSlot,
-                                        receiverIsObject,
+                                        intNum2,
+                                        boolTemp,
                                         obj!,
-                                        atom,
-                                        out var prototypeValue
+                                        intNum1,
+                                        out acc
                                     )
                                 )
-                                {
-                                    acc = prototypeValue;
                                     break;
-                                }
 
-                                var found = receiverIsObject
-                                    ? obj!.TryGetPropertyAtom(
-                                        this,
-                                        atom,
-                                        out var value,
-                                        out var slotInfo
-                                    )
-                                    : obj!.TryGetPropertyAtomWithReceiverValue(
-                                        this,
-                                        slotRef,
-                                        atom,
-                                        out value,
-                                        out slotInfo
-                                    );
-                                acc = value;
-
-                                if (found)
+                                if (
+                                    boolTemp
+                                        ? obj!.TryGetPropertyAtom(
+                                            this,
+                                            intNum1,
+                                            out acc,
+                                            out slotInfo
+                                        )
+                                        : obj!.TryGetPropertyAtomWithReceiverValue(
+                                            this,
+                                            slotRef,
+                                            intNum1,
+                                            out acc,
+                                            out slotInfo
+                                        )
+                                )
                                     UpdateNamedPropertyIcAfterGet(
                                         namedPropertyIcEntries,
                                         prototypeNamedPropertyIcEntries,
-                                        icSlot,
-                                        receiverIsObject,
+                                        intNum2,
+                                        boolTemp,
                                         obj!,
-                                        atom,
+                                        intNum1,
                                         slotInfo
                                     );
                             }
@@ -1640,31 +1655,26 @@ public sealed partial class JsRealm
                                 );
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                if (!slotRef.TryGetObject(out var obj))
+                                if (!slotRef.TryGetObject(out obj))
                                     obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
 
                                 if (acc.IsInt32)
                                 {
-                                    var key = acc.Int32Value;
-                                    if (key >= 0)
+                                    intNum1 = acc.Int32Value;
+                                    if (intNum1 >= 0)
                                     {
                                         if (
-                                            obj is JsArray array
-                                            && array.TryGetDenseElement(
-                                                (uint)key,
-                                                out var denseValue
-                                            )
+                                            obj is JsArray
+                                            && Unsafe
+                                                .As<JsArray>(obj)
+                                                .TryGetDenseElement((uint)intNum1, out acc)
                                         )
                                         {
-                                            acc = denseValue;
                                             break;
                                         }
 
-                                        if (obj.TryGetElement((uint)key, out var value))
-                                        {
-                                            acc = value;
+                                        if (obj.TryGetElement((uint)intNum1, out acc))
                                             break;
-                                        }
                                     }
                                 }
 
@@ -1675,60 +1685,56 @@ public sealed partial class JsRealm
                         case JsOpCode.StaNamedProperty:
                         case JsOpCode.StaNamedPropertyWide:
                             {
-                                var isWide = op == JsOpCode.StaNamedPropertyWide;
-                                reg = isWide ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
-                                pc = ref Unsafe.Add(ref pc, isWide ? 2 : 1);
+                                boolTemp = op == JsOpCode.StaNamedPropertyWide;
+                                reg = boolTemp ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
+                                pc = ref Unsafe.Add(ref pc, boolTemp ? 2 : 1);
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                int nameIdx;
-                                if (isWide)
+                                if (boolTemp)
                                 {
-                                    nameIdx = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                    intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                     pc = ref Unsafe.Add(ref pc, 2);
                                 }
                                 else
                                 {
-                                    nameIdx = pc;
+                                    intNum1 = pc;
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                int icSlot;
-                                if (isWide)
+                                if (boolTemp)
                                 {
-                                    icSlot = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                    intNum2 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                     pc = ref Unsafe.Add(ref pc, 2);
                                 }
                                 else
                                 {
-                                    icSlot = pc;
+                                    intNum2 = pc;
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                var atom = atomizedStringConstants[nameIdx];
+                                intNum1 = atomizedStringConstants[intNum1];
                                 ValidateAtomizedNameConstant(
-                                    atom,
+                                    intNum1,
                                     "StaNamedProperty requires atomized name constant."
                                 );
-                                var receiverIsObject = slotRef.TryGetObject(out var obj);
-                                if (!receiverIsObject)
+                                boolTemp = slotRef.TryGetObject(out obj);
+                                if (!boolTemp)
                                     obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
 
                                 if (
                                     CanUseNamedPropertyIc(
                                         namedPropertyIcEntries,
-                                        icSlot,
-                                        receiverIsObject,
+                                        intNum2,
+                                        boolTemp,
                                         obj!,
-                                        atom,
-                                        out var cachedSlotInfo
+                                        intNum1,
+                                        out slotInfo
                                     )
                                 )
                                 {
-                                    var ok = obj!.SetNamedByCachedSlotInfo(
-                                        this,
-                                        cachedSlotInfo,
-                                        acc
-                                    );
-                                    if (!ok && currentFunc.IsStrict)
+                                    if (
+                                        !obj!.SetNamedByCachedSlotInfo(this, slotInfo, acc)
+                                        && currentFunc.IsStrict
+                                    )
                                         ThrowTypeError(
                                             "ASSIGN_READONLY",
                                             "Cannot assign to read only property"
@@ -1736,24 +1742,21 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                var stored = obj!.TrySetPropertyAtom(
-                                    this,
-                                    atom,
-                                    acc,
-                                    out var slotInfo
-                                );
-                                if (!stored && currentFunc.IsStrict)
+                                if (
+                                    !obj!.TrySetPropertyAtom(this, intNum1, acc, out slotInfo)
+                                    && currentFunc.IsStrict
+                                )
                                     ThrowTypeError(
                                         "ASSIGN_READONLY",
                                         "Cannot assign to read only property"
                                     );
 
-                                if (CanCacheNamedPropertyResult(receiverIsObject, obj, slotInfo))
+                                if (CanCacheNamedPropertyResult(boolTemp, obj, slotInfo))
                                     UpdateNamedPropertyIc(
                                         namedPropertyIcEntries,
-                                        icSlot,
+                                        intNum2,
                                         obj,
-                                        atom,
+                                        intNum1,
                                         slotInfo
                                     );
                             }
@@ -1768,45 +1771,43 @@ public sealed partial class JsRealm
                                     operandScale
                                 );
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                var keyReg = ReadScaledUnsignedOperand(
+                                intNum2 = ReadScaledUnsignedOperand(
                                     ref pc,
                                     ref operandOffset,
                                     operandScale
                                 );
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
-                                if (!slotRef.TryGetObject(out var obj))
+                                if (!slotRef.TryGetObject(out obj))
                                     obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
-                                var keyVal = Unsafe.Add(ref registerRef, keyReg);
+                                slotRef = ref Unsafe.Add(ref registerRef, intNum2);
 
-                                if (keyVal.IsInt32)
+                                if (slotRef.IsInt32)
                                 {
-                                    var key = keyVal.Int32Value;
-                                    if (key >= 0)
+                                    intNum1 = slotRef.Int32Value;
+                                    if (intNum1 >= 0)
                                     {
-                                        var index = (uint)key;
-                                        var ok = obj.TrySetOwnElement(
-                                            index,
-                                            acc,
-                                            out var hadOwnElement
-                                        );
-                                        if (hadOwnElement)
+                                        if (
+                                            !obj.TrySetOwnElement((uint)intNum1, acc, out boolTemp)
+                                            && boolTemp
+                                        )
                                         {
-                                            if (!ok && currentFunc.IsStrict)
+                                            if (currentFunc.IsStrict)
                                                 ThrowTypeError(
                                                     "ASSIGN_READONLY",
                                                     "Cannot assign to read only property"
                                                 );
                                             break;
                                         }
+                                        if (boolTemp)
+                                            break;
                                     }
                                 }
 
-                                var valueToStore = acc;
                                 StoreKeyedPropertySlowPath(
                                     this,
                                     obj,
-                                    keyVal,
-                                    valueToStore,
+                                    slotRef,
+                                    acc,
                                     currentFunc.IsStrict
                                 );
                             }
@@ -1816,15 +1817,19 @@ public sealed partial class JsRealm
                                 reg = Unsafe.ReadUnaligned<ushort>(ref pc);
                                 pc = ref Unsafe.Add(ref pc, 2);
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                uint index = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
                                 pc = ref Unsafe.Add(ref pc, 2);
                                 if (
-                                    slotRef.TryGetObject(out var obj)
-                                    && obj is JsArray array
-                                    && array.CanDefineElementAtIndex(index)
+                                    slotRef.TryGetObject(out obj)
+                                    && obj is JsArray
+                                    && Unsafe
+                                        .As<JsArray>(obj)
+                                        .CanDefineElementAtIndex((uint)intNum1)
                                 )
                                 {
-                                    array.InitializeLiteralElement(index, acc);
+                                    Unsafe
+                                        .As<JsArray>(obj)
+                                        .InitializeLiteralElement((uint)intNum1, acc);
                                     break;
                                 }
 
@@ -1833,7 +1838,7 @@ public sealed partial class JsRealm
                                 StoreKeyedPropertySlowPath(
                                     this,
                                     obj!,
-                                    JsValue.FromInt32((int)index),
+                                    JsValue.FromInt32(intNum1),
                                     acc,
                                     currentFunc.IsStrict
                                 );
@@ -1849,21 +1854,21 @@ public sealed partial class JsRealm
                                     operandScale
                                 );
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                var keyReg = ReadScaledUnsignedOperand(
+                                intNum2 = ReadScaledUnsignedOperand(
                                     ref pc,
                                     ref operandOffset,
                                     operandScale
                                 );
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
 
-                                if (!slotRef.TryGetObject(out var obj))
+                                if (!slotRef.TryGetObject(out obj))
                                     obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
 
-                                var keyVal = Unsafe.Add(ref registerRef, keyReg);
+                                slotRef = ref Unsafe.Add(ref registerRef, intNum2);
                                 PropertyInitializationOperations.DefineOwnDataPropertyByKey(
                                     this,
                                     obj!,
-                                    keyVal,
+                                    slotRef,
                                     acc,
                                     op == JsOpCode.DefineOwnKeyedProperty
                                 );
@@ -1941,35 +1946,28 @@ public sealed partial class JsRealm
                                 {
                                     intNum1 = slotRef.Int32Value;
                                     intNum2 = acc.Int32Value;
-                                    var res = op switch
+                                    longNum = op switch
                                     {
                                         JsOpCode.Add => (long)intNum1 + intNum2,
                                         JsOpCode.Sub => (long)intNum1 - intNum2,
                                         JsOpCode.Mul => (long)intNum1 * intNum2,
                                         _ => 0L,
                                     };
-                                    if (res <= int.MaxValue && res >= int.MinValue)
+                                    if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                     {
-                                        acc = JsValue.FromInt32((int)res);
+                                        acc = JsValue.FromInt32((int)longNum);
                                         break;
                                     }
 
-                                    acc = new(res);
+                                    acc = new(longNum);
                                     break;
                                 }
 
                             if (
                                 op == JsOpCode.Sub
-                                && Intrinsics.TryGetDateSubtraction(
-                                    slotRef,
-                                    acc,
-                                    out var dateDifference
-                                )
+                                && Intrinsics.TryGetDateSubtraction(slotRef, acc, ref acc)
                             )
-                            {
-                                acc = dateDifference;
                                 break;
-                            }
 
                             if (slotRef.IsFloat64)
                             {
@@ -2025,17 +2023,16 @@ public sealed partial class JsRealm
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
                                 if (acc.IsInt32)
                                 {
-                                    var res =
+                                    longNum =
                                         (long)acc.Int32Value
                                         + intNum1 * (op == JsOpCode.AddSmi ? 1 : -1);
-                                    ;
-                                    if (res <= int.MaxValue && res >= int.MinValue)
+                                    if (longNum <= int.MaxValue && longNum >= int.MinValue)
                                     {
-                                        acc = JsValue.FromInt32((int)res);
+                                        acc = JsValue.FromInt32((int)longNum);
                                         break;
                                     }
 
-                                    acc = new(res);
+                                    acc = new(longNum);
                                     break;
                                 }
 
@@ -2062,11 +2059,11 @@ public sealed partial class JsRealm
                             intNum1 = op == JsOpCode.Inc ? 1 : -1;
                             if (acc.IsInt32)
                             {
-                                var res = (long)acc.Int32Value + intNum1;
-                                if (res <= int.MaxValue && res >= int.MinValue)
-                                    acc = JsValue.FromInt32((int)res);
+                                longNum = (long)acc.Int32Value + intNum1;
+                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
+                                    acc = JsValue.FromInt32((int)longNum);
                                 else
-                                    acc = new(res);
+                                    acc = new(longNum);
                             }
                             else if (acc.IsFloat64)
                             {
@@ -2107,12 +2104,12 @@ public sealed partial class JsRealm
                                 pc = ref Unsafe.Add(ref pc, 1); // slot
                                 if (acc.IsInt32 && intNum1 != 0)
                                 {
-                                    var v = acc.Int32Value;
-                                    var result = v % intNum1;
+                                    intNum2 = acc.Int32Value;
+                                    intNum1 = intNum2 % intNum1;
                                     acc =
-                                        result == 0 && v < 0
+                                        intNum1 == 0 && intNum2 < 0
                                             ? new(-0.0d)
-                                            : JsValue.FromInt32(result);
+                                            : JsValue.FromInt32(intNum1);
                                 }
                                 else if (acc.IsFloat64)
                                 {
@@ -2192,16 +2189,16 @@ public sealed partial class JsRealm
 
                                 if (acc.IsInt32)
                                 {
-                                    var v = acc.Int32Value;
-                                    if (v == 0)
+                                    intNum1 = acc.Int32Value;
+                                    if (intNum1 == 0)
                                     {
                                         acc = new(-0d);
                                         break;
                                     }
 
-                                    if (v != int.MinValue)
+                                    if (intNum1 != int.MinValue)
                                     {
-                                        acc = JsValue.FromInt32(-v);
+                                        acc = JsValue.FromInt32(-intNum1);
                                         break;
                                     }
 
@@ -2379,11 +2376,11 @@ public sealed partial class JsRealm
                                     intNum2 = acc.Int32Value;
                                     if (op == JsOpCode.ShiftRightLogical)
                                     {
-                                        var result = (uint)intNum1 >> (intNum2 & 0x1F);
+                                        longNum = (uint)intNum1 >> (intNum2 & 0x1F);
                                         acc =
-                                            result <= int.MaxValue
-                                                ? JsValue.FromInt32((int)result)
-                                                : new((double)result);
+                                            longNum <= int.MaxValue
+                                                ? JsValue.FromInt32((int)longNum)
+                                                : new((double)longNum);
                                         break;
                                     }
 
@@ -2430,8 +2427,7 @@ public sealed partial class JsRealm
                         case JsOpCode.JumpIfNotUndefined:
                         case JsOpCode.JumpIfJsReceiver:
                             {
-                                var taken = EvaluateJumpCondition(op, acc);
-                                if (taken)
+                                if (EvaluateJumpCondition(op, acc))
                                     pc = ref Unsafe.Add(
                                         ref pc,
                                         2 + Unsafe.ReadUnaligned<short>(ref pc)
@@ -2474,10 +2470,12 @@ public sealed partial class JsRealm
                                 var okojoCallee = slotRef.Obj as JsFunction;
                                 if (okojoCallee is not null)
                                 {
-                                    var receiverReg = -1;
-                                    var isConstruct = op == JsOpCode.Construct;
-                                    if (!isConstruct && op != JsOpCode.CallUndefinedReceiver)
-                                        receiverReg = ReadScaledUnsignedOperand(
+                                    reg = -1;
+                                    if (
+                                        op != JsOpCode.Construct
+                                        && op != JsOpCode.CallUndefinedReceiver
+                                    )
+                                        reg = ReadScaledUnsignedOperand(
                                             ref pc,
                                             ref operandOffset,
                                             operandScale
@@ -2494,10 +2492,6 @@ public sealed partial class JsRealm
                                         operandScale
                                     );
                                     pc = ref Unsafe.Add(ref pc, operandOffset);
-                                    var allowTailCall =
-                                        !isConstruct
-                                        && currentFunc.IsStrict
-                                        && pc == (byte)JsOpCode.Return;
                                     if (
                                         (
                                             Agent.ExecutionCheckpointHookBits
@@ -2515,10 +2509,10 @@ public sealed partial class JsRealm
                                     {
                                         DispatchCrossRealm(
                                             okojoCallee,
-                                            receiverReg,
+                                            reg,
                                             intNum1,
                                             intNum2,
-                                            isConstruct,
+                                            op == JsOpCode.Construct,
                                             GetPcOffset(ref bytecode, ref pc),
                                             ref registerRef
                                         );
@@ -2526,11 +2520,13 @@ public sealed partial class JsRealm
                                     else if (
                                         TryDispatchVmStackInvocation(
                                             okojoCallee,
-                                            receiverReg,
+                                            reg,
                                             intNum1,
                                             intNum2,
-                                            isConstruct,
-                                            allowTailCall,
+                                            op == JsOpCode.Construct,
+                                            op != JsOpCode.Construct
+                                                && currentFunc.IsStrict
+                                                && pc == (byte)JsOpCode.Return,
                                             GetPcOffset(ref bytecode, ref pc),
                                             ref currentFunc,
                                             ref registerRef
@@ -2644,7 +2640,6 @@ public sealed partial class JsRealm
                             break;
                         case JsOpCode.SuspendGenerator:
                         {
-                            int pcUsed;
                             if (
                                 HandleSuspendGenerator(
                                     ref bytecode,
@@ -2654,20 +2649,19 @@ public sealed partial class JsRealm
                                     ref fp,
                                     ref pc,
                                     ref acc,
-                                    out pcUsed
+                                    out intNum1
                                 ) == GeneratorDispatchResult.ReturnFromRun
                             )
                             {
-                                pc = ref Unsafe.Add(ref pc, pcUsed);
+                                pc = ref Unsafe.Add(ref pc, intNum1);
                                 return;
                             }
 
-                            pc = ref Unsafe.Add(ref pc, pcUsed);
+                            pc = ref Unsafe.Add(ref pc, intNum1);
                             goto ReloadFrame;
                         }
                         case JsOpCode.ResumeGenerator:
                             {
-                                int pcUsed;
                                 switch (
                                     HandleResumeGenerator(
                                         ref bytecode,
@@ -2677,19 +2671,19 @@ public sealed partial class JsRealm
                                         ref fp,
                                         ref pc,
                                         ref acc,
-                                        out pcUsed
+                                        out intNum1
                                     )
                                 )
                                 {
                                     case GeneratorDispatchResult.ReturnFromRun:
-                                        pc = ref Unsafe.Add(ref pc, pcUsed);
+                                        pc = ref Unsafe.Add(ref pc, intNum1);
                                         return;
                                     case GeneratorDispatchResult.ReloadFrame:
-                                        pc = ref Unsafe.Add(ref pc, pcUsed);
+                                        pc = ref Unsafe.Add(ref pc, intNum1);
                                         goto ReloadFrame;
                                 }
 
-                                pc = ref Unsafe.Add(ref pc, pcUsed);
+                                pc = ref Unsafe.Add(ref pc, intNum1);
                             }
                             break;
                         case JsOpCode.Throw:
@@ -2720,8 +2714,7 @@ public sealed partial class JsRealm
                             );
                             var generatorReturn =
                                 callFrame.FrameKind == CallFrameKind.GeneratorFrame;
-                            var constructorReturn =
-                                (callFrame.Flags & CallFrameFlag.IsConstructorCall) != 0;
+                            boolTemp = (callFrame.Flags & CallFrameFlag.IsConstructorCall) != 0;
                             var constructorThis = callFrame.ThisValue;
                             var constructorFlags = callFrame.Flags;
 
@@ -2743,14 +2736,14 @@ public sealed partial class JsRealm
                                     acc = CreateIteratorResultObject(acc, true);
                             }
 
-                            var top = StackTop;
+                            intNum1 = StackTop;
                             StackTop = fp;
                             RemoveExceptionHandlersForFrame(fp);
                             fp = callFrame.CallerFp;
                             startPc = callFrame.CallerPc;
-                            fullStack[StackTop..top].Fill(JsValue.Undefined); // Clear registers of the frame being popped to avoid keeping references to objects longer than needed.
+                            fullStack[StackTop..intNum1].Fill(JsValue.Undefined); // Clear registers of the frame being popped to avoid keeping references to objects longer than needed.
 
-                            if (!generatorReturn && constructorReturn)
+                            if (!generatorReturn && boolTemp)
                                 acc = CompleteConstructResult(
                                     acc,
                                     constructorThis,
