@@ -477,6 +477,7 @@ public partial class Intrinsics
             "charCodeAt",
             1
         );
+        charCodeAtFn.LeafBodyField = TryLeafCharCodeAt;
 
         var codePointAtFn = new JsHostFunction(
             Realm,
@@ -1860,6 +1861,7 @@ public partial class Intrinsics
             "fromCharCode",
             1
         );
+        fromCharCodeFn.LeafBodyField = TryLeafFromCharCode;
 
         var fromCodePointFn = new JsHostFunction(
             Realm,
@@ -1982,5 +1984,69 @@ public partial class Intrinsics
         ];
         StringConstructor.InitializePrototypeProperty(StringPrototype);
         StringConstructor.DefineNewPropertiesNoCollision(Realm, ctorDefs);
+    }
+
+    private static bool TryLeafCharCodeAt(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (thisValue.IsNullOrUndefined)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "String.prototype.charCodeAt called on null or undefined"
+            );
+
+        var text = realm.ToJsStringValueSlowPath(thisValue);
+        var position = args.Length == 0 ? 0d : realm.ToIntegerOrInfinity(args[0]);
+        if (double.IsInfinity(position))
+        {
+            result = JsValue.NaN;
+            return true;
+        }
+
+        var index = (int)position;
+        result = index < 0 || index >= text.Length ? JsValue.NaN : new((double)text[index]);
+        return true;
+    }
+
+    private static bool TryLeafFromCharCode(
+        JsRealm realm,
+        JsValue thisValue,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        if (args.Length == 0)
+        {
+            result = JsValue.FromString(string.Empty);
+            return true;
+        }
+
+        Span<char> chars = stackalloc char[args.Length];
+        for (var i = 0; i < args.Length; i++)
+        {
+            var n = realm.ToNumber(args[i]);
+            ushort code;
+            if (double.IsNaN(n) || double.IsInfinity(n) || n == 0d)
+            {
+                code = 0;
+            }
+            else
+            {
+                var intPart = Math.Truncate(n);
+                var mod = intPart % 65536d;
+                if (mod < 0d)
+                    mod += 65536d;
+                code = (ushort)mod;
+            }
+
+            chars[i] = (char)code;
+        }
+
+        result = JsValue.FromString(chars.ToString());
+        return true;
     }
 }
