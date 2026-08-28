@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Okojo.Text.RegularExpressions;
 using CompiledRegExp = Okojo.Text.RegularExpressions.RegExp;
 
@@ -9,6 +10,13 @@ namespace Okojo.JavaScript.RegExp;
 internal sealed class RegExpEngine
 {
     public static RegExpEngine Default { get; } = new();
+
+    private const int CompiledPatternCacheCapacity = 256;
+
+    private static readonly ConcurrentDictionary<
+        (string Pattern, string Flags),
+        CompiledRegExp
+    > s_compiledPatterns = new();
 
     private readonly RegExpOptions _options;
 
@@ -102,7 +110,14 @@ internal sealed class RegExpEngine
 
     public RegExpCompiledPattern Compile(string pattern, string flags)
     {
-        var regexp = CompiledRegExp.Compile(pattern, flags, _options);
+        if (s_compiledPatterns.Count >= CompiledPatternCacheCapacity)
+            s_compiledPatterns.Clear();
+
+        var regexp = s_compiledPatterns.GetOrAdd(
+            (pattern, flags),
+            static (key, options) => CompiledRegExp.Compile(key.Pattern, key.Flags, options),
+            _options
+        );
         return new(
             pattern,
             regexp.FlagsText,
