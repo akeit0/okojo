@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Bytecode;
@@ -41,7 +42,7 @@ public static class Disassembler
             sb.AppendLine(".constants");
             var idx = 0;
             foreach (var n in script.NumericConstants)
-                sb.AppendLine($"  [{idx++}] Number({n})");
+                sb.AppendLine($"  [{idx++}] Number({Unsafe.BitCast<ulong, double>(n)})");
 
             foreach (var o in script.ObjectConstants)
                 sb.AppendLine($"  [{idx++}] {FormatConstant(o)}");

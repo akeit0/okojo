@@ -465,6 +465,33 @@ Results:
 Evidence: snapshots `0005-a15-bit-snapshots` (per-arm locals variant) and
 `0006-a15-shared-locals` (accepted).
 
+### Numeric constant bit table (LdaNumericConstant direct U/Obj set) - ACCEPTED
+
+Follow-up to A15/A16 (2026-08-28, user direction): the numeric constant
+table is now `ulong[]` of raw `JsValue.U` bit patterns instead of
+`double[]` - one table, BitCast at use, no parallel array. The builder
+(`AddNumericConstant`) canonicalizes NaN to `JsValue.JsNan` at emission, so
+`LdaNumericConstant`/`Wide` arms load bits straight into `acc` with two
+plain stores and no per-execution NaN check (the fused `vucomisd xmm0,xmm0`
+self-compare is gone from the arm). A NaN with top16 == BoxHdr must never
+enter the table (it would alias a tagged value); emission-time
+canonicalization enforces this.
+
+Finding: the six simple constant arms (LdaZero/LdaUndefined/LdaNull/
+LdaTheHole/LdaTrue/LdaFalse) were NOT changed - the JIT already folds their
+ctors to the identical direct two-store form (0 loads, 2 stores per arm),
+so source-level conversion would be pure churn.
+
+Safety: the `Unsafe.Add(ref accBits, 1) = 0` null store into the Obj half
+is safe - null stores need no write barrier, `acc` is a stack local
+(barriers apply only to heap slots), and the torn intermediate state is
+GC-consistent (same reasoning as the CopyValueTo null path).
+
+Disassembler output verified (`Number(1.5)`); full suite 2,165 passed,
+4 skipped; BDN no regressions (smi-sum-loop 1,992 us best so far).
+
+Evidence: snapshot `20260828-204605-0007-numeric-bits-table`.
+
 ## Attempt Log Status
 
 | ID | Verdict |

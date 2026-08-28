@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 
@@ -541,9 +542,27 @@ public sealed class BytecodeBuilder : IDisposable
         Emit(op, encoded);
     }
 
+    private ulong[] ToNumericConstantBits()
+    {
+        var bits = new ulong[numericConstants.Count];
+        for (var i = 0; i < bits.Length; i++)
+            bits[i] = BitConverter.DoubleToUInt64Bits(numericConstants[i]);
+        return bits;
+    }
+
     public int AddNumericConstant(double value)
     {
         var key = BitConverter.DoubleToUInt64Bits(value);
+        if ((key & 0x7FFFFFFFFFFFFFFFUL) > 0x7FF0000000000000UL)
+        {
+            // Canonicalize NaN to the engine's JsNan pattern: the constant
+            // table stores raw JsValue.U bits and the LdaNumericConstant arms
+            // load them without a per-execution check, so a NaN whose top 16
+            // bits equal BoxHdr (which would alias a tagged value) must never
+            // enter the table.
+            key = JsValue.JsNan;
+            value = Unsafe.BitCast<ulong, double>(key);
+        }
         if (numericConstantIndices is null)
         {
             for (var i = 0; i < numericConstants.Count; i++)
@@ -996,7 +1015,7 @@ public sealed class BytecodeBuilder : IDisposable
 
         return new(
             code.ToArray(),
-            numericConstants.ToArray(),
+            ToNumericConstantBits(),
             objectConstants.ToArray(),
             RegisterCount,
             atomizedStringConstants.ToArray(),

@@ -1290,17 +1290,22 @@ public sealed partial class JsRealm
 
                         case JsOpCode.LdaNumericConstant:
                             {
-                                acc = new(currentFunc.Script.NumericConstants[pc]);
+                                // Direct U/Obj set from the raw bit table; the
+                                // builder canonicalized NaN at emission, so no
+                                // per-execution NaN check is needed.
+                                ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
+                                accBits = currentFunc.Script.NumericConstants[pc];
+                                Unsafe.Add(ref accBits, 1) = 0;
                                 pc = ref Unsafe.Add(ref pc, 1);
                             }
                             break;
                         case JsOpCode.LdaNumericConstantWide:
                             {
-                                acc = new(
-                                    currentFunc.Script.NumericConstants[
-                                        Unsafe.ReadUnaligned<ushort>(ref pc)
-                                    ]
-                                );
+                                ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
+                                accBits = currentFunc.Script.NumericConstants[
+                                    Unsafe.ReadUnaligned<ushort>(ref pc)
+                                ];
+                                Unsafe.Add(ref accBits, 1) = 0;
                                 pc = ref Unsafe.Add(ref pc, 2);
                             }
                             break;

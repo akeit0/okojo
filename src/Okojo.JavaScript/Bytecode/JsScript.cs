@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Bytecode;
@@ -6,7 +7,7 @@ public sealed record JsScript
 {
     internal JsScript(
         byte[] Bytecode,
-        double[] NumericConstants,
+        ulong[] NumericConstants,
         object[] ObjectConstants,
         int RegisterCount,
         int[] AtomizedStringConstants,
@@ -66,7 +67,13 @@ public sealed record JsScript
     }
 
     public byte[] Bytecode { get; init; }
-    public double[] NumericConstants { get; init; }
+
+    /// <summary>
+    ///     Numeric constants as raw <see cref="JsValue.U" /> bit patterns
+    ///     (NaN canonicalized to <see cref="JsValue.JsNan" /> by the builder so
+    ///     the VM can load them into a <see cref="JsValue" /> without a check).
+    /// </summary>
+    public ulong[] NumericConstants { get; init; }
     public object[] ObjectConstants { get; init; }
     public int RegisterCount { get; init; }
     public int[] AtomizedStringConstants { get; init; }
