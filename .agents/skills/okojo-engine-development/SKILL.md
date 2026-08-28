@@ -31,11 +31,11 @@ follow the focused-test/full-suite workflow in `AGENTS.md`. Use V8 for
 language/compiler/VM behavior and Node for built-in behavior when a semantic
 reference is needed.
 
-For compiler optimization experiments, establish and run the shortest
-representative benchmark first, then compare the changed result with the
-target opcode/IL/JIT shape if that comparison is useful. Do not replace the
-first benchmark check with a promising emitted-code diff; use longer benchmark
-runs only after the short result warrants them.
+For compiler optimization experiments, compare the changed result with the
+target opcode/IL/JIT shape first. Run the shortest representative benchmark
+only after the artifact reaches a plausible target or the artifact comparison
+is inconclusive. Use longer benchmark runs only after that focused check
+warrants them.
 
 Do not load the deep references or specialist skills unless the current task
 actually needs them.
