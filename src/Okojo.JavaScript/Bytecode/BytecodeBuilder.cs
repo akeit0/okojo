@@ -450,6 +450,15 @@ public sealed class BytecodeBuilder : IDisposable
         Emit(JsOpCode.CreateArrayLiteral, (byte)constantIndex, (byte)(constantIndex >> 8));
     }
 
+    internal void EmitCreateArrayLiteralWithLength(int length)
+    {
+        if ((uint)length > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "CreateArrayLiteral length exceeds ushort operand capacity."
+            );
+        Emit(JsOpCode.CreateArrayLiteralWithLength, (byte)length, (byte)(length >> 8));
+    }
+
     internal void EmitInitializeArrayElement(int objectRegister, int index)
     {
         if ((uint)objectRegister > ushort.MaxValue || (uint)index > ushort.MaxValue)

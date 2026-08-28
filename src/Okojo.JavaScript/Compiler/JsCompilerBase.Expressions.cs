@@ -757,8 +757,7 @@ internal abstract partial class JsCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            var literalIndex = builder.AddObjectConstant(node.Arg1);
-            builder.EmitCreateArrayLiteral(literalIndex);
+            builder.EmitCreateArrayLiteralWithLength(node.Arg1);
             var arrayRegister =
                 targetRegister >= 0 ? targetRegister : builder.AllocateTemporaryRegister();
             EmitStar(arrayRegister);

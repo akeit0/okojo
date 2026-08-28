@@ -2424,7 +2424,7 @@ internal abstract partial class JsCompilerBase
         EmitLdar(valueRegister);
         EmitJump(storeLabel);
         builder.BindLabel(emptyLabel);
-        builder.EmitCreateArrayLiteral(builder.AddObjectConstant(0));
+        builder.Emit(JsOpCode.CreateEmptyArrayLiteral);
         builder.BindLabel(storeLabel);
         EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
     }

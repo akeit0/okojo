@@ -130,6 +130,7 @@ public class BytecodeOperandContractTests
         [JsOpCode.CallUndefinedReceiver] = 3,
         [JsOpCode.Construct] = 3,
         [JsOpCode.CreateArrayLiteral] = 2,
+        [JsOpCode.CreateArrayLiteralWithLength] = 2,
         [JsOpCode.CreateClosureWide] = 3,
         [JsOpCode.JumpLoop] = 3,
 

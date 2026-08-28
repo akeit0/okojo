@@ -1,3 +1,4 @@
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Embedding;
 
 namespace Okojo.Tests;
@@ -141,5 +142,24 @@ public class VmOptimizationTests
         );
 
         Assert.That(result.AsString(), Is.EqualTo("750:0:-241"));
+    }
+
+    [Test]
+    public void ArrayLiteralLengthUsesDirectOperand()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = realm.CompileScript("function make() { return [1, 2, 3]; } make().join(',');");
+        var function = script
+            .ObjectConstants.OfType<Okojo.JavaScript.Objects.JsBytecodeFunction>()
+            .Single(static candidate => candidate.Name == "make");
+
+        Assert.That(
+            function.Script.Bytecode.Contains((byte)JsOpCode.CreateArrayLiteralWithLength),
+            Is.True
+        );
+        Assert.That(function.Script.ObjectConstants.OfType<int>(), Is.Empty);
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("1,2,3"));
     }
 }

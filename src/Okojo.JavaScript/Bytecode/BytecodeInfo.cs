@@ -138,7 +138,8 @@ internal static class BytecodeInfo
             or JsOpCode.TestGreaterThanOrEqual
             or JsOpCode.TestInstanceOf
             or JsOpCode.TestIn
-            or JsOpCode.CreateArrayLiteral => 2,
+            or JsOpCode.CreateArrayLiteral
+            or JsOpCode.CreateArrayLiteralWithLength => 2,
 
             JsOpCode.CreateObjectLiteralWide
             or JsOpCode.ResumeGenerator

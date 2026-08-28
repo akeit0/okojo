@@ -187,4 +187,7 @@ public enum JsOpCode : byte
     StaLexicalLocalWide, // [reg_lo] [reg_hi] lexical local write with TDZ check
     MovWide, // [src_reg_lo] [src_reg_hi] [dst_reg_lo] [dst_reg_hi]
     DefineOwnKeyedPropertyNoName, // [obj_reg] [key_reg] (own data define without function-name inference)
+
+    // Appended to preserve existing opcode values in persisted bytecode.
+    CreateArrayLiteralWithLength, // [length_lo] [length_hi]
 }

@@ -296,6 +296,7 @@ public static class Disassembler
             JsOpCode.InvokeIntrinsic =>
                 $"intrinsic:{FormatIntrinsicId(operands[0])}, args:r{operands[1]}.., argc:{operands[2]}",
             JsOpCode.CreateArrayLiteral => $"idx:{operands[0] | (operands[1] << 8)}",
+            JsOpCode.CreateArrayLiteralWithLength => $"length:{operands[0] | (operands[1] << 8)}",
             JsOpCode.CreateObjectLiteral or JsOpCode.CreateClosure =>
                 $"idx:{operands[0]}, flags:{operands[1]}",
             JsOpCode.CreateObjectLiteralWide or JsOpCode.CreateClosureWide =>

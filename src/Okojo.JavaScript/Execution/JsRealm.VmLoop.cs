@@ -1046,6 +1046,17 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private JsArray CreateArrayLiteralFromPoolSlowPath(object[] objectPool, int constantIndex)
+    {
+        var literal = objectPool[constantIndex];
+        if (literal is JsValue[] elements)
+            return CreateArrayObject(elements);
+        if (literal is int length && length >= 0)
+            return CreateArrayObjectWithLength(length);
+        return CreateArrayObject();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
         Exception e,
         ref byte pc,
@@ -1507,21 +1518,14 @@ public sealed partial class JsRealm
                             );
                             break;
                         case JsOpCode.CreateArrayLiteral:
-                            {
-                                intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                pc = ref Unsafe.Add(ref pc, 2);
-                                if (objectPool[intNum1] is JsValue[])
-                                    acc = CreateArrayObject(
-                                        Unsafe.As<JsValue[]>(objectPool[intNum1])
-                                    );
-                                else if (
-                                    objectPool[intNum1] is int
-                                    && (intNum2 = (int)objectPool[intNum1]) >= 0
-                                )
-                                    acc = CreateArrayObjectWithLength(intNum2);
-                                else
-                                    acc = CreateArrayObject();
-                            }
+                            intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
+                            pc = ref Unsafe.Add(ref pc, 2);
+                            acc = CreateArrayLiteralFromPoolSlowPath(objectPool, intNum1);
+                            break;
+                        case JsOpCode.CreateArrayLiteralWithLength:
+                            intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
+                            pc = ref Unsafe.Add(ref pc, 2);
+                            acc = CreateArrayObjectWithLength(intNum1);
                             break;
                         case JsOpCode.InitializeNamedProperty:
                             {
