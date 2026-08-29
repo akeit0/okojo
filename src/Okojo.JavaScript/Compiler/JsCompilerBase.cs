@@ -6,6 +6,11 @@ namespace Okojo.JavaScript.Compiler;
 
 internal abstract partial class JsCompilerBase
 {
+    private static readonly IReadOnlyDictionary<
+        string,
+        PlannedPrivateBinding
+    > EmptyPrivateBindings = new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
+
     protected readonly BytecodeBuilder builder;
     protected readonly Stack<ActiveScope> activeScopes;
     private readonly Stack<ControlScope> controlScopes;
@@ -222,7 +227,7 @@ internal abstract partial class JsCompilerBase
     private int generatorSwitchInstructionPc = -1;
     private int generatorResumeValueRegister = -1;
     private int generatorResumeModeRegister = -1;
-    private readonly List<int> generatorResumeTargets = [];
+    private List<int>? generatorResumeTargets;
     private IReadOnlyDictionary<string, PlannedPrivateBinding> visiblePrivateBindings;
     private IReadOnlyList<PrivateBrandSource> activeExactPrivateBrandSources = [];
     protected SourceCode? scriptSourceCode;
@@ -237,9 +242,7 @@ internal abstract partial class JsCompilerBase
         builder = new(realm);
         activeScopes = realm.RentCompileStack<ActiveScope>(8);
         controlScopes = realm.RentCompileStack<ControlScope>(8);
-        visiblePrivateBindings =
-            privateBindings
-            ?? new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
+        visiblePrivateBindings = privateBindings ?? EmptyPrivateBindings;
         this.scriptSourceCode = scriptSourceCode;
         RegisterPrivateDebugNames(visiblePrivateBindings);
     }

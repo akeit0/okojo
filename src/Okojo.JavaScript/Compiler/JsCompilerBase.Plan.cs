@@ -139,6 +139,8 @@ internal abstract partial class JsCompilerBase
     protected void ReleaseCompilerStorage()
     {
         ReleasePlanStorage();
+        Vm.ReturnCompileList(generatorResumeTargets);
+        Vm.ReturnCompileStack(activeExplicitResourceScopes);
         Vm.ReturnCompileStack(activeScopes);
         Vm.ReturnCompileStack(controlScopes);
     }

@@ -199,6 +199,24 @@ linq-js (-5.2%, about 94 KB per source compile). Median elapsed time was 79.7 to
 improvement and not claimed as a CPU-speed improvement. The complete 462-unit
 linq-js disassembly remained byte-for-byte identical.
 
+### Lazy uncommon scratch and cross-unit binding-list reuse
+
+Several compiler collections were constructed even when their feature was not
+present: generator resume targets, explicit-resource scopes, empty private-name
+and capture maps, and the per-unit stack used to recycle lexical-scope binding
+lists. Generator/resource collections are now rented only on first use, empty
+read-only maps are shared, and binding lists return directly to the per-realm
+compile pool. The latter lets sequential nested-function compiles reuse backing
+storage instead of limiting reuse to scopes within one function.
+
+Five interleaved fresh-process A/B runs against `dc0b636` reported 17.41 to
+16.42 KB/op for closures (-5.7%) and 1,721.17 to 1,673.73 KB/op for linq-js
+(-2.8%, about 47 KB per source compile). Median elapsed time was 79.8 to
+80.4 us/op for closures and 2.999 to 2.939 ms/op for linq-js; only the larger
+corpus showed a useful CPU change (-2.0%). Thirty-four general snapshots,
+including generators, async functions, and private classes, plus the complete
+462-unit linq-js disassembly remained byte-for-byte identical.
+
 ### 5. Identifier scanning/interning
 
 The parser's main repeated work is `JsLexer.ReadIdentifier` followed by

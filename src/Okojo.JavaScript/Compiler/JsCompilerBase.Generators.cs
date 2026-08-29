@@ -17,7 +17,8 @@ internal abstract partial class JsCompilerBase
     {
         if (!isGenerator && !isAsync)
             return;
-        if (generatorResumeTargets.Count > byte.MaxValue)
+        var resumeTargetCount = generatorResumeTargets?.Count ?? 0;
+        if (resumeTargetCount > byte.MaxValue)
             throw new NotSupportedException(
                 "Generator switch table exceeds byte operand capacity."
             );
@@ -26,10 +27,10 @@ internal abstract partial class JsCompilerBase
             throw new NotSupportedException(
                 "Generator switch table offset exceeds byte operand capacity."
             );
-        for (var i = 0; i < generatorResumeTargets.Count; i++)
-            builder.AddGeneratorSwitchTarget(generatorResumeTargets[i]);
+        for (var i = 0; i < resumeTargetCount; i++)
+            builder.AddGeneratorSwitchTarget(generatorResumeTargets![i]);
         builder.PatchByte(generatorSwitchInstructionPc + 2, (byte)tableStart);
-        builder.PatchByte(generatorSwitchInstructionPc + 3, (byte)generatorResumeTargets.Count);
+        builder.PatchByte(generatorSwitchInstructionPc + 3, (byte)resumeTargetCount);
     }
 
     protected void EmitGeneratorPrestartSuspend()
@@ -207,9 +208,10 @@ internal abstract partial class JsCompilerBase
             (byte)registerCount,
             (byte)suspendId
         );
-        while (generatorResumeTargets.Count <= suspendId)
-            generatorResumeTargets.Add(-1);
-        generatorResumeTargets[suspendId] = builder.CodeLength;
+        var resumeTargets = generatorResumeTargets ??= Vm.RentCompileList<int>();
+        while (resumeTargets.Count <= suspendId)
+            resumeTargets.Add(-1);
+        resumeTargets[suspendId] = builder.CodeLength;
         builder.Emit(JsOpCode.ResumeGenerator, generatorOperand, 0, (byte)registerCount);
 
         if (generatorResumeValueRegister < 0)

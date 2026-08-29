@@ -6,6 +6,9 @@ namespace Okojo.JavaScript.Compiler;
 
 internal sealed partial class JsFunctionCompiler : JsCompilerBase
 {
+    private static readonly IReadOnlyDictionary<string, CapturedBindingAccess> EmptyCaptures =
+        new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
+
     private readonly IReadOnlyDictionary<string, CapturedBindingAccess> inheritedCaptures;
     private Dictionary<string, int>? parameterRegisterByName;
     private List<string?>? parameterNames;
@@ -20,9 +23,7 @@ internal sealed partial class JsFunctionCompiler : JsCompilerBase
     )
         : base(realm, privateBindings, scriptSourceCode)
     {
-        this.inheritedCaptures =
-            inheritedCaptures
-            ?? new Dictionary<string, CapturedBindingAccess>(StringComparer.Ordinal);
+        this.inheritedCaptures = inheritedCaptures ?? EmptyCaptures;
     }
 
     private void EnsureParameterMaps()

@@ -15,13 +15,14 @@ internal abstract partial class JsCompilerBase
         public readonly bool IsAsync = isAsync;
     }
 
-    private readonly Stack<ExplicitResourceScope> activeExplicitResourceScopes = new();
+    private Stack<ExplicitResourceScope>? activeExplicitResourceScopes;
 
     protected bool hasActiveModuleTopLevelExplicitResourceScope;
     protected bool moduleTopLevelExplicitResourceScopeIsAsync;
 
     private bool HasAmbientExplicitResourceScope =>
-        activeExplicitResourceScopes.Count != 0 || hasActiveModuleTopLevelExplicitResourceScope;
+        (activeExplicitResourceScopes?.Count ?? 0) != 0
+        || hasActiveModuleTopLevelExplicitResourceScope;
 
     protected void EmitStatement(JsAst ast, int nodeIndex)
     {
@@ -1721,7 +1722,9 @@ internal abstract partial class JsCompilerBase
             try
             {
                 builder.EmitLda(JsOpCode.LdaUndefined);
-                activeExplicitResourceScopes.Push(new(stackRegister, isAsyncScope));
+                var resourceScopes = activeExplicitResourceScopes ??=
+                    Vm.RentCompileStack<ExplicitResourceScope>();
+                resourceScopes.Push(new(stackRegister, isAsyncScope));
                 try
                 {
                     emitEnter?.Invoke(stackRegister);
@@ -1730,7 +1733,7 @@ internal abstract partial class JsCompilerBase
                 }
                 finally
                 {
-                    activeExplicitResourceScopes.Pop();
+                    resourceScopes.Pop();
                 }
             }
             finally
@@ -1826,7 +1829,7 @@ internal abstract partial class JsCompilerBase
 
     private void EmitAddDisposableResource(JsVariableDeclarationKind kind, int valueRegister)
     {
-        if (activeExplicitResourceScopes.Count == 0)
+        if (activeExplicitResourceScopes is not { Count: > 0 } resourceScopes)
         {
             if (!hasActiveModuleTopLevelExplicitResourceScope)
                 throw new InvalidOperationException(
@@ -1855,7 +1858,7 @@ internal abstract partial class JsCompilerBase
             return;
         }
 
-        var scope = activeExplicitResourceScopes.Peek();
+        var scope = resourceScopes.Peek();
         var args = builder.AllocateTemporaryRegisterBlock(2);
         EmitLdar(scope.StackRegister);
         EmitStar(args);

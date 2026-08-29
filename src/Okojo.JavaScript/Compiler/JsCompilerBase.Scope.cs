@@ -101,21 +101,14 @@ internal abstract partial class JsCompilerBase
         );
     }
 
-    private readonly Stack<List<BindingStorage>> bindingStorageListPool = new();
-
     private List<BindingStorage> RentBindingStorageList(int capacity)
     {
-        if (!bindingStorageListPool.TryPop(out var list))
-            return new List<BindingStorage>(capacity);
-        if (list.Capacity < capacity)
-            list.Capacity = capacity;
-        return list;
+        return Vm.RentCompileList<BindingStorage>(capacity);
     }
 
     private void ReturnBindingStorageList(List<BindingStorage> list)
     {
-        list.Clear();
-        bindingStorageListPool.Push(list);
+        Vm.ReturnCompileList(list);
     }
 
     private void EnterScope(int scopeId)
