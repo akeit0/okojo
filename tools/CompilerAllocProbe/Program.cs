@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 var sourcePath = GetSourcePath();
@@ -31,28 +33,20 @@ var source = sourcePath is null
 
 var warmupCount = GetIntOption("--warmup", 100);
 var sampleCount = GetIntOption("--samples", 200);
+var runtimeBatchSize = GetIntOption("--runtime-batch", 25);
 
 if (args.Contains("--strict", StringComparer.OrdinalIgnoreCase))
     source = "\"use strict\";" + Environment.NewLine + source;
 
-using var runtime = JsRuntime.CreateBuilder().Build();
-var realm = runtime.DefaultRealm;
-
-for (var i = 0; i < warmupCount; i++)
-{
-    using var ast = JavaScriptParser.ParseScript(source);
-    _ = new JsScriptCompiler(realm).Compile(ast, null);
-}
+WarmCompiler(source, warmupCount, runtimeBatchSize);
 
 // Phase attribution over many samples.
 long parseBytes = 0;
 long collectBytes = 0;
 long planBytes = 0;
-long compileRestBytes = 0;
 long parseTimestampTicks = 0;
 long collectTimestampTicks = 0;
 long planTimestampTicks = 0;
-long compileRestTimestampTicks = 0;
 
 PrepareMeasurement();
 for (var s = 0; s < sampleCount; s++)
@@ -88,21 +82,20 @@ for (var s = 0; s < sampleCount; s++)
 }
 
 PrepareMeasurement();
-for (var s = 0; s < sampleCount; s++)
-{
-    using var ast = JavaScriptParser.ParseScript(source);
-    var restStart = GC.GetAllocatedBytesForCurrentThread();
-    var timestampStart = Stopwatch.GetTimestamp();
-    _ = new JsScriptCompiler(realm).Compile(ast, null);
-    compileRestTimestampTicks += Stopwatch.GetTimestamp() - timestampStart;
-    compileRestBytes += GC.GetAllocatedBytesForCurrentThread() - restStart;
-}
+var compile = MeasureCompile(source, sampleCount, runtimeBatchSize);
 
-Console.WriteLine($"warmup={warmupCount} samples={sampleCount}");
+Console.WriteLine($"warmup={warmupCount} samples={sampleCount} runtime-batch={runtimeBatchSize}");
 WritePhase("parse", parseBytes, parseTimestampTicks);
 WritePhase("collect", collectBytes, collectTimestampTicks);
 WritePhase("plan", planBytes, planTimestampTicks);
-WritePhase("compile(full)", compileRestBytes, compileRestTimestampTicks);
+WritePhase("compile(full)", compile.AllocatedBytes, compile.TimestampTicks);
+Console.WriteLine(
+    $"compile-output: {compile.ScriptUnits / (double)sampleCount:F2} units/op "
+        + $"{compile.PeakRetainedScriptUnits} max-retained-units"
+);
+Console.WriteLine(
+    $"process-peak-working-set: {Process.GetCurrentProcess().PeakWorkingSet64 / 1024d / 1024d:F1} MiB"
+);
 
 void WritePhase(string name, long allocatedBytes, long timestampTicks)
 {
@@ -133,6 +126,7 @@ string? GetSourcePath()
         if (
             string.Equals(args[i], "--warmup", StringComparison.OrdinalIgnoreCase)
             || string.Equals(args[i], "--samples", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(args[i], "--runtime-batch", StringComparison.OrdinalIgnoreCase)
         )
         {
             i++;
@@ -150,3 +144,96 @@ static void PrepareMeasurement()
     GC.WaitForPendingFinalizers();
     GC.Collect();
 }
+
+static void WarmCompiler(string source, int warmupCount, int runtimeBatchSize)
+{
+    var remaining = warmupCount;
+    while (remaining > 0)
+    {
+        var count = Math.Min(remaining, runtimeBatchSize);
+        using (var runtime = JsRuntime.CreateBuilder().Build())
+        {
+            var realm = runtime.DefaultRealm;
+            for (var i = 0; i < count; i++)
+            {
+                using var ast = JavaScriptParser.ParseScript(source);
+                _ = new JsScriptCompiler(realm).Compile(ast, null);
+            }
+        }
+
+        PrepareMeasurement();
+        remaining -= count;
+    }
+}
+
+static CompileMeasurement MeasureCompile(string source, int sampleCount, int runtimeBatchSize)
+{
+    long allocatedBytes = 0;
+    long timestampTicks = 0;
+    long scriptUnits = 0;
+    var peakRetainedScriptUnits = 0;
+    var remaining = sampleCount;
+
+    while (remaining > 0)
+    {
+        var count = Math.Min(remaining, runtimeBatchSize);
+        var retainedScriptUnits = 0;
+        using (var runtime = JsRuntime.CreateBuilder().Build())
+        {
+            var realm = runtime.DefaultRealm;
+
+            // Seed the realm-owned compile pools without including cold pool rent in
+            // the measured batch. Runtime creation and collection are likewise outside
+            // the timed/allocation intervals.
+            using (var seedAst = JavaScriptParser.ParseScript(source))
+            {
+                var seed = new JsScriptCompiler(realm).Compile(seedAst, null);
+                retainedScriptUnits += CountScriptUnits(seed);
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                using var ast = JavaScriptParser.ParseScript(source);
+                var allocationStart = GC.GetAllocatedBytesForCurrentThread();
+                var timestampStart = Stopwatch.GetTimestamp();
+                var script = new JsScriptCompiler(realm).Compile(ast, null);
+                timestampTicks += Stopwatch.GetTimestamp() - timestampStart;
+                allocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+
+                var units = CountScriptUnits(script);
+                scriptUnits += units;
+                retainedScriptUnits += units;
+            }
+        }
+
+        peakRetainedScriptUnits = Math.Max(peakRetainedScriptUnits, retainedScriptUnits);
+        PrepareMeasurement();
+        remaining -= count;
+    }
+
+    return new(allocatedBytes, timestampTicks, scriptUnits, peakRetainedScriptUnits);
+}
+
+static int CountScriptUnits(JsScript script)
+{
+    var scripts = new HashSet<JsScript>(ReferenceEqualityComparer.Instance);
+    AddScriptTree(script, scripts);
+    return scripts.Count;
+}
+
+static void AddScriptTree(JsScript script, HashSet<JsScript> scripts)
+{
+    if (!scripts.Add(script))
+        return;
+
+    for (var i = 0; i < script.ObjectConstants.Length; i++)
+        if (script.ObjectConstants[i] is JsBytecodeFunction function)
+            AddScriptTree(function.Script, scripts);
+}
+
+readonly record struct CompileMeasurement(
+    long AllocatedBytes,
+    long TimestampTicks,
+    long ScriptUnits,
+    int PeakRetainedScriptUnits
+);

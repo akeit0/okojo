@@ -146,9 +146,14 @@ semantics.
   script registries. Repeated same-realm compile benchmarks therefore retain
   their output and can grow into gigabytes; the reported compile allocation
   includes durable bytecode/debugger output and registry growth, not only
-  transient compiler work. The bounded defaults prevent the probe from becoming
-  an unbounded retention test, but a later measurement path should explicitly
-  separate registered output size from transient allocation.
+  transient compiler work. The probe now rotates disposable runtimes in bounded
+  `--runtime-batch` groups (default 25), collects only outside timed regions, and
+  reports emitted units per operation plus maximum batch-retained units. This
+  preserves production registration behavior without turning the probe into an
+  unbounded registry-retention test. For linq-js the correct output count is 462
+  units (461 function literals plus the root); an earlier 37 count was the number
+  of distinct names printed by `OkojoBytecodeTool --list`, whose header now makes
+  both counts explicit.
 
 Median of three interleaved baseline/candidate process runs:
 

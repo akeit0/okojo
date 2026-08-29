@@ -529,15 +529,18 @@ internal static class Program
         string? filter
     )
     {
-        var selected = SelectFunctions(functions, filter)
+        var selected = SelectFunctions(functions, filter);
+        var names = selected
             .Select(x => x.name)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (selected.Count == 0)
+        if (names.Count == 0)
             return $"(No Okojo units found matching: {filter})";
 
-        return string.Join(Environment.NewLine, selected);
+        return $"units={selected.Count} distinct-names={names.Count}"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, names);
     }
 
     private static string RenderDisassembly(
@@ -590,7 +593,7 @@ internal static class Program
     private static List<(string name, JsScript script)> CollectOkojoFunctions(JsScript root)
     {
         var result = new List<(string name, JsScript script)>();
-        var seen = new HashSet<JsScript>();
+        var seen = new HashSet<JsScript>(ReferenceEqualityComparer.Instance);
         CollectOkojoFunctions(root, "<script>", result, seen);
         return result;
     }

@@ -10,8 +10,9 @@ out separately.
 The two representative inputs are:
 
 - the closure-heavy default source embedded in `tools/CompilerAllocProbe`;
-- `benchmarks/Okojo.Benchmarks/scripts/linq-js.js`, a 34 KB source that emits
-  37 `JsScript` bytecode units from one source compilation.
+- `benchmarks/Okojo.Benchmarks/scripts/linq-js.js`, a 34 KB source containing
+  461 function literals and emitting 462 `JsScript` instances, including the
+  root, from one source compilation.
 
 ## Measurement method
 
@@ -71,7 +72,7 @@ collection and planning are not the main time source, even for linq-js.
 unit repeats binding work, planning, emission, final-array construction, and
 agent registration immediately. The closure CPU sample attributed roughly 35%
 inclusive time to this declaration/function-compiler path. linq-js multiplies
-the path across 37 units.
+the path across 462 units.
 
 This is the largest structural opportunity, but it is not a local emitter
 change. A correct lazy boundary must retain function source ranges, strictness,
@@ -119,7 +120,7 @@ every run: 20.07 to 18.58 KB/op for the closure corpus (-7.4%), and 1,966.94 to
 1,855.01 KB/op for linq-js (-5.7%). Five longer closure runs (500 warmups, 3,000
 samples) also favored the candidate in elapsed time, but no timing percentage is
 claimed because shorter tiering-sensitive runs disagreed. Thirty-four general
-case disassemblies and the complete 37-unit linq-js disassembly were byte-for-byte
+case disassemblies and the complete 462-unit linq-js disassembly were byte-for-byte
 identical between `fa18f68` and the candidate.
 
 ### 4. Strong script registration explains GB-scale growth
@@ -128,7 +129,16 @@ identical between `fa18f68` and the candidate.
 source-path lookup. `JsScript.BindAgent` registers the script, and
 `JsAgent.RegisterScriptRecursive` also registers every nested function script.
 No unregister/reset path exists. Repeated same-realm linq-js compilation
-therefore retains 37 script graphs per operation.
+therefore retains 462 script instances per operation.
+
+The initial investigation incorrectly reported 37 units by counting the output
+lines from `OkojoBytecodeTool --list`. That mode intentionally listed distinct
+function names, not script instances; linq-js has 37 distinct names across its
+462 units. The tool now prints both counts in its header, and
+`CompilerAllocProbe` independently walks each output graph using reference
+identity. This correction explains the retained-memory growth more strongly and
+also explains why removing one record clone per unit saved about 112 KB per
+linq-js compilation.
 
 This is durable debugger/breakpoint state, not parser scratch memory. A compiler
 benchmark using one realm measures both allocated output and an ever-growing
@@ -138,6 +148,13 @@ sample or expose an explicit no-registration compiler measurement path. Changing
 production registries to weak references is not an optimization-only edit:
 breakpoint discovery and debugger observability require a separate lifetime
 design and tests.
+
+The implemented probe path rotates runtimes every `--runtime-batch` operations
+(25 by default), seeds compile pools outside the measured region, and forces GC
+only after the retired runtime is disposed. A default linq-js run reported 462.00
+units/op, 12,012 maximum retained units (26 outputs including the seed), and a
+97.7 MiB process peak working set. This makes the lifetime visible and keeps the
+same production registration semantics without GB-scale growth.
 
 ### 5. Identifier scanning/interning
 
