@@ -96,7 +96,29 @@ public sealed record JsScript
     internal int[]? TdzReadDebugPcs { get; init; }
     internal int[]? TdzReadDebugNameIndices { get; init; }
     internal OkojoNamedPropertyIcEntry[]? NamedPropertyIcEntries { get; init; }
-    internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries { get; init; }
+    private OkojoPrototypeNamedPropertyIcEntry[]? prototypeNamedPropertyIcEntries;
+
+    internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries
+    {
+        get => Volatile.Read(ref prototypeNamedPropertyIcEntries);
+        init => prototypeNamedPropertyIcEntries = value;
+    }
+
+    internal OkojoPrototypeNamedPropertyIcEntry[] GetOrCreatePrototypeNamedPropertyIcEntries()
+    {
+        var entries = Volatile.Read(ref prototypeNamedPropertyIcEntries);
+        if (entries is not null)
+            return entries;
+
+        var slotCount = NamedPropertyIcEntries?.Length ?? 0;
+        var created = new OkojoPrototypeNamedPropertyIcEntry[slotCount];
+        return Interlocked.CompareExchange(
+                ref prototypeNamedPropertyIcEntries,
+                created,
+                comparand: null
+            ) ?? created;
+    }
+
     internal GlobalBindingIcEntry[]? GlobalBindingIcEntries { get; init; }
     public int[]? DebugPcOffsets { get; init; }
     public int[]? DebugSourceOffsets { get; init; }

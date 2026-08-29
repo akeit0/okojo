@@ -1092,9 +1092,7 @@ public sealed class BytecodeBuilder : IDisposable
             PrivateFieldDebugKeys: privateFieldDebugKeys,
             PrivateFieldDebugNameIndices: privateFieldDebugNameIndices,
             LocalDebugInfos: localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
-            PrototypeNamedPropertyIcEntries: namedPropertyFeedbackSlotCount == 0
-                ? null
-                : new OkojoPrototypeNamedPropertyIcEntry[namedPropertyFeedbackSlotCount],
+            PrototypeNamedPropertyIcEntries: null,
             TopLevelLexicalAtoms: topLevelLexicalAtoms,
             TopLevelLexicalSlots: topLevelLexicalSlots,
             TopLevelLexicalConstFlags: topLevelLexicalConstFlags,

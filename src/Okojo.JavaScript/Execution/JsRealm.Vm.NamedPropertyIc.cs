@@ -124,8 +124,9 @@ public sealed partial class JsRealm
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void UpdateNamedPropertyIcAfterGet(
+        JsScript script,
+        ref OkojoPrototypeNamedPropertyIcEntry[]? prototypeNamedPropertyIcEntries,
         OkojoNamedPropertyIcEntry[]? namedPropertyIcEntries,
-        OkojoPrototypeNamedPropertyIcEntry[]? prototypeNamedPropertyIcEntries,
         int icSlot,
         bool receiverIsObject,
         JsObject obj,
@@ -149,6 +150,8 @@ public sealed partial class JsRealm
                 out var prototypeSlotInfo
             )
         )
+        {
+            prototypeNamedPropertyIcEntries ??= script.GetOrCreatePrototypeNamedPropertyIcEntries();
             UpdatePrototypeNamedPropertyIc(
                 prototypeNamedPropertyIcEntries,
                 icSlot,
@@ -157,6 +160,7 @@ public sealed partial class JsRealm
                 prototypeSlotInfo,
                 prototypeHolder
             );
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

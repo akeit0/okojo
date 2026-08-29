@@ -217,6 +217,33 @@ corpus showed a useful CPU change (-2.0%). Thirty-four general snapshots,
 including generators, async functions, and private classes, plus the complete
 462-unit linq-js disassembly remained byte-for-byte identical.
 
+### Lazy prototype inline-cache storage
+
+`BytecodeBuilder.ToScript` previously allocated both own-property and prototype
+inline-cache arrays for every named-property feedback slot. The prototype array
+is larger and is unnecessary for scripts that are never executed or whose named
+reads resolve directly on the receiver. `JsScript` now creates that array on the
+first cacheable prototype hit and publishes it atomically; the VM immediately
+updates its frame-local reference, so later reads retain the existing prototype
+fast path. Focused tests verify that own-property execution leaves it absent and
+that a prototype read creates and populates it.
+
+Five interleaved fresh-process A/B runs against `e4e96f3` reported 16.42 to
+16.25 KB/op for closures (-1.0%) and 1,673.73 to 1,625.91 KB/op for linq-js
+(-2.9%, about 48 KB per source compile). Median elapsed time was 82.1 to
+81.5 us/op for closures and 2.851 to 2.802 ms/op for linq-js. The rendered
+462-unit linq-js disassembly remained byte-for-byte identical. This moves the
+prototype-cache array allocation to first relevant execution; it does not claim
+that allocation disappears when every compiled function later uses a prototype
+property.
+
+V8 uses the broader version of this policy: the local reference checkout enables
+`lazy_feedback_allocation` by default in `src/flags/flag-definitions.h`, and
+`JSFunction::EnsureFeedbackVector` in `src/objects/js-function.cc` attaches a
+feedback vector when required. Okojo intentionally takes the smaller safe slice
+here: own-property IC storage remains eager, while only the independently
+optional prototype table is deferred.
+
 ### 5. Identifier scanning/interning
 
 The parser's main repeated work is `JsLexer.ReadIdentifier` followed by
@@ -239,3 +266,13 @@ slowed string-heavy parsing by about 20%, so it was rejected and removed.
 
 Rejected attempts and measurement caveats stay in this note so later work does
 not repeat them.
+
+One rejected pool-hardening attempt replaced the dictionary, set, and stack
+live-count retention gate with `EnsureCapacity(0)` so an emptied but formerly
+large collection could not remain attached to a realm. It had no allocation
+effect, but stack capacity inspection sits on the twice-per-compiled-unit
+scope-stack return path and repeatedly made linq-js compilation several times
+slower. The change and its tests were removed. The existing live-count ceiling
+still rejects collections returned while large; detecting large emptied backing
+arrays needs explicit high-water metadata or a colder trimming policy, not hot
+capacity introspection.

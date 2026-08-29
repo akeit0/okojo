@@ -1738,8 +1738,9 @@ public sealed partial class JsRealm
 
                                 if (obj!.TryGetPropertyAtom(this, intNum1, out acc, out slotInfo))
                                     UpdateNamedPropertyIcAfterGet(
+                                        currentFunc.Script,
+                                        ref prototypeNamedPropertyIcEntries,
                                         namedPropertyIcEntries,
-                                        prototypeNamedPropertyIcEntries,
                                         intNum2,
                                         true,
                                         obj!,
