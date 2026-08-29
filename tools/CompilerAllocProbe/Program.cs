@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
@@ -91,7 +92,8 @@ WritePhase("plan", planBytes, planTimestampTicks);
 WritePhase("compile(full)", compile.AllocatedBytes, compile.TimestampTicks);
 Console.WriteLine(
     $"compile-output: {compile.ScriptUnits / (double)sampleCount:F2} units/op "
-        + $"{compile.PeakRetainedScriptUnits} max-retained-units"
+        + $"{compile.PeakProducedScriptUnits} max-produced-units/batch "
+        + $"{compile.PeakLiveRegisteredScriptUnitsAfterGc} max-live-registered-units-after-gc"
 );
 Console.WriteLine(
     $"process-peak-working-set: {Process.GetCurrentProcess().PeakWorkingSet64 / 1024d / 1024d:F1} MiB"
@@ -171,7 +173,8 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
     long allocatedBytes = 0;
     long timestampTicks = 0;
     long scriptUnits = 0;
-    var peakRetainedScriptUnits = 0;
+    var peakProducedScriptUnits = 0;
+    var peakLiveRegisteredScriptUnitsAfterGc = 0;
     var remaining = sampleCount;
 
     while (remaining > 0)
@@ -187,31 +190,59 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
             // the timed/allocation intervals.
             using (var seedAst = JavaScriptParser.ParseScript(source))
             {
-                var seed = new JsScriptCompiler(realm).Compile(seedAst, null);
-                retainedScriptUnits += CountScriptUnits(seed);
+                retainedScriptUnits += CompileAndCountUnits(realm, seedAst);
             }
 
             for (var i = 0; i < count; i++)
             {
                 using var ast = JavaScriptParser.ParseScript(source);
-                var allocationStart = GC.GetAllocatedBytesForCurrentThread();
-                var timestampStart = Stopwatch.GetTimestamp();
-                var script = new JsScriptCompiler(realm).Compile(ast, null);
-                timestampTicks += Stopwatch.GetTimestamp() - timestampStart;
-                allocatedBytes += GC.GetAllocatedBytesForCurrentThread() - allocationStart;
-
-                var units = CountScriptUnits(script);
-                scriptUnits += units;
-                retainedScriptUnits += units;
+                var operation = MeasureCompileOperation(realm, ast);
+                timestampTicks += operation.TimestampTicks;
+                allocatedBytes += operation.AllocatedBytes;
+                scriptUnits += operation.ScriptUnits;
+                retainedScriptUnits += operation.ScriptUnits;
             }
+
+            PrepareMeasurement();
+            peakLiveRegisteredScriptUnitsAfterGc = Math.Max(
+                peakLiveRegisteredScriptUnitsAfterGc,
+                realm.Agent.ScriptDebugRegistry.GetAllRegisteredScripts().Count
+            );
         }
 
-        peakRetainedScriptUnits = Math.Max(peakRetainedScriptUnits, retainedScriptUnits);
+        peakProducedScriptUnits = Math.Max(peakProducedScriptUnits, retainedScriptUnits);
         PrepareMeasurement();
         remaining -= count;
     }
 
-    return new(allocatedBytes, timestampTicks, scriptUnits, peakRetainedScriptUnits);
+    return new(
+        allocatedBytes,
+        timestampTicks,
+        scriptUnits,
+        peakProducedScriptUnits,
+        peakLiveRegisteredScriptUnitsAfterGc
+    );
+}
+
+[MethodImpl(MethodImplOptions.NoInlining)]
+static int CompileAndCountUnits(Okojo.JavaScript.Execution.JsRealm realm, JsAst ast)
+{
+    var script = new JsScriptCompiler(realm).Compile(ast, null);
+    return CountScriptUnits(script);
+}
+
+[MethodImpl(MethodImplOptions.NoInlining)]
+static CompileOperationMeasurement MeasureCompileOperation(
+    Okojo.JavaScript.Execution.JsRealm realm,
+    JsAst ast
+)
+{
+    var allocationStart = GC.GetAllocatedBytesForCurrentThread();
+    var timestampStart = Stopwatch.GetTimestamp();
+    var script = new JsScriptCompiler(realm).Compile(ast, null);
+    var timestampTicks = Stopwatch.GetTimestamp() - timestampStart;
+    var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocationStart;
+    return new(allocatedBytes, timestampTicks, CountScriptUnits(script));
 }
 
 static int CountScriptUnits(JsScript script)
@@ -235,5 +266,12 @@ readonly record struct CompileMeasurement(
     long AllocatedBytes,
     long TimestampTicks,
     long ScriptUnits,
-    int PeakRetainedScriptUnits
+    int PeakProducedScriptUnits,
+    int PeakLiveRegisteredScriptUnitsAfterGc
+);
+
+readonly record struct CompileOperationMeasurement(
+    long AllocatedBytes,
+    long TimestampTicks,
+    int ScriptUnits
 );

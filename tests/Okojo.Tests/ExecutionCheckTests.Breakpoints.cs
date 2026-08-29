@@ -1,4 +1,6 @@
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -9,6 +11,38 @@ namespace Okojo.Tests;
 
 public partial class ExecutionCheckTests
 {
+    [Test]
+    public void ScriptRegistry_DoesNotKeepUnreferencedCompiledScriptsAlive()
+    {
+        using var runtime = JsRuntime.Create();
+        var scriptReference = CompileUnreferencedScript(runtime.DefaultRealm, "weak-registry.js");
+
+        CollectUntilReleased(scriptReference);
+
+        Assert.That(IsScriptAlive(scriptReference), Is.False);
+        Assert.That(runtime.MainAgent.GetRegisteredScripts("weak-registry.js"), Is.Empty);
+    }
+
+    [Test]
+    public void ScriptRegistry_ActiveBreakpointKeepsPatchedScriptAlive()
+    {
+        using var runtime = JsRuntime.Create();
+        var scriptReference = CompileUnreferencedScript(
+            runtime.DefaultRealm,
+            "breakpoint-retention.js"
+        );
+        var breakpoint = runtime.MainAgent.AddBreakpoint("breakpoint-retention.js", 1);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        Assert.That(IsScriptAlive(scriptReference), Is.True);
+
+        breakpoint.Dispose();
+        CollectUntilReleased(scriptReference);
+        Assert.That(IsScriptAlive(scriptReference), Is.False);
+    }
+
     [Test]
     public void LineBreakpoint_Hits_And_Rearms_On_Next_Execute()
     {
@@ -203,4 +237,31 @@ public partial class ExecutionCheckTests
             Is.True
         );
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<JsScript> CompileUnreferencedScript(
+        JsRealm realm,
+        string sourcePath
+    )
+    {
+        using var program = JavaScriptParser.ParseScript("let value = 1; value;", sourcePath);
+        var script = JsCompiler.Compile(realm, program);
+        return new(script);
+    }
+
+    private static void CollectUntilReleased(WeakReference<JsScript> reference)
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            if (!IsScriptAlive(reference))
+                return;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool IsScriptAlive(WeakReference<JsScript> reference) =>
+        reference.TryGetTarget(out _);
 }

@@ -123,13 +123,13 @@ claimed because shorter tiering-sensitive runs disagreed. Thirty-four general
 case disassemblies and the complete 462-unit linq-js disassembly were byte-for-byte
 identical between `fa18f68` and the candidate.
 
-### 4. Strong script registration explains GB-scale growth
+### 4. Script registry lifetime explains GB-scale growth
 
-`JsAgent` owns strong `HashSet<JsScript>` collections for all scripts and for
-source-path lookup. `JsScript.BindAgent` registers the script, and
-`JsAgent.RegisterScriptRecursive` also registers every nested function script.
-No unregister/reset path exists. Repeated same-realm linq-js compilation
-therefore retains 462 script instances per operation.
+At the start of the investigation, `JsAgent` owned strong `HashSet<JsScript>`
+collections for all scripts and for source-path lookup. `JsScript.BindAgent`
+registers the script, and `JsAgent.RegisterScriptRecursive` also registers every
+nested function script. No unregister/reset path existed. Repeated same-realm
+linq-js compilation therefore retained 462 script instances per operation.
 
 The initial investigation incorrectly reported 37 units by counting the output
 lines from `OkojoBytecodeTool --list`. That mode intentionally listed distinct
@@ -143,18 +143,26 @@ linq-js compilation.
 This is durable debugger/breakpoint state, not parser scratch memory. A compiler
 benchmark using one realm measures both allocated output and an ever-growing
 registry. Merely creating a fresh compiler does not bound the agent lifetime.
-The probe should either create/dispose an isolated runtime per retained-output
-sample or expose an explicit no-registration compiler measurement path. Changing
-production registries to weak references is not an optimization-only edit:
-breakpoint discovery and debugger observability require a separate lifetime
-design and tests.
+The probe first addressed measurement safety by rotating runtimes every
+`--runtime-batch` operations (25 by default), seeding compile pools outside the
+measured region, and forcing GC outside timed intervals. It reports produced
+units per batch and live registered units after GC separately.
 
-The implemented probe path rotates runtimes every `--runtime-batch` operations
-(25 by default), seeds compile pools outside the measured region, and forces GC
-only after the retired runtime is disposed. A default linq-js run reported 462.00
-units/op, 12,012 maximum retained units (26 outputs including the seed), and a
-97.7 MiB process peak working set. This makes the lifetime visible and keeps the
-same production registration semantics without GB-scale growth.
+The production registry now uses `ConditionalWeakTable` identity tables for the
+agent-wide and per-source-path indexes. Live functions and scripts continue to
+own their `JsScript`; active breakpoint patches also retain patched scripts until
+the breakpoint is disposed. Unreferenced compile/eval results can be collected,
+and empty source-path tables are compacted after collections. Focused tests cover
+both reclamation and breakpoint retention.
+
+With 100 measured linq-js compilations in one runtime, the strong-registry
+baseline retained all 46,662 produced units after forced GC and peaked at 121.4
+MiB. The weak registry retained zero unreachable units and peaked at 69.2 MiB.
+Across three 10-operation batches it also reduced compilation from 1,827.35 to
+1,815.16 KB/op (-0.7%); in the 100-operation batch the result was 1,826.69 to
+1,797.34 KB/op (-1.6%). Timing varied with tiering and GC placement, so the
+lifetime and allocation results, not a timing percentage, are the acceptance
+gates.
 
 ### Shared source/debug ownership
 
@@ -184,11 +192,9 @@ slowed string-heavy parsing by about 20%, so it was rejected and removed.
 
 1. Construct each `JsScript` once. Gate on metadata tests, identical bytecode,
    deterministic allocation reduction, focused/full tests, and build warnings.
-2. Make `CompilerAllocProbe` report and bound retained script output explicitly.
-   Do not silently mutate production debugger lifetime for a benchmark.
-3. Reduce avoidable finalization copies only where ownership can transfer safely;
+2. Reduce avoidable finalization copies only where ownership can transfer safely;
    durable output arrays must remain exact and immutable to compiler pooling.
-4. Prototype lazy nested functions behind an internal boundary. First establish
+3. Prototype lazy nested functions behind an internal boundary. First establish
    source/scope metadata and first-use compile semantics; then measure startup,
    first call, repeated call, retained memory, and debugger behavior separately.
 

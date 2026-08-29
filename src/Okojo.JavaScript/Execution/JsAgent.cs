@@ -7,6 +7,7 @@ namespace Okojo.JavaScript.Execution;
 
 public sealed partial class JsAgent : IDisposable
 {
+    private static readonly object SScriptRegistrationMarker = new();
     private static readonly Action<object?> SInvokeActionJob = static state =>
         ((Action)state!).Invoke();
 
@@ -37,15 +38,14 @@ public sealed partial class JsAgent : IDisposable
     private readonly Queue<PendingJob> promiseJobs = new();
     private readonly List<JsRealm> realms = new();
     private readonly object realmsGate = new();
-    private readonly HashSet<JsScript> registeredScripts = new(ReferenceEqualityComparer.Instance);
+    private readonly ConditionalWeakTable<JsScript, object> registeredScripts = new();
     private readonly Dictionary<int, Symbol> registeredSymbolByAtom = new();
     private readonly object scriptRegistryGate = new();
-    private readonly Dictionary<string, HashSet<JsScript>> scriptsBySourcePath = new(
-        SourcePathComparer.Instance
-    );
-    private readonly HashSet<JsScript> scriptsWithoutSourcePath = new(
-        ReferenceEqualityComparer.Instance
-    );
+    private readonly Dictionary<
+        string,
+        ConditionalWeakTable<JsScript, object>
+    > scriptsBySourcePath = new(SourcePathComparer.Instance);
+    private readonly ConditionalWeakTable<JsScript, object> scriptsWithoutSourcePath = new();
     private readonly object stepGate = new();
     private readonly object symbolRegistryGate = new();
     private readonly object runtimeIdentity;
@@ -75,6 +75,8 @@ public sealed partial class JsAgent : IDisposable
     private bool isRunningPromiseJobs;
 
     private int nextPrivateBrandId;
+    private int lastScriptRegistryPruneCollectionCount = GC.CollectionCount(0);
+    private int scriptRegistrationsSincePrune;
     private DebuggerStepRequest? stepRequest;
     private volatile bool terminated;
 
@@ -423,7 +425,7 @@ public sealed partial class JsAgent : IDisposable
         ArgumentNullException.ThrowIfNull(script);
         lock (scriptRegistryGate)
         {
-            return registeredScripts.Contains(script);
+            return registeredScripts.TryGetValue(script, out _);
         }
     }
 
@@ -435,10 +437,10 @@ public sealed partial class JsAgent : IDisposable
                 sourcePath is { Length: > 0 }
                 && scriptsBySourcePath.TryGetValue(sourcePath, out var scripts)
             )
-                return scripts.ToArray();
+                return CollectLiveScripts(scripts);
 
-            if (sourcePath is null && scriptsWithoutSourcePath.Count != 0)
-                return scriptsWithoutSourcePath.ToArray();
+            if (sourcePath is null)
+                return CollectLiveScripts(scriptsWithoutSourcePath);
 
             return Array.Empty<JsScript>();
         }
@@ -448,7 +450,10 @@ public sealed partial class JsAgent : IDisposable
     {
         lock (scriptRegistryGate)
         {
-            return registeredScripts.ToArray();
+            var scripts = new List<JsScript>();
+            foreach (var entry in registeredScripts)
+                scripts.Add(entry.Key);
+            return scripts.ToArray();
         }
     }
 
@@ -462,12 +467,9 @@ public sealed partial class JsAgent : IDisposable
                 && scriptsBySourcePath.TryGetValue(sourcePath, out var scripts)
             )
             {
-                foreach (var registeredScript in scripts)
-                    breakpointRegistry.ArmPendingBreakpoints(this, registeredScript);
+                ArmLiveScripts(scripts);
                 return;
             }
-
-            if (script.SourcePath is null && scriptsWithoutSourcePath.Contains(script)) { }
 
             breakpointRegistry.ArmPendingBreakpoints(this, script);
         }
@@ -750,24 +752,36 @@ public sealed partial class JsAgent : IDisposable
 
     private void RegisterScriptRecursive(JsScript script)
     {
-        if (!registeredScripts.Add(script))
+        if (registeredScripts.TryGetValue(script, out _))
             return;
 
+        registeredScripts.Add(script, SScriptRegistrationMarker);
         script.Agent = this;
 
         if (script.SourcePath is { Length: > 0 } sourcePath)
         {
             if (!scriptsBySourcePath.TryGetValue(sourcePath, out var scripts))
             {
-                scripts = new(ReferenceEqualityComparer.Instance);
+                scripts = new();
                 scriptsBySourcePath[sourcePath] = scripts;
             }
 
-            scripts.Add(script);
+            scripts.Add(script, SScriptRegistrationMarker);
         }
         else
         {
-            scriptsWithoutSourcePath.Add(script);
+            scriptsWithoutSourcePath.Add(script, SScriptRegistrationMarker);
+        }
+
+        if (++scriptRegistrationsSincePrune >= 256)
+        {
+            var collectionCount = GC.CollectionCount(0);
+            if (collectionCount != lastScriptRegistryPruneCollectionCount)
+            {
+                PruneDeadScriptReferences();
+                lastScriptRegistryPruneCollectionCount = collectionCount;
+            }
+            scriptRegistrationsSincePrune = 0;
         }
 
         for (var i = 0; i < script.ObjectConstants.Length; i++)
@@ -775,6 +789,40 @@ public sealed partial class JsAgent : IDisposable
                 RegisterScriptRecursive(function.Script);
 
         breakpointRegistry.ArmPendingBreakpoints(this, script);
+    }
+
+    private static JsScript[] CollectLiveScripts(ConditionalWeakTable<JsScript, object> scripts)
+    {
+        var live = new List<JsScript>();
+        foreach (var entry in scripts)
+            live.Add(entry.Key);
+        return live.Count == 0 ? [] : live.ToArray();
+    }
+
+    private void ArmLiveScripts(ConditionalWeakTable<JsScript, object> scripts)
+    {
+        foreach (var entry in scripts)
+            breakpointRegistry.ArmPendingBreakpoints(this, entry.Key);
+    }
+
+    private void PruneDeadScriptReferences()
+    {
+        List<string>? emptySourcePaths = null;
+        foreach (var (sourcePath, scripts) in scriptsBySourcePath)
+            if (!HasAnyRegisteredScript(scripts))
+                (emptySourcePaths ??= []).Add(sourcePath);
+
+        if (emptySourcePaths is null)
+            return;
+        for (var i = 0; i < emptySourcePaths.Count; i++)
+            scriptsBySourcePath.Remove(emptySourcePaths[i]);
+    }
+
+    private static bool HasAnyRegisteredScript(ConditionalWeakTable<JsScript, object> scripts)
+    {
+        foreach (var _ in scripts)
+            return true;
+        return false;
     }
 
     internal string LoadModuleSourceByResolvedId(string resolvedId)
