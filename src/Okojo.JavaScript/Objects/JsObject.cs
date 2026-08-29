@@ -430,6 +430,8 @@ public class JsObject
 
     private void Transit(int atom, JsValue value, out SlotInfo slotInfo)
     {
+        // No local guard is needed: SetPropertyAtomWithReceiver dispatches dynamic layouts
+        // before this static transition helper is called.
         var shape = StaticNamedPropertyLayout.GetOrAddTransition(
             atom,
             JsShapePropertyFlags.Open,
@@ -774,6 +776,28 @@ public class JsObject
 
         if (definitions.Length == 0)
             return;
+
+        if (UsesDynamicNamedProperties)
+        {
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                ref readonly var definition = ref definitions[i];
+                if (definition.IsAccessor)
+                {
+                    AddDynamicAccessorProperty(
+                        definition.Atom,
+                        definition.Getter,
+                        definition.Setter,
+                        definition.Flags
+                    );
+                    continue;
+                }
+
+                AddDynamicDataProperty(definition.Atom, definition.Value, definition.Flags);
+            }
+
+            return;
+        }
 
         var prevShape = StaticNamedPropertyLayout;
         var nextShape = prevShape.AppendNoCollision(definitions);
@@ -1215,6 +1239,8 @@ public class JsObject
         JsShapePropertyFlags flags
     )
     {
+        // No local guard is needed: DefineOwnDataPropertyExact dispatches dynamic layouts
+        // before selecting this static-only slow path.
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             var existingAccessor =
@@ -1353,6 +1379,8 @@ public class JsObject
         JsShapePropertyFlags flags
     )
     {
+        // No local guard is needed: DefineAccessorPropertyAtom selects this helper only
+        // after checking UsesDynamicNamedProperties.
         var shape = StaticNamedPropertyLayout;
         if (shape.TryGetSlotInfo(atom, out var existing))
         {
@@ -1517,6 +1545,8 @@ public class JsObject
         bool hasSetter
     )
     {
+        // No local guard is needed: DefineOwnAccessorPropertyExact dispatches dynamic
+        // layouts before selecting this static-only slow path.
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             var existingAccessor =
@@ -1576,8 +1606,7 @@ public class JsObject
     {
         var mergedGetter = getter;
         var mergedSetter = setter;
-        var shape = StaticNamedPropertyLayout;
-        if (shape.TryGetSlotInfo(atom, out var existing))
+        if (NamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             if ((existing.Flags & JsShapePropertyFlags.HasGetter) != 0 && mergedGetter is null)
             {
@@ -1817,6 +1846,8 @@ public class JsObject
         out PropertyDescriptor descriptor
     )
     {
+        // No local guard is needed: both callers run only after their public entry point
+        // has dispatched dynamic layouts.
         if (StaticNamedPropertyLayout.TryGetSlotInfo(atom, out var info))
         {
             descriptor = CreatePropertyDescriptorFromSlotInfo(atom, info);
@@ -2174,6 +2205,8 @@ public class JsObject
         JsShapePropertyFlags flags
     )
     {
+        // No local guard is needed: DefineDataPropertyAtom checks the layout before
+        // selecting this static-only add helper.
         var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
         if (shape.StorageSlotCount > SlotsArray.Length)
@@ -2261,6 +2294,7 @@ public class JsObject
         Func<JsShapePropertyFlags, JsShapePropertyFlags> mapFlags
     )
     {
+        // Static-only helper: callers have already dispatched dynamic layouts.
         var shape = StaticNamedPropertyLayout;
         NamedPropertyLayout = shape.RewriteFlags(mapFlags);
     }
@@ -2272,6 +2306,7 @@ public class JsObject
         JsShapePropertyFlags newFlags
     )
     {
+        // Static-only helper: callers have already dispatched dynamic layouts.
         var shape = StaticNamedPropertyLayout;
         NamedPropertyLayout = shape.RewriteFlags(atom, mapFlags, newFlags);
     }
@@ -2284,6 +2319,7 @@ public class JsObject
         in JsValue targetSecondary
     )
     {
+        // Static-only helper: callers have already dispatched dynamic layouts.
         var shape = StaticNamedPropertyLayout;
         var currentEntries = shape.UnsafeEntries;
         var nextShape = shape.RebuildReplacingProperty(targetAtom, targetFlags);

@@ -484,4 +484,54 @@ public class OkojoDynamicPlainObjectTests
         Assert.That(realm.Global["f"].TryGetObject(out var functionObject), Is.True);
         Assert.That(functionObject!.UsesDynamicNamedProperties, Is.True);
     }
+
+    [Test]
+    public void ClassAccessor_Definition_Continues_After_Prototype_Promotes_To_DictionaryMode()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            class C {
+              x() {}
+              get x() { return 1; }
+              y() {}
+              get y() { return 2; }
+              get z() { return 3; }
+            }
+
+            globalThis.cPrototype = C.prototype;
+            const instance = new C();
+            instance.x === 1 && instance.y === 2 && instance.z === 3;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+        Assert.That(realm.Global["cPrototype"].TryGetObject(out var prototype), Is.True);
+        Assert.That(prototype!.UsesDynamicNamedProperties, Is.True);
+    }
+
+    [Test]
+    public void DictionaryStartPlainObject_DefineNewPropertiesNoCollision_Preserves_Layout()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var obj = new JsPlainObject(realm, useDictionaryMode: true);
+        var atomA = realm.Atoms.InternNoCheck("a");
+        var atomB = realm.Atoms.InternNoCheck("b");
+        var atomC = realm.Atoms.InternNoCheck("c");
+        var getter = new JsHostFunction(realm, static (in _) => JsValue.FromInt32(3), "get_c", 0);
+
+        obj.DefineNewPropertiesNoCollision(
+            realm,
+            [
+                PropertyDefinition.OpenData(atomA, JsValue.FromInt32(1)),
+                PropertyDefinition.OpenData(atomB, JsValue.FromInt32(2)),
+                PropertyDefinition.GetterData(atomC, getter),
+            ]
+        );
+
+        Assert.That(obj.UsesDynamicNamedProperties, Is.True);
+        Assert.That(obj["a"].Int32Value, Is.EqualTo(1));
+        Assert.That(obj["b"].Int32Value, Is.EqualTo(2));
+        Assert.That(obj["c"].Int32Value, Is.EqualTo(3));
+    }
 }
