@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Numerics;
-using System.Text;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -1147,14 +1146,27 @@ internal abstract partial class JsCompilerBase
 
     private static string? GetCallSiteDebugName(JsAst ast, int nodeIndex)
     {
-        var builder = new StringBuilder();
-        return AppendCallSiteDebugName(ast, nodeIndex, builder, 0) ? builder.ToString() : null;
+        ref readonly var node = ref ast[nodeIndex];
+        if (node.Kind == AstKind.Identifier)
+            return ast.GetString(node.Arg0);
+
+        var builder = new PooledCharBuilder(stackalloc char[64]);
+        try
+        {
+            return AppendCallSiteDebugName(ast, nodeIndex, ref builder, 0)
+                ? builder.ToString()
+                : null;
+        }
+        finally
+        {
+            builder.Dispose();
+        }
     }
 
     private static bool AppendCallSiteDebugName(
         JsAst ast,
         int nodeIndex,
-        StringBuilder builder,
+        ref PooledCharBuilder builder,
         int depth
     )
     {
@@ -1189,18 +1201,18 @@ internal abstract partial class JsCompilerBase
                 builder.Append('n');
                 return true;
             case AstKind.StringLiteral:
-                AppendQuotedCallSiteString(builder, ast.GetString(node.Arg0));
+                AppendQuotedCallSiteString(ref builder, ast.GetString(node.Arg0));
                 return true;
             case AstKind.OptionalChainExpression:
-                return AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1);
+                return AppendCallSiteDebugName(ast, node.Arg0, ref builder, depth + 1);
             case AstKind.CallExpression:
             case AstKind.OptionalCallExpression:
-                if (!AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1))
+                if (!AppendCallSiteDebugName(ast, node.Arg0, ref builder, depth + 1))
                     return false;
                 builder.Append("(...)");
                 return true;
             case AstKind.MemberExpression:
-                if (!AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1))
+                if (!AppendCallSiteDebugName(ast, node.Arg0, ref builder, depth + 1))
                     return false;
 
                 var flags = (AstMemberFlags)node.Arg2;
@@ -1223,7 +1235,7 @@ internal abstract partial class JsCompilerBase
                 }
 
                 builder.Append(optional ? "?.[" : "[");
-                if (!AppendCallSiteDebugName(ast, node.Arg1, builder, depth + 1))
+                if (!AppendCallSiteDebugName(ast, node.Arg1, ref builder, depth + 1))
                     return false;
                 builder.Append(']');
                 return true;
@@ -1232,7 +1244,7 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    private static void AppendQuotedCallSiteString(StringBuilder builder, string value)
+    private static void AppendQuotedCallSiteString(ref PooledCharBuilder builder, string value)
     {
         builder.Append('"');
         for (var i = 0; i < value.Length; i++)

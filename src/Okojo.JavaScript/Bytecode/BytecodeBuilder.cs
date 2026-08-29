@@ -975,60 +975,53 @@ public sealed class BytecodeBuilder : IDisposable
             || privateFieldDebugNames.Count != 0
         )
         {
-            var nameIndexByText = new Dictionary<string, int>(StringComparer.Ordinal);
-            var names = new List<string>();
-
-            static int InternName(Dictionary<string, int> map, List<string> namesList, string name)
+            var nameIndexByText = realm.RentCompileDictionary<string, int>();
+            var names = realm.RentCompileList<string>();
+            try
             {
-                if (map.TryGetValue(name, out var existing))
-                    return existing;
-                var index = namesList.Count;
-                namesList.Add(name);
-                map.Add(name, index);
-                return index;
+                if (callSiteDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        callSiteDebugNames,
+                        nameIndexByText,
+                        names,
+                        out callSiteDebugPcs,
+                        out callSiteDebugNameIndices
+                    );
+
+                if (runtimeCallDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        runtimeCallDebugNames,
+                        nameIndexByText,
+                        names,
+                        out runtimeCallDebugPcs,
+                        out runtimeCallDebugNameIndices
+                    );
+
+                if (tdzReadDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        tdzReadDebugNames,
+                        nameIndexByText,
+                        names,
+                        out tdzReadDebugPcs,
+                        out tdzReadDebugNameIndices
+                    );
+
+                if (privateFieldDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        privateFieldDebugNames,
+                        nameIndexByText,
+                        names,
+                        out privateFieldDebugKeys,
+                        out privateFieldDebugNameIndices
+                    );
+
+                debugNames = names.ToArray();
             }
-
-            if (callSiteDebugNames.Count != 0)
-                BuildSortedDebugNameTable(
-                    callSiteDebugNames,
-                    nameIndexByText,
-                    names,
-                    out callSiteDebugPcs,
-                    out callSiteDebugNameIndices,
-                    static (value, map, list) => InternName(map, list, value)
-                );
-
-            if (runtimeCallDebugNames.Count != 0)
-                BuildSortedDebugNameTable(
-                    runtimeCallDebugNames,
-                    nameIndexByText,
-                    names,
-                    out runtimeCallDebugPcs,
-                    out runtimeCallDebugNameIndices,
-                    static (value, map, list) => InternName(map, list, value)
-                );
-
-            if (tdzReadDebugNames.Count != 0)
-                BuildSortedDebugNameTable(
-                    tdzReadDebugNames,
-                    nameIndexByText,
-                    names,
-                    out tdzReadDebugPcs,
-                    out tdzReadDebugNameIndices,
-                    static (value, map, list) => InternName(map, list, value)
-                );
-
-            if (privateFieldDebugNames.Count != 0)
-                BuildSortedDebugNameTable(
-                    privateFieldDebugNames,
-                    nameIndexByText,
-                    names,
-                    out privateFieldDebugKeys,
-                    out privateFieldDebugNameIndices,
-                    static (value, map, list) => InternName(map, list, value)
-                );
-
-            debugNames = names.ToArray();
+            finally
+            {
+                realm.ReturnCompileDictionary(nameIndexByText);
+                realm.ReturnCompileList(names);
+            }
         }
 
         GlobalBindingIcEntry[]? globalBindingIcEntries = null;
@@ -1365,8 +1358,7 @@ public sealed class BytecodeBuilder : IDisposable
         Dictionary<string, int> nameIndexByText,
         List<string> names,
         out int[] keys,
-        out int[] nameIndices,
-        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer
+        out int[] nameIndices
     )
     {
         keys = new int[source.Count];
@@ -1377,7 +1369,7 @@ public sealed class BytecodeBuilder : IDisposable
 
         Array.Sort(keys);
         for (var i = 0; i < keys.Length; i++)
-            nameIndices[i] = nameIndexer(source[keys[i]], nameIndexByText, names);
+            nameIndices[i] = InternDebugName(source[keys[i]], nameIndexByText, names);
     }
 
     private static void BuildSortedDebugNameTable(
@@ -1385,8 +1377,7 @@ public sealed class BytecodeBuilder : IDisposable
         Dictionary<string, int> nameIndexByText,
         List<string> names,
         out long[] keys,
-        out int[] nameIndices,
-        Func<string, Dictionary<string, int>, List<string>, int> nameIndexer
+        out int[] nameIndices
     )
     {
         keys = new long[source.Count];
@@ -1397,7 +1388,21 @@ public sealed class BytecodeBuilder : IDisposable
 
         Array.Sort(keys);
         for (var i = 0; i < keys.Length; i++)
-            nameIndices[i] = nameIndexer(source[keys[i]], nameIndexByText, names);
+            nameIndices[i] = InternDebugName(source[keys[i]], nameIndexByText, names);
+    }
+
+    private static int InternDebugName(
+        string name,
+        Dictionary<string, int> nameIndexByText,
+        List<string> names
+    )
+    {
+        if (nameIndexByText.TryGetValue(name, out var existing))
+            return existing;
+        var index = names.Count;
+        names.Add(name);
+        nameIndexByText.Add(name, index);
+        return index;
     }
 
     private void RememberLastEmit(JsOpCode op, ReadOnlySpan<byte> operands)

@@ -3,7 +3,7 @@ namespace Okojo.JavaScript.Parsing;
 internal sealed partial class JsLexer
 {
     private const int NumericSeparatorStackallocThreshold = 64;
-    private readonly List<JsBigInt> bigIntLiterals = new();
+    private List<JsBigInt>? bigIntLiterals;
     private readonly List<string> stringLiterals = new();
     public JsIdentifierTable IdentifierTable { get; } = new();
 
@@ -27,7 +27,11 @@ internal sealed partial class JsLexer
 
     public JsBigInt GetBigIntLiteral(in JsToken token)
     {
-        if (token.DataIndex < 0 || token.DataIndex >= bigIntLiterals.Count)
+        if (
+            bigIntLiterals is null
+            || token.DataIndex < 0
+            || token.DataIndex >= bigIntLiterals.Count
+        )
             throw new InvalidOperationException("Token does not reference a BigInt literal.");
 
         return bigIntLiterals[token.DataIndex];
@@ -51,6 +55,7 @@ internal sealed partial class JsLexer
 
     private int AddBigIntLiteral(JsBigInt value)
     {
+        bigIntLiterals ??= [];
         bigIntLiterals.Add(value);
         return bigIntLiterals.Count - 1;
     }

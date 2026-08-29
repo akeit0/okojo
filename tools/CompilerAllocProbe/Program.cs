@@ -3,83 +3,150 @@ using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Parsing;
 
-var source =
-    args.Length == 0
-        ? """
-            function makeCounters(n) {
-              const counters = [];
-              for (let i = 0; i < n; i++) {
-                counters.push(function () { return i * 2; });
-              }
-              return counters;
-            }
-            const fns = makeCounters(12);
-            let sum = 0;
-            for (const fn of fns) sum += fn();
-            function outer() {
-              var x = 1;
-              function mid() {
-                function inner() { x += 5; return x; }
-                return inner();
-              }
-              return mid() + x;
-            }
-            outer();
-            sum;
-            """
-        : File.ReadAllText(Path.GetFullPath(args[0]));
+var sourcePath = GetSourcePath();
+var source = sourcePath is null
+    ? """
+        function makeCounters(n) {
+          const counters = [];
+          for (let i = 0; i < n; i++) {
+            counters.push(function () { return i * 2; });
+          }
+          return counters;
+        }
+        const fns = makeCounters(12);
+        let sum = 0;
+        for (const fn of fns) sum += fn();
+        function outer() {
+          var x = 1;
+          function mid() {
+            function inner() { x += 5; return x; }
+            return inner();
+          }
+          return mid() + x;
+        }
+        outer();
+        sum;
+        """
+    : File.ReadAllText(Path.GetFullPath(sourcePath));
+
+var warmupCount = GetIntOption("--warmup", 100);
+var sampleCount = GetIntOption("--samples", 200);
 
 if (args.Contains("--strict", StringComparer.OrdinalIgnoreCase))
     source = "\"use strict\";" + Environment.NewLine + source;
 
-var realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
+using var runtime = JsRuntime.CreateBuilder().Build();
+var realm = runtime.DefaultRealm;
 
-for (var i = 0; i < 500; i++)
+for (var i = 0; i < warmupCount; i++)
 {
     using var ast = JavaScriptParser.ParseScript(source);
     _ = new JsScriptCompiler(realm).Compile(ast, null);
 }
-
-const int Samples = 200;
 
 // Phase attribution over many samples.
 long parseBytes = 0;
 long collectBytes = 0;
 long planBytes = 0;
 long compileRestBytes = 0;
+long parseTimestampTicks = 0;
+long collectTimestampTicks = 0;
+long planTimestampTicks = 0;
+long compileRestTimestampTicks = 0;
 
-// Internal stage APIs via IVT: replicate Compile(JsAst) pipeline manually.
-var compiler = new JsScriptCompiler(realm);
-
-// Warm the manual pipeline once to stabilize lazy state.
+PrepareMeasurement();
+for (var s = 0; s < sampleCount; s++)
 {
+    var astStart = GC.GetAllocatedBytesForCurrentThread();
+    var timestampStart = Stopwatch.GetTimestamp();
     using var ast = JavaScriptParser.ParseScript(source);
-    _ = compiler.Compile(ast, null);
+    parseTimestampTicks += Stopwatch.GetTimestamp() - timestampStart;
+    parseBytes += GC.GetAllocatedBytesForCurrentThread() - astStart;
 }
 
-for (var s = 0; s < Samples; s++)
+PrepareMeasurement();
+for (var s = 0; s < sampleCount; s++)
 {
-    var before = GC.GetTotalAllocatedBytes(precise: true);
-
-    var astStart = before;
     using var ast = JavaScriptParser.ParseScript(source);
-    parseBytes += GC.GetTotalAllocatedBytes(precise: true) - astStart;
-
-    var collectStart = GC.GetTotalAllocatedBytes(precise: true);
+    var collectStart = GC.GetAllocatedBytesForCurrentThread();
+    var timestampStart = Stopwatch.GetTimestamp();
     using var collected = CompilerBindingCollector.Collect(ast);
-    collectBytes += GC.GetTotalAllocatedBytes(precise: true) - collectStart;
-
-    var planStart = GC.GetTotalAllocatedBytes(precise: true);
-    using var plan = CompilerStoragePlanner.Plan(collected, ast);
-    planBytes += GC.GetTotalAllocatedBytes(precise: true) - planStart;
-
-    var restStart = GC.GetTotalAllocatedBytes(precise: true);
-    _ = compiler.Compile(ast, null);
-    compileRestBytes += GC.GetTotalAllocatedBytes(precise: true) - restStart;
+    collectTimestampTicks += Stopwatch.GetTimestamp() - timestampStart;
+    collectBytes += GC.GetAllocatedBytesForCurrentThread() - collectStart;
 }
 
-Console.WriteLine($"samples={Samples}");
-Console.WriteLine($"parse            : {parseBytes / (double)Samples / 1024:F2} KB/op");
-Console.WriteLine($"collect          : {collectBytes / (double)Samples / 1024:F2} KB/op");
-Console.WriteLine($"plan             : {planBytes / (double)Samples / 1024:F2} KB/op");
-Console.WriteLine($"compile(full dup): {compileRestBytes / (double)Samples / 1024:F2} KB/op");
+PrepareMeasurement();
+for (var s = 0; s < sampleCount; s++)
+{
+    using var ast = JavaScriptParser.ParseScript(source);
+    using var collected = CompilerBindingCollector.Collect(ast);
+    var planStart = GC.GetAllocatedBytesForCurrentThread();
+    var timestampStart = Stopwatch.GetTimestamp();
+    using var plan = CompilerStoragePlanner.Plan(collected, ast);
+    planTimestampTicks += Stopwatch.GetTimestamp() - timestampStart;
+    planBytes += GC.GetAllocatedBytesForCurrentThread() - planStart;
+}
+
+PrepareMeasurement();
+for (var s = 0; s < sampleCount; s++)
+{
+    using var ast = JavaScriptParser.ParseScript(source);
+    var restStart = GC.GetAllocatedBytesForCurrentThread();
+    var timestampStart = Stopwatch.GetTimestamp();
+    _ = new JsScriptCompiler(realm).Compile(ast, null);
+    compileRestTimestampTicks += Stopwatch.GetTimestamp() - timestampStart;
+    compileRestBytes += GC.GetAllocatedBytesForCurrentThread() - restStart;
+}
+
+Console.WriteLine($"warmup={warmupCount} samples={sampleCount}");
+WritePhase("parse", parseBytes, parseTimestampTicks);
+WritePhase("collect", collectBytes, collectTimestampTicks);
+WritePhase("plan", planBytes, planTimestampTicks);
+WritePhase("compile(full)", compileRestBytes, compileRestTimestampTicks);
+
+void WritePhase(string name, long allocatedBytes, long timestampTicks)
+{
+    var kilobytesPerOperation = allocatedBytes / (double)sampleCount / 1024;
+    var microsecondsPerOperation = timestampTicks * 1_000_000d / Stopwatch.Frequency / sampleCount;
+    Console.WriteLine(
+        $"{name, -14}: {kilobytesPerOperation, 8:F2} KB/op {microsecondsPerOperation, 9:F2} us/op"
+    );
+}
+
+int GetIntOption(string option, int fallback)
+{
+    for (var i = 0; i < args.Length; i++)
+    {
+        if (!string.Equals(args[i], option, StringComparison.OrdinalIgnoreCase))
+            continue;
+        if (i + 1 < args.Length && int.TryParse(args[i + 1], out var value) && value > 0)
+            return value;
+        throw new ArgumentException($"{option} requires a positive integer.");
+    }
+    return fallback;
+}
+
+string? GetSourcePath()
+{
+    for (var i = 0; i < args.Length; i++)
+    {
+        if (
+            string.Equals(args[i], "--warmup", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(args[i], "--samples", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            i++;
+            continue;
+        }
+        if (!args[i].StartsWith("--", StringComparison.Ordinal))
+            return args[i];
+    }
+    return null;
+}
+
+static void PrepareMeasurement()
+{
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+    GC.Collect();
+}

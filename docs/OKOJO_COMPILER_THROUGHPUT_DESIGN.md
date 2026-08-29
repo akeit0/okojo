@@ -117,6 +117,56 @@ Takeaways:
 Reproduce:
 `dotnet run --project benchmarks/Okojo.Benchmarks -c Release --no-build -- --filter "*ParseCompile*"`
 
+### Output-preserving allocation pass (2026-08-30)
+
+This pass targeted frontend work and temporary compiler diagnostics state. It did
+not change opcode selection, operands, register counts, constants, or runtime
+semantics.
+
+- The lexer now allocates its BigInt literal side list only when a BigInt literal
+  is actually scanned.
+- Direct identifier call-site diagnostics reuse the identifier string already
+  owned by `JsAst`. Composite call-site names use a 64-character stack-backed
+  `PooledCharBuilder` instead of allocating a `StringBuilder` and its backing
+  storage.
+- `BytecodeBuilder.ToScript()` rents the temporary debug-name interning list and
+  dictionary from the realm compile pool and uses a direct static intern helper.
+  The immutable arrays retained by `JsScript` are unchanged.
+- `CompilerAllocProbe` now measures phases independently, uses current-thread
+  allocation accounting, creates a fresh compiler per production-shaped sample,
+  forces collection between phase groups, and accepts bounded `--warmup` and
+  `--samples` counts (defaulting to 100 and 200). Reusing one compiler in the
+  previous probe accumulated compiler state and made long runs report growing
+  per-operation allocation. Independently, every completed `JsScript` and its
+  nested function scripts are registered recursively in the agent's strong
+  script registries. Repeated same-realm compile benchmarks therefore retain
+  their output and can grow into gigabytes; the reported compile allocation
+  includes durable bytecode/debugger output and registry growth, not only
+  transient compiler work. The bounded defaults prevent the probe from becoming
+  an unbounded retention test, but a later measurement path should explicitly
+  separate registered output size from transient allocation.
+
+Median of three interleaved baseline/candidate process runs:
+
+| corpus / phase | baseline allocation | candidate allocation | baseline time | candidate time |
+|---|---:|---:|---:|---:|
+| closures parse | 2.34 KB/op | 2.30 KB/op (-1.7%) | 17.38 us | 17.19 us (-1.1%) |
+| closures compile, preparsed | 22.71 KB/op | 20.01 KB/op (-11.9%) | 111.41 us | 103.80 us (-6.8%) |
+| linq-js parse | 42.86 KB/op | 42.83 KB/op (-0.1%) | 2767.06 us | 2726.78 us (-1.5%) |
+| linq-js compile, preparsed | 2288.48 KB/op | 1957.90 KB/op (-14.4%) | 3999.72 us | 3844.41 us (-3.9%) |
+
+The closure corpus used 500 warmups and 2,000 samples per process. The 34 KB
+linq-js corpus used 100 warmups and 100 samples. Short timing deltas remain
+machine-sensitive; the allocation deltas are the primary gate.
+
+V8 keeps parser strings in parse-lifetime `AstRawString`/zone storage and renders
+call expressions through `CallPrinter` only on the exceptional diagnostics path.
+Okojo intentionally keeps its compile-time rendering because its flat AST is
+disposed after compilation, but follows the same lifetime principle by reusing
+AST strings and pooling or stack-backing temporary formatting state. A disassembly
+comparison covered 34 general compiler cases plus seven call/template/BigInt cases;
+every script count and normalized opcode sequence was identical.
+
 ## Current Compiler Architecture
 
 The implemented path has these properties:
