@@ -66,7 +66,7 @@ public class StackTraceTests
 
         Assert.That(realm.Accumulator.IsString, Is.True);
         var stack = realm.Accumulator.AsString();
-        Assert.That(stack, Does.Contain("TypeError: Not a function"));
+        Assert.That(stack, Does.Contain("TypeError: x is not a function"));
         Assert.That(stack, Does.Contain("at inner"));
         Assert.That(stack, Does.Contain("at outer"));
     }

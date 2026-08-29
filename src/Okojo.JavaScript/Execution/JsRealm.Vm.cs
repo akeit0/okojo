@@ -574,24 +574,7 @@ public sealed partial class JsRealm
         out string name
     )
     {
-        name = string.Empty;
-        if (
-            debugPcs is null
-            || nameIndices is null
-            || script.DebugNames is null
-            || debugPcs.Length == 0
-            || nameIndices.Length != debugPcs.Length
-        )
-            return false;
-
-        var index = Array.BinarySearch(debugPcs, pc);
-        if (index < 0)
-            return false;
-        var nameIndex = nameIndices[index];
-        if ((uint)nameIndex >= (uint)script.DebugNames.Length)
-            return false;
-        name = script.DebugNames[nameIndex];
-        return true;
+        return JsScriptDebugInfo.TryGetDebugName(script, pc, debugPcs, nameIndices, out name);
     }
 
     internal JsValue InvokeFunction(JsFunction fn, JsValue thisValue, ReadOnlySpan<JsValue> args)
@@ -4108,6 +4091,18 @@ public sealed partial class JsRealm
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     [DoesNotReturn]
+    private static void ThrowNonCallable(JsScript script, int opcodePc, bool isConstruct)
+    {
+        if (!script.TryGetCallSiteDebugNameAtPc(opcodePc, out var callSite))
+            ThrowNonCallable(isConstruct);
+
+        if (isConstruct)
+            ThrowTypeError("NOT_CONSTRUCTOR", $"{callSite} is not a constructor");
+        ThrowTypeError("NOT_CALLABLE", $"{callSite} is not a function");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [DoesNotReturn]
     private static void ThrowGeneratorNotConstructor()
     {
         ThrowTypeError("GENERATOR_NOT_CONSTRUCTOR", "generator function is not a constructor");
@@ -6798,7 +6793,7 @@ public sealed partial class JsRealm
         var flagsValue = Unsafe.Add(ref registers, argRegStart + 2);
 
         if (!calleeValue.TryGetObject(out var calleeObj) || calleeObj is not JsFunction)
-            ThrowTypeError("NOT_CALLABLE", "target is not a function");
+            ThrowNonCallable(script, opcodePc, isConstruct: false);
         var callee = (JsFunction)calleeObj;
 
         var savedSp = realm.StackTop;
@@ -6852,7 +6847,7 @@ public sealed partial class JsRealm
         var flagsValue = Unsafe.Add(ref registers, argRegStart + 1);
 
         if (!calleeValue.TryGetObject(out var calleeObj) || calleeObj is not JsFunction)
-            ThrowTypeError("NOT_CONSTRUCTOR", "constructor is not a function");
+            ThrowNonCallable(script, opcodePc, isConstruct: true);
         var callee = (JsFunction)calleeObj;
 
         var savedSp = realm.StackTop;

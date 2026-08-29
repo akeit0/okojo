@@ -5,6 +5,34 @@ namespace Okojo.JavaScript.Execution;
 
 internal static class JsScriptDebugInfo
 {
+    internal static bool TryGetDebugName(
+        JsScript script,
+        int pc,
+        int[]? debugPcs,
+        int[]? nameIndices,
+        out string name
+    )
+    {
+        name = string.Empty;
+        if (
+            debugPcs is null
+            || nameIndices is null
+            || script.DebugNames is null
+            || debugPcs.Length == 0
+            || nameIndices.Length != debugPcs.Length
+        )
+            return false;
+
+        var index = Array.BinarySearch(debugPcs, pc);
+        if (index < 0)
+            return false;
+        var nameIndex = nameIndices[index];
+        if ((uint)nameIndex >= (uint)script.DebugNames.Length)
+            return false;
+        name = script.DebugNames[nameIndex];
+        return true;
+    }
+
     internal static bool TryGetExactSourceLocation(
         JsScript script,
         int opcodePc,

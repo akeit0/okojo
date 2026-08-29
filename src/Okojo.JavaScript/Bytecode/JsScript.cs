@@ -13,6 +13,8 @@ public sealed record JsScript
         int[] AtomizedStringConstants,
         bool StrictDeclared = false,
         string[]? DebugNames = null,
+        int[]? CallSiteDebugPcs = null,
+        int[]? CallSiteDebugNameIndices = null,
         int[]? RuntimeCallDebugPcs = null,
         int[]? RuntimeCallDebugNameIndices = null,
         int[]? TdzReadDebugPcs = null,
@@ -42,6 +44,8 @@ public sealed record JsScript
         this.AtomizedStringConstants = AtomizedStringConstants;
         this.StrictDeclared = StrictDeclared;
         this.DebugNames = DebugNames;
+        this.CallSiteDebugPcs = CallSiteDebugPcs;
+        this.CallSiteDebugNameIndices = CallSiteDebugNameIndices;
         this.RuntimeCallDebugPcs = RuntimeCallDebugPcs;
         this.RuntimeCallDebugNameIndices = RuntimeCallDebugNameIndices;
         this.TdzReadDebugPcs = TdzReadDebugPcs;
@@ -79,6 +83,8 @@ public sealed record JsScript
     public int[] AtomizedStringConstants { get; init; }
     public bool StrictDeclared { get; init; }
     internal string[]? DebugNames { get; init; }
+    internal int[]? CallSiteDebugPcs { get; init; }
+    internal int[]? CallSiteDebugNameIndices { get; init; }
     internal int[]? RuntimeCallDebugPcs { get; init; }
     internal int[]? RuntimeCallDebugNameIndices { get; init; }
     internal int[]? TdzReadDebugPcs { get; init; }
@@ -173,5 +179,20 @@ public sealed record JsScript
     public IReadOnlyList<JsLocalDebugInfo>? GetVisibleLocalDebugInfosAtPc(int opcodePc)
     {
         return JsScriptDebugInfo.GetVisibleLocalInfos(this, opcodePc);
+    }
+
+    /// <summary>
+    ///     Gets the source-level callee expression associated with a call or construction
+    ///     instruction. This diagnostic metadata is absent for compiler-generated calls.
+    /// </summary>
+    public bool TryGetCallSiteDebugNameAtPc(int opcodePc, out string name)
+    {
+        return JsScriptDebugInfo.TryGetDebugName(
+            this,
+            opcodePc,
+            CallSiteDebugPcs,
+            CallSiteDebugNameIndices,
+            out name
+        );
     }
 }

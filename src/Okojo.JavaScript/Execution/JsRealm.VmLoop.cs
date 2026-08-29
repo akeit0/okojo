@@ -2920,7 +2920,11 @@ public sealed partial class JsRealm
                                 }
                                 else
                                 {
-                                    ThrowNonCallable(op == JsOpCode.Construct);
+                                    ThrowNonCallable(
+                                        currentFunc.Script,
+                                        GetPcOffset(ref bytecode, ref opcodePc),
+                                        op == JsOpCode.Construct
+                                    );
                                 }
                             }
                             break;

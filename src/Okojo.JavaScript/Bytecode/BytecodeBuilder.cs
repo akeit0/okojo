@@ -10,6 +10,7 @@ public sealed class BytecodeBuilder : IDisposable
     private const int ConstantDedupDictionaryThreshold = 32;
     private readonly List<int> activeTemporaryRegisters;
     private readonly List<int> atomizedStringConstants;
+    private readonly Dictionary<int, string> callSiteDebugNames;
     private readonly List<byte> code;
     private readonly Dictionary<int, int> debugSourceOffsets;
     private readonly List<int> freeTemporaryRegisters;
@@ -50,6 +51,7 @@ public sealed class BytecodeBuilder : IDisposable
         numericConstants = realm.RentCompileList<double>(32);
         objectConstants = realm.RentCompileList<object>(64);
         atomizedStringConstants = realm.RentCompileList<int>(64);
+        callSiteDebugNames = realm.RentCompileDictionary<int, string>(32);
         generatorSwitchTargets = realm.RentCompileList<int>(16);
         switchOnSmiTargets = realm.RentCompileList<int>(32);
         jumps16ToPatch = realm.RentCompileList<JumpInfo>(64);
@@ -851,6 +853,7 @@ public sealed class BytecodeBuilder : IDisposable
     {
         if (
             debugSourceOffsets.ContainsKey(pc)
+            || callSiteDebugNames.ContainsKey(pc)
             || runtimeCallDebugNames.ContainsKey(pc)
             || tdzReadDebugNames.ContainsKey(pc)
         )
@@ -866,6 +869,12 @@ public sealed class BytecodeBuilder : IDisposable
     public void AddRuntimeCallDebugName(int instructionPc, string name)
     {
         runtimeCallDebugNames[instructionPc] = name;
+    }
+
+    public void AddCallSiteDebugNameToLastInstruction(string? name)
+    {
+        if (lastEmittedPc >= 0 && !string.IsNullOrEmpty(name))
+            callSiteDebugNames[lastEmittedPc] = name;
     }
 
     public void AddTdzReadDebugName(int instructionPc, string name)
@@ -951,6 +960,8 @@ public sealed class BytecodeBuilder : IDisposable
             CopySortedIntMap(this.debugSourceOffsets, out debugPcOffsets, out debugSourceOffsets);
 
         string[]? debugNames = null;
+        int[]? callSiteDebugPcs = null;
+        int[]? callSiteDebugNameIndices = null;
         int[]? runtimeCallDebugPcs = null;
         int[]? runtimeCallDebugNameIndices = null;
         int[]? tdzReadDebugPcs = null;
@@ -958,7 +969,8 @@ public sealed class BytecodeBuilder : IDisposable
         long[]? privateFieldDebugKeys = null;
         int[]? privateFieldDebugNameIndices = null;
         if (
-            runtimeCallDebugNames.Count != 0
+            callSiteDebugNames.Count != 0
+            || runtimeCallDebugNames.Count != 0
             || tdzReadDebugNames.Count != 0
             || privateFieldDebugNames.Count != 0
         )
@@ -975,6 +987,16 @@ public sealed class BytecodeBuilder : IDisposable
                 map.Add(name, index);
                 return index;
             }
+
+            if (callSiteDebugNames.Count != 0)
+                BuildSortedDebugNameTable(
+                    callSiteDebugNames,
+                    nameIndexByText,
+                    names,
+                    out callSiteDebugPcs,
+                    out callSiteDebugNameIndices,
+                    static (value, map, list) => InternName(map, list, value)
+                );
 
             if (runtimeCallDebugNames.Count != 0)
                 BuildSortedDebugNameTable(
@@ -1021,6 +1043,8 @@ public sealed class BytecodeBuilder : IDisposable
             atomizedStringConstants.ToArray(),
             strictDeclared,
             debugNames,
+            callSiteDebugPcs,
+            callSiteDebugNameIndices,
             runtimeCallDebugPcs,
             runtimeCallDebugNameIndices,
             tdzReadDebugPcs,
@@ -1062,6 +1086,7 @@ public sealed class BytecodeBuilder : IDisposable
         realm.ReturnCompileList(switchOnSmiToPatch);
         realm.ReturnCompileDictionary(labelPositions);
         realm.ReturnCompileDictionary(globalBindingFeedbackSlotByName);
+        realm.ReturnCompileDictionary(callSiteDebugNames);
         realm.ReturnCompileDictionary(runtimeCallDebugNames);
         realm.ReturnCompileDictionary(tdzReadDebugNames);
         realm.ReturnCompileDictionary(privateFieldDebugNames);
@@ -1239,6 +1264,7 @@ public sealed class BytecodeBuilder : IDisposable
         RemapPcListInPlace(switchOnSmiTargets, newPcByOldPc);
         RemapPcListInPlace(generatorSwitchTargets, newPcByOldPc);
         RemapPcDictionaryInPlace(debugSourceOffsets, newPcByOldPc, PcRemapDirection.Previous);
+        RemapPcDictionaryInPlace(callSiteDebugNames, newPcByOldPc, PcRemapDirection.Previous);
         RemapPcDictionaryInPlace(runtimeCallDebugNames, newPcByOldPc, PcRemapDirection.Previous);
         RemapPcDictionaryInPlace(tdzReadDebugNames, newPcByOldPc, PcRemapDirection.Previous);
     }

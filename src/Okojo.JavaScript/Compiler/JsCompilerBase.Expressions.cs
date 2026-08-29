@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Text;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -475,6 +476,7 @@ internal abstract partial class JsCompilerBase
         try
         {
             ref readonly var tag = ref ast[node.Arg0];
+            var callSiteDebugName = GetCallSiteDebugName(ast, node.Arg0);
             var receiverRegister = -1;
             int functionRegister;
             if (tag.Kind == AstKind.MemberExpression)
@@ -555,6 +557,7 @@ internal abstract partial class JsCompilerBase
                     argumentStart,
                     substitutionCount + 1
                 );
+            builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
         }
         finally
         {
@@ -944,6 +947,7 @@ internal abstract partial class JsCompilerBase
         try
         {
             ref readonly var callee = ref ast[node.Arg0];
+            var callSiteDebugName = GetCallSiteDebugName(ast, node.Arg0);
             if (callee.Kind == AstKind.SuperExpression)
             {
                 if (optional)
@@ -967,7 +971,8 @@ internal abstract partial class JsCompilerBase
                         functionRegister,
                         reference.ObjectRegister,
                         node.Arg1,
-                        node.Arg2
+                        node.Arg2,
+                        callSiteDebugName
                     );
                     return;
                 }
@@ -978,6 +983,7 @@ internal abstract partial class JsCompilerBase
                     argumentStart,
                     node.Arg2
                 );
+                builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
                 return;
             }
             if (callee.Kind == AstKind.MemberExpression)
@@ -998,7 +1004,14 @@ internal abstract partial class JsCompilerBase
                     EmitOptionalChainNullCheck(functionRegister);
                 if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
                 {
-                    EmitSpreadCall(ast, functionRegister, objectRegister, node.Arg1, node.Arg2);
+                    EmitSpreadCall(
+                        ast,
+                        functionRegister,
+                        objectRegister,
+                        node.Arg1,
+                        node.Arg2,
+                        callSiteDebugName
+                    );
                     return;
                 }
                 var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
@@ -1008,6 +1021,7 @@ internal abstract partial class JsCompilerBase
                     argumentStart,
                     node.Arg2
                 );
+                builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
                 return;
             }
             if (
@@ -1048,7 +1062,8 @@ internal abstract partial class JsCompilerBase
                             chainFunctionRegister,
                             chainObjectRegister,
                             node.Arg1,
-                            node.Arg2
+                            node.Arg2,
+                            callSiteDebugName
                         );
                         EmitJump(chainDone);
                         builder.BindLabel(chainNullTarget);
@@ -1063,6 +1078,7 @@ internal abstract partial class JsCompilerBase
                         chainArgumentStart,
                         node.Arg2
                     );
+                    builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
                     EmitJump(chainDone);
                     builder.BindLabel(chainNullTarget);
                     builder.EmitLda(JsOpCode.LdaUndefined);
@@ -1089,6 +1105,7 @@ internal abstract partial class JsCompilerBase
                     optimizedArgumentStart,
                     node.Arg2
                 );
+                builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
                 return;
             }
 
@@ -1104,7 +1121,14 @@ internal abstract partial class JsCompilerBase
                 EmitOptionalChainNullCheck(directFunctionRegister);
             if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
             {
-                EmitSpreadCall(ast, directFunctionRegister, -1, node.Arg1, node.Arg2);
+                EmitSpreadCall(
+                    ast,
+                    directFunctionRegister,
+                    -1,
+                    node.Arg1,
+                    node.Arg2,
+                    callSiteDebugName
+                );
                 return;
             }
             var directArgumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
@@ -1113,11 +1137,127 @@ internal abstract partial class JsCompilerBase
                 directArgumentStart,
                 node.Arg2
             );
+            builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
         }
         finally
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    private static string? GetCallSiteDebugName(JsAst ast, int nodeIndex)
+    {
+        var builder = new StringBuilder();
+        return AppendCallSiteDebugName(ast, nodeIndex, builder, 0) ? builder.ToString() : null;
+    }
+
+    private static bool AppendCallSiteDebugName(
+        JsAst ast,
+        int nodeIndex,
+        StringBuilder builder,
+        int depth
+    )
+    {
+        if (depth >= 32)
+            return false;
+
+        ref readonly var node = ref ast[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.Identifier:
+                builder.Append(ast.GetString(node.Arg0));
+                return true;
+            case AstKind.ThisExpression:
+                builder.Append("this");
+                return true;
+            case AstKind.SuperExpression:
+                builder.Append("super");
+                return true;
+            case AstKind.NullLiteral:
+                builder.Append("null");
+                return true;
+            case AstKind.BooleanLiteral:
+                builder.Append(node.Arg0 != 0 ? "true" : "false");
+                return true;
+            case AstKind.NumericLiteral:
+                builder.Append(
+                    ast.GetNumber(node.Arg0).ToString("R", CultureInfo.InvariantCulture)
+                );
+                return true;
+            case AstKind.BigIntLiteral:
+                builder.Append(ast.GetString(node.Arg0));
+                builder.Append('n');
+                return true;
+            case AstKind.StringLiteral:
+                AppendQuotedCallSiteString(builder, ast.GetString(node.Arg0));
+                return true;
+            case AstKind.OptionalChainExpression:
+                return AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1);
+            case AstKind.CallExpression:
+            case AstKind.OptionalCallExpression:
+                if (!AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1))
+                    return false;
+                builder.Append("(...)");
+                return true;
+            case AstKind.MemberExpression:
+                if (!AppendCallSiteDebugName(ast, node.Arg0, builder, depth + 1))
+                    return false;
+
+                var flags = (AstMemberFlags)node.Arg2;
+                var optional = (flags & AstMemberFlags.OptionalChainLink) != 0;
+                if ((flags & AstMemberFlags.Computed) == 0)
+                {
+                    builder.Append(optional ? "?." : ".");
+                    if ((flags & AstMemberFlags.Private) != 0)
+                        builder.Append('#');
+                    builder.Append(ast.GetString(node.Arg1));
+                    return true;
+                }
+
+                ref readonly var key = ref ast[node.Arg1];
+                if (key.Kind == AstKind.StringLiteral)
+                {
+                    builder.Append(optional ? "?." : ".");
+                    builder.Append(ast.GetString(key.Arg0));
+                    return true;
+                }
+
+                builder.Append(optional ? "?.[" : "[");
+                if (!AppendCallSiteDebugName(ast, node.Arg1, builder, depth + 1))
+                    return false;
+                builder.Append(']');
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static void AppendQuotedCallSiteString(StringBuilder builder, string value)
+    {
+        builder.Append('"');
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            switch (c)
+            {
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '"':
+                    builder.Append("\\\"");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                default:
+                    builder.Append(c);
+                    break;
+            }
+        }
+        builder.Append('"');
     }
 
     private void EmitSuperCall(JsAst ast, int offset, int count)
@@ -1153,13 +1293,15 @@ internal abstract partial class JsCompilerBase
             EmitExpression(ast, node.Arg0);
             var functionRegister = builder.AllocateTemporaryRegister();
             EmitStar(functionRegister);
+            var callSiteDebugName = GetCallSiteDebugName(ast, node.Arg0);
             if (HasSpreadArgument(ast, node.Arg1, node.Arg2))
             {
-                EmitSpreadConstruct(ast, functionRegister, node.Arg1, node.Arg2);
+                EmitSpreadConstruct(ast, functionRegister, node.Arg1, node.Arg2, callSiteDebugName);
                 return;
             }
             var argumentStart = EmitCallArguments(ast, node.Arg1, node.Arg2);
             builder.EmitConstruct(functionRegister, argumentStart, node.Arg2);
+            builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
         }
         finally
         {
@@ -1227,7 +1369,8 @@ internal abstract partial class JsCompilerBase
         int functionRegister,
         int receiverRegister,
         int offset,
-        int count
+        int count,
+        string? callSiteDebugName
     )
     {
         var argumentStart = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
@@ -1247,9 +1390,16 @@ internal abstract partial class JsCompilerBase
             EmitStar(runtimeStart + 3 + i);
         }
         builder.EmitCallRuntime((int)RuntimeId.CallWithSpread, runtimeStart, count + 3);
+        builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
     }
 
-    private void EmitSpreadConstruct(JsAst ast, int functionRegister, int offset, int count)
+    private void EmitSpreadConstruct(
+        JsAst ast,
+        int functionRegister,
+        int offset,
+        int count,
+        string? callSiteDebugName
+    )
     {
         var argumentStart = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
         var runtimeStart = builder.AllocateTemporaryRegisterBlock(count + 2);
@@ -1263,6 +1413,7 @@ internal abstract partial class JsCompilerBase
             EmitStar(runtimeStart + 2 + i);
         }
         builder.EmitCallRuntime((int)RuntimeId.ConstructWithSpread, runtimeStart, count + 2);
+        builder.AddCallSiteDebugNameToLastInstruction(callSiteDebugName);
     }
 
     private bool TryGetDirectLocalRegister(JsAst ast, int nodeIndex, out int register)
