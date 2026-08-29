@@ -434,7 +434,7 @@ public partial class Intrinsics
                 var index = relativeIndex >= 0d ? (int)relativeIndex : len + (int)relativeIndex;
                 if (index < 0 || index >= len)
                     return JsValue.Undefined;
-                return JsValue.FromString(text[index].ToString());
+                return JsValue.FromLatin1Char(text[index]);
             },
             "at",
             1
@@ -452,9 +452,9 @@ public partial class Intrinsics
                 if (double.IsInfinity(position))
                     return JsValue.FromString(string.Empty);
                 var index = (int)position;
-                return JsValue.FromString(
-                    index < 0 || index >= text.Length ? string.Empty : text[index].ToString()
-                );
+                return index < 0 || index >= text.Length
+                    ? JsValue.FromString(string.Empty)
+                    : JsValue.FromLatin1Char(text[index]);
             },
             "charAt",
             1
@@ -1850,7 +1850,9 @@ public partial class Intrinsics
                     chars[i] = (char)code;
                 }
 
-                return JsValue.FromString(chars.ToString());
+                return args.Length == 1
+                    ? JsValue.FromLatin1Char(chars[0])
+                    : JsValue.FromString(chars.ToString());
             },
             "fromCharCode",
             1
@@ -2028,9 +2030,10 @@ public partial class Intrinsics
         }
 
         var index = (int)position;
-        result = JsValue.FromString(
-            index < 0 || index >= text.Length ? string.Empty : text[index].ToString()
-        );
+        result =
+            index < 0 || index >= text.Length
+                ? JsValue.FromString(string.Empty)
+                : JsValue.FromLatin1Char(text[index]);
         return true;
     }
 
@@ -2222,7 +2225,10 @@ public partial class Intrinsics
             chars[i] = (char)code;
         }
 
-        result = JsValue.FromString(chars.ToString());
+        result =
+            args.Length == 1
+                ? JsValue.FromLatin1Char(chars[0])
+                : JsValue.FromString(chars.ToString());
         return true;
     }
 

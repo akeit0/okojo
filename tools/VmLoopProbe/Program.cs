@@ -108,16 +108,20 @@ if (hold)
 }
 
 var samples = new double[iterations];
+var allocations = new long[iterations];
 var stopwatch = new Stopwatch();
 for (var i = 0; i < iterations; i++)
 {
+    var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
     stopwatch.Restart();
     RunOnce();
     stopwatch.Stop();
     samples[i] = stopwatch.Elapsed.TotalNanoseconds;
+    allocations[i] = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
 }
 
 Array.Sort(samples);
+Array.Sort(allocations);
 var totalMs = samples.Sum() / 1_000_000.0;
 var meanNs = samples.Average();
 var minNs = samples[0];
@@ -125,7 +129,7 @@ var medianNs = samples[samples.Length / 2];
 var maxNs = samples[^1];
 
 Console.WriteLine(
-    $"[result] case={caseName} mode={(function is null ? "script" : "function")} runs={iterations} mean_ns={meanNs:F1} median_ns={medianNs:F1} min_ns={minNs:F1} max_ns={maxNs:F1} total_ms={totalMs:F2}"
+    $"[result] case={caseName} mode={(function is null ? "script" : "function")} runs={iterations} mean_ns={meanNs:F1} median_ns={medianNs:F1} min_ns={minNs:F1} max_ns={maxNs:F1} total_ms={totalMs:F2} mean_alloc_bytes={allocations.Average():F1} median_alloc_bytes={allocations[iterations / 2]}"
 );
 if (profileOpcodes && !WriteOpcodeProfile())
     return 2;

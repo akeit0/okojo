@@ -1698,14 +1698,20 @@ public sealed partial class JsRealm
                                     pc = ref Unsafe.Add(ref pc, 1);
                                 }
 
-                                boolTemp = slotRef.TryGetObject(out obj);
-                                if (!boolTemp)
-                                    obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
+                                if (!slotRef.TryGetObject(out obj))
+                                {
+                                    acc = LoadPrimitiveNamedPropertySlowPath(
+                                        this,
+                                        slotRef,
+                                        intNum1
+                                    );
+                                    break;
+                                }
                                 if (
                                     CanUseNamedPropertyIc(
                                         namedPropertyIcEntries,
                                         intNum2,
-                                        boolTemp,
+                                        true,
                                         obj!,
                                         intNum1,
                                         out slotInfo
@@ -1722,7 +1728,7 @@ public sealed partial class JsRealm
                                     && TryGetNamedPropertyFromPrototypeIc(
                                         prototypeNamedPropertyIcEntries,
                                         intNum2,
-                                        boolTemp,
+                                        true,
                                         obj!,
                                         intNum1,
                                         out acc
@@ -1730,27 +1736,12 @@ public sealed partial class JsRealm
                                 )
                                     break;
 
-                                if (
-                                    boolTemp
-                                        ? obj!.TryGetPropertyAtom(
-                                            this,
-                                            intNum1,
-                                            out acc,
-                                            out slotInfo
-                                        )
-                                        : obj!.TryGetPropertyAtomWithReceiverValue(
-                                            this,
-                                            slotRef,
-                                            intNum1,
-                                            out acc,
-                                            out slotInfo
-                                        )
-                                )
+                                if (obj!.TryGetPropertyAtom(this, intNum1, out acc, out slotInfo))
                                     UpdateNamedPropertyIcAfterGet(
                                         namedPropertyIcEntries,
                                         prototypeNamedPropertyIcEntries,
                                         intNum2,
-                                        boolTemp,
+                                        true,
                                         obj!,
                                         intNum1,
                                         slotInfo
@@ -1784,7 +1775,10 @@ public sealed partial class JsRealm
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
                                 if (!slotRef.TryGetObject(out obj))
-                                    obj = ToObjectForPropertyAccessSlowPath(this, slotRef);
+                                {
+                                    acc = LoadPrimitiveKeyedPropertySlowPath(this, slotRef, acc);
+                                    break;
+                                }
 
                                 if (acc.IsInt32)
                                 {

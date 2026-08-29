@@ -2739,6 +2739,71 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private static JsValue LoadPrimitiveNamedPropertySlowPath(
+        JsRealm realm,
+        in JsValue receiver,
+        int atom
+    )
+    {
+        if (receiver.IsNullOrUndefined)
+            ThrowTypeError(
+                "PROPERTY_READ_ON_NULLISH",
+                "Cannot read properties of null or undefined"
+            );
+
+        if (receiver.IsString && atom == IdLength)
+            return JsValue.FromInt32(receiver.AsJsString().Length);
+
+        var holder =
+            GetPrimitivePrototype(realm, receiver) ?? realm.BoxPrimitiveForPropertyAccess(receiver);
+        _ = holder.TryGetPropertyAtomWithReceiverValue(realm, receiver, atom, out var value, out _);
+        return value;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static JsValue LoadPrimitiveKeyedPropertySlowPath(
+        JsRealm realm,
+        in JsValue receiver,
+        in JsValue key
+    )
+    {
+        if (receiver.IsNullOrUndefined)
+            ThrowTypeError(
+                "PROPERTY_READ_ON_NULLISH",
+                "Cannot read properties of null or undefined"
+            );
+
+        if (TryResolveRuntimePropertyKey(realm, key, out var index, out var atom))
+        {
+            if (receiver.IsString)
+            {
+                var text = receiver.AsJsString();
+                if (index < (uint)text.Length)
+                    return JsValue.FromLatin1Char(text[(int)index]);
+            }
+
+            _ = realm.BoxPrimitiveForPropertyAccess(receiver).TryGetElement(index, out var value);
+            return value;
+        }
+
+        return LoadPrimitiveNamedPropertySlowPath(realm, receiver, atom);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsObject? GetPrimitivePrototype(JsRealm realm, in JsValue receiver)
+    {
+        return receiver.Tag switch
+        {
+            Tag.JsTagString => realm.StringPrototype,
+            Tag.JsTagInt or Tag.JsTagFloat64 => realm.NumberPrototype,
+            Tag.JsTagBool => realm.BooleanPrototype,
+            Tag.JsTagBigInt => realm.BigIntPrototype,
+            Tag.JsTagSymbol => realm.SymbolPrototype,
+            _ => null,
+        };
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static JsValue HandleComparisonSlowPath(
         JsRealm realm,
         JsOpCode op,

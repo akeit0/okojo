@@ -83,7 +83,11 @@ public class JintSuiteComparisonBenchmarks
     [GlobalCleanup]
     public void Cleanup() => okojoRuntime.Dispose();
 
-    public IEnumerable<string> FileNames() => ScriptKeys;
+    public IEnumerable<string> FileNames()
+    {
+        var requested = Environment.GetEnvironmentVariable("OKOJO_BENCH_CASE");
+        return requested is null ? ScriptKeys : ScriptKeys.Where(key => key == requested);
+    }
 
     [ParamsSource(nameof(FileNames))]
     public string FileName { get; set; } = "minimal";

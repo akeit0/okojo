@@ -82,6 +82,38 @@ public class StringPrototypeTests
     }
 
     [Test]
+    public void Primitive_Property_Reads_Preserve_Receiver_Semantics()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        realm.Eval(
+            """
+            function receiver() { "use strict"; return typeof this + ":" + String(this); }
+            Object.defineProperty(String.prototype, "receiver", {
+              get: receiver
+            });
+            Object.defineProperty(Number.prototype, "receiver", { get: receiver });
+            Object.defineProperty(Boolean.prototype, "receiver", { get: receiver });
+            Object.defineProperty(BigInt.prototype, "receiver", { get: receiver });
+            Object.defineProperty(Symbol.prototype, "receiver", { get: receiver });
+            [
+              "abc".length,
+              "abc"[1],
+              "abc".receiver,
+              (42).receiver,
+              true["receiver"],
+              (7n).receiver,
+              Symbol("x")["receiver"]
+            ].join("|");
+            """
+        );
+
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("3|b|string:abc|number:42|boolean:true|bigint:7|symbol:Symbol(x)")
+        );
+    }
+
+    [Test]
     public void String_WellFormed_Methods_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;

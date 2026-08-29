@@ -209,7 +209,7 @@ public readonly struct JsValue : IEquatable<JsValue>
 
     // Single-character string cache (mirrors V8's single_character_string
     // table). Benign race on first use: competing stores hold equal values.
-    private static readonly JsString[] SingleCharacterStrings = new JsString[128];
+    private static readonly JsString[] SingleCharacterStrings = new JsString[256];
 
     public static JsValue FromLatin1Char(char value)
     {
