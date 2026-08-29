@@ -180,6 +180,25 @@ Thirty-four general disassemblies and the complete 462-unit linq-js disassembly
 remained byte-for-byte identical. A focused test also verifies reference-shared
 source metadata across nested units.
 
+### Compiler scope-stack reuse
+
+Each compiler unit previously allocated two `Stack<T>` instances for active
+lexical scopes and control-flow scopes. Eager compilation made this a fixed cost
+per emitted unit: linq-js allocated 924 stacks before considering their backing
+arrays. These collections are temporary compiler state, so they can use the
+existing per-realm compile collection pool and be cleared when a unit finishes.
+The module compiler now follows the same finalization path, while preserving its
+planned bindings until `CompileForExecution` has materialized module cells and
+hoisted-function metadata.
+
+Five interleaved fresh-process A/B runs against `92341bd` reported 18.91 to
+17.41 KB/op for the closure corpus (-7.9%) and 1,815.16 to 1,721.17 KB/op for
+linq-js (-5.2%, about 94 KB per source compile). Median elapsed time was 79.7 to
+80.3 us/op for closures and 2.911 to 2.973 ms/op for linq-js. The latter is a
+2.1% unfavorable result, so this change is accepted as an allocation/GC-pressure
+improvement and not claimed as a CPU-speed improvement. The complete 462-unit
+linq-js disassembly remained byte-for-byte identical.
+
 ### 5. Identifier scanning/interning
 
 The parser's main repeated work is `JsLexer.ReadIdentifier` followed by
@@ -194,7 +213,9 @@ slowed string-heavy parsing by about 20%, so it was rejected and removed.
    deterministic allocation reduction, focused/full tests, and build warnings.
 2. Reduce avoidable finalization copies only where ownership can transfer safely;
    durable output arrays must remain exact and immutable to compiler pooling.
-3. Prototype lazy nested functions behind an internal boundary. First establish
+3. Reuse temporary compiler collections when the retained capacity is bounded;
+   measure lookup/clearing overhead as well as allocation.
+4. Prototype lazy nested functions behind an internal boundary. First establish
    source/scope metadata and first-use compile semantics; then measure startup,
    first call, repeated call, retained memory, and debugger behavior separately.
 

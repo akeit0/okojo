@@ -115,7 +115,7 @@ internal sealed partial class JsScriptCompiler
         var result = ast.HasTopLevelAwait
             ? new JsModuleCompiler(Vm).WrapAsyncModule(script, ast)
             : script;
-        ReleasePlanStorage();
+        ReleaseCompilerStorage();
         return result;
     }
 

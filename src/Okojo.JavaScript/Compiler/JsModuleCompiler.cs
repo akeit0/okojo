@@ -18,6 +18,14 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
 
     public JsScript Compile(JsAst ast)
     {
+        var script = CompileCore(ast);
+        builder.Dispose();
+        ReleaseCompilerStorage();
+        return script;
+    }
+
+    private JsScript CompileCore(JsAst ast)
+    {
         ArgumentNullException.ThrowIfNull(ast);
         if (!ast.IsModule)
             throw new ArgumentException("A module JsAst is required.", nameof(ast));
@@ -65,7 +73,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
     internal ModuleExecutionCompilation CompileForExecution(JsAst ast)
     {
         deferHoistedFunctions = true;
-        var script = Compile(ast);
+        var script = CompileCore(ast);
         var initialContextSlots = new JsValue[rootContextSlotCount];
         Array.Fill(initialContextSlots, JsValue.Undefined);
         var bindings = GetPlannedBindings(0);
@@ -79,7 +87,14 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
                     )
             )
                 initialContextSlots[bindings[i].StorageIndex] = JsValue.TheHole;
-        return new(script, initialContextSlots, hoistedFunctions.ToArray());
+        var result = new ModuleExecutionCompilation(
+            script,
+            initialContextSlots,
+            hoistedFunctions.ToArray()
+        );
+        builder.Dispose();
+        ReleaseCompilerStorage();
+        return result;
     }
 
     internal JsScript WrapAsyncModule(JsScript bodyScript, JsAst ast)

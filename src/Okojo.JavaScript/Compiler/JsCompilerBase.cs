@@ -235,8 +235,8 @@ internal abstract partial class JsCompilerBase
     {
         Vm = realm;
         builder = new(realm);
-        activeScopes = [];
-        controlScopes = [];
+        activeScopes = realm.RentCompileStack<ActiveScope>(8);
+        controlScopes = realm.RentCompileStack<ControlScope>(8);
         visiblePrivateBindings =
             privateBindings
             ?? new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);

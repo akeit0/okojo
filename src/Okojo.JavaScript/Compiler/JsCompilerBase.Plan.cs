@@ -135,4 +135,11 @@ internal abstract partial class JsCompilerBase
         childScopeCounts = [];
         planScopeCount = 0;
     }
+
+    protected void ReleaseCompilerStorage()
+    {
+        ReleasePlanStorage();
+        Vm.ReturnCompileStack(activeScopes);
+        Vm.ReturnCompileStack(controlScopes);
+    }
 }

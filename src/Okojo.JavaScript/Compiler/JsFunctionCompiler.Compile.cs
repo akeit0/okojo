@@ -224,7 +224,7 @@ internal sealed partial class JsFunctionCompiler
         // Return all pooled collections before handing the finished script out;
         // skipping this made every nested-function compile pay full pool-rent cost.
         builder.Dispose();
-        ReleasePlanStorage();
+        ReleaseCompilerStorage();
         return result;
     }
 
