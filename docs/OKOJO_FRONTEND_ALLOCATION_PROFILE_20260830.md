@@ -44,6 +44,13 @@ The emitted-unit count and opcode sequence are checked with
 cases compare script count, register count, constants, and opcode/operand
 sequence before a candidate is accepted.
 
+The probe also reports `compile-array-payload`, a lower bound formed from the
+element payload of arrays reachable from every emitted script. It separates
+bytecode, constants, feedback, debug data, and other metadata. It deliberately
+does not estimate CLR array/object headers, string bodies, literal objects, or
+`JsScript`/`JsBytecodeFunction` instances, so it is an ownership guide rather
+than a replacement for allocated-byte measurement.
+
 CPU attribution used a sampled .NET trace as directional evidence. A trace
 captured around `CompilerAllocProbe` over-represented `Thread.PollGC` because the
 probe intentionally forces collections between phase groups, and allocation
@@ -100,6 +107,15 @@ switch tables, source/debug maps, debug-name tables, and local metadata for each
 unit. `Array.Copy` had substantial inclusive sampled activity. Most arrays are
 durable output and cannot simply be pooled or returned. Improvements must first
 distinguish exact-size durable arrays from temporary sorting/interning storage.
+
+After the accepted local optimizations, the probe reports 128.69 KB/op of
+durable array element payload for linq-js: 30.55 KB bytecode, 7.83 KB constants,
+20.99 KB feedback, 69.32 KB debug data, and no material miscellaneous metadata.
+This lower bound is only about 7.9% of the measured 1,625.91 KB/op compilation
+allocation. Array/object headers and referenced literal/function objects make
+the real output floor higher, but the gap confirms that indiscriminate final
+array pooling cannot address most remaining allocation. Avoiding creation of
+unused units through lazy nested compilation has much greater leverage.
 
 ### 3. Redundant `JsScript` record cloning
 

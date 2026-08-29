@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
@@ -96,6 +97,14 @@ Console.WriteLine(
         + $"{compile.PeakLiveRegisteredScriptUnitsAfterGc} max-live-registered-units-after-gc"
 );
 Console.WriteLine(
+    $"compile-array-payload: {compile.OutputPayload.TotalBytes / (double)sampleCount / 1024:F2} KB/op "
+        + $"(bytecode {compile.OutputPayload.BytecodeBytes / (double)sampleCount / 1024:F2}, "
+        + $"constants {compile.OutputPayload.ConstantBytes / (double)sampleCount / 1024:F2}, "
+        + $"feedback {compile.OutputPayload.FeedbackBytes / (double)sampleCount / 1024:F2}, "
+        + $"debug {compile.OutputPayload.DebugBytes / (double)sampleCount / 1024:F2}, "
+        + $"metadata {compile.OutputPayload.MetadataBytes / (double)sampleCount / 1024:F2})"
+);
+Console.WriteLine(
     $"process-peak-working-set: {Process.GetCurrentProcess().PeakWorkingSet64 / 1024d / 1024d:F1} MiB"
 );
 
@@ -173,6 +182,7 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
     long allocatedBytes = 0;
     long timestampTicks = 0;
     long scriptUnits = 0;
+    var outputPayload = new ScriptOutputPayload();
     var peakProducedScriptUnits = 0;
     var peakLiveRegisteredScriptUnitsAfterGc = 0;
     var remaining = sampleCount;
@@ -199,8 +209,9 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
                 var operation = MeasureCompileOperation(realm, ast);
                 timestampTicks += operation.TimestampTicks;
                 allocatedBytes += operation.AllocatedBytes;
-                scriptUnits += operation.ScriptUnits;
-                retainedScriptUnits += operation.ScriptUnits;
+                scriptUnits += operation.OutputPayload.ScriptUnits;
+                outputPayload += operation.OutputPayload;
+                retainedScriptUnits += operation.OutputPayload.ScriptUnits;
             }
 
             PrepareMeasurement();
@@ -219,6 +230,7 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
         allocatedBytes,
         timestampTicks,
         scriptUnits,
+        outputPayload,
         peakProducedScriptUnits,
         peakLiveRegisteredScriptUnitsAfterGc
     );
@@ -228,7 +240,7 @@ static CompileMeasurement MeasureCompile(string source, int sampleCount, int run
 static int CompileAndCountUnits(Okojo.JavaScript.Execution.JsRealm realm, JsAst ast)
 {
     var script = new JsScriptCompiler(realm).Compile(ast, null);
-    return CountScriptUnits(script);
+    return MeasureScriptOutputPayload(script).ScriptUnits;
 }
 
 [MethodImpl(MethodImplOptions.NoInlining)]
@@ -242,30 +254,71 @@ static CompileOperationMeasurement MeasureCompileOperation(
     var script = new JsScriptCompiler(realm).Compile(ast, null);
     var timestampTicks = Stopwatch.GetTimestamp() - timestampStart;
     var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocationStart;
-    return new(allocatedBytes, timestampTicks, CountScriptUnits(script));
+    return new(allocatedBytes, timestampTicks, MeasureScriptOutputPayload(script));
 }
 
-static int CountScriptUnits(JsScript script)
+static ScriptOutputPayload MeasureScriptOutputPayload(JsScript script)
 {
     var scripts = new HashSet<JsScript>(ReferenceEqualityComparer.Instance);
-    AddScriptTree(script, scripts);
-    return scripts.Count;
+    var payload = new ScriptOutputPayload();
+    AddScriptTree(script, scripts, ref payload);
+    return payload;
 }
 
-static void AddScriptTree(JsScript script, HashSet<JsScript> scripts)
+static void AddScriptTree(
+    JsScript script,
+    HashSet<JsScript> scripts,
+    ref ScriptOutputPayload payload
+)
 {
     if (!scripts.Add(script))
         return;
 
+    payload.ScriptUnits++;
+    payload.BytecodeBytes += script.Bytecode.Length;
+    payload.ConstantBytes +=
+        script.NumericConstants.Length * sizeof(ulong)
+        + script.ObjectConstants.Length * IntPtr.Size
+        + script.AtomizedStringConstants.Length * sizeof(int);
+    payload.FeedbackBytes +=
+        (script.NamedPropertyIcEntries?.Length ?? 0) * Unsafe.SizeOf<OkojoNamedPropertyIcEntry>()
+        + (script.PrototypeNamedPropertyIcEntries?.Length ?? 0)
+            * Unsafe.SizeOf<OkojoPrototypeNamedPropertyIcEntry>()
+        + (script.GlobalBindingIcEntries?.Length ?? 0) * Unsafe.SizeOf<GlobalBindingIcEntry>();
+    payload.DebugBytes +=
+        (script.DebugNames?.Length ?? 0) * IntPtr.Size
+        + (
+            (script.CallSiteDebugPcs?.Length ?? 0)
+            + (script.CallSiteDebugNameIndices?.Length ?? 0)
+            + (script.RuntimeCallDebugPcs?.Length ?? 0)
+            + (script.RuntimeCallDebugNameIndices?.Length ?? 0)
+            + (script.TdzReadDebugPcs?.Length ?? 0)
+            + (script.TdzReadDebugNameIndices?.Length ?? 0)
+            + (script.DebugPcOffsets?.Length ?? 0)
+            + (script.DebugSourceOffsets?.Length ?? 0)
+            + (script.PrivateFieldDebugNameIndices?.Length ?? 0)
+        ) * sizeof(int)
+        + (script.PrivateFieldDebugKeys?.Length ?? 0) * sizeof(long)
+        + (script.LocalDebugInfos?.Length ?? 0) * Unsafe.SizeOf<JsLocalDebugInfo>();
+    payload.MetadataBytes +=
+        (
+            (script.GeneratorSwitchTargets?.Length ?? 0)
+            + (script.SwitchOnSmiTargets?.Length ?? 0)
+            + (script.TopLevelLexicalAtoms?.Length ?? 0)
+            + (script.TopLevelLexicalSlots?.Length ?? 0)
+        ) * sizeof(int)
+        + (script.TopLevelLexicalConstFlags?.Length ?? 0) * sizeof(bool);
+
     for (var i = 0; i < script.ObjectConstants.Length; i++)
         if (script.ObjectConstants[i] is JsBytecodeFunction function)
-            AddScriptTree(function.Script, scripts);
+            AddScriptTree(function.Script, scripts, ref payload);
 }
 
 readonly record struct CompileMeasurement(
     long AllocatedBytes,
     long TimestampTicks,
     long ScriptUnits,
+    ScriptOutputPayload OutputPayload,
     int PeakProducedScriptUnits,
     int PeakLiveRegisteredScriptUnitsAfterGc
 );
@@ -273,5 +326,32 @@ readonly record struct CompileMeasurement(
 readonly record struct CompileOperationMeasurement(
     long AllocatedBytes,
     long TimestampTicks,
-    int ScriptUnits
+    ScriptOutputPayload OutputPayload
 );
+
+record struct ScriptOutputPayload(
+    int ScriptUnits = 0,
+    long BytecodeBytes = 0,
+    long ConstantBytes = 0,
+    long FeedbackBytes = 0,
+    long DebugBytes = 0,
+    long MetadataBytes = 0
+)
+{
+    public readonly long TotalBytes =>
+        BytecodeBytes + ConstantBytes + FeedbackBytes + DebugBytes + MetadataBytes;
+
+    public static ScriptOutputPayload operator +(
+        ScriptOutputPayload left,
+        ScriptOutputPayload right
+    )
+    {
+        left.ScriptUnits += right.ScriptUnits;
+        left.BytecodeBytes += right.BytecodeBytes;
+        left.ConstantBytes += right.ConstantBytes;
+        left.FeedbackBytes += right.FeedbackBytes;
+        left.DebugBytes += right.DebugBytes;
+        left.MetadataBytes += right.MetadataBytes;
+        return left;
+    }
+}
