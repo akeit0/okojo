@@ -9,6 +9,18 @@ namespace Okojo.Tests;
 public class RegExpExternalEngineTests
 {
     [Test]
+    public void RegExpReplace_NoMatch_ReusesInputString()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var input = new string('a', 65_536);
+        realm.Global["input"] = input;
+
+        realm.Eval("input.replace(/z/g, 'x');");
+
+        Assert.That(realm.Accumulator.AsString(), Is.SameAs(input));
+    }
+
+    [Test]
     public void ExternalRegExpEngine_CompilesAndExecutes()
     {
         var engine = RegExpEngine.Default;

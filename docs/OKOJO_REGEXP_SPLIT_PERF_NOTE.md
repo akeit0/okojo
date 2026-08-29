@@ -58,7 +58,22 @@ cost turned out to be per-position JS glue around the VM, not the VM itself.
 - Probe: SplitEmpty 1683ms -> 203ms, SplitChar 384ms -> 117ms,
   full js scenario 2150ms -> 373ms per iteration.
 
+## Replace allocation follow-up (2026-08-29)
+
+- Allocation sampling on the full target attributed about 80% of bytes to
+  `System.String`; no-match and simple-string replace paths copied the 65KB
+  subject even though the result did not need the matched text.
+- V8 returns the subject directly when replacement finds no matches and keeps
+  match offsets for its simple-string replace path. Jint's corresponding path
+  likewise avoids an additional full-subject copy on a no-match result.
+- Okojo now returns the existing input value when no match was accepted and
+  uses the intrinsic match length without constructing `Substring` for simple
+  replacement.
+- Target-only `VmLoopProbe`: median allocation 186,605,808 -> 68,582,536 bytes
+  and median time 56.17 -> 41.12 ms. Reported Jint benchmark allocation was
+  79.94 MB.
+
 ## Deferred
 
 See TODO.md regexp follow-ups (lead-literal scan-ahead, general empty-match
-recognition, Exec allocation trimming).
+recognition, and remaining capture-result allocation trimming).

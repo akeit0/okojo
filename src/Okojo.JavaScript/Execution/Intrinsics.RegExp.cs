@@ -1286,6 +1286,7 @@ public partial class Intrinsics
                             "[Symbol.replace]"
                         );
                     var nextSourcePosition = 0;
+                    var matchedAny = false;
                     while (true)
                     {
                         if (
@@ -1352,14 +1353,16 @@ public partial class Intrinsics
                                 ? (int)ToLength(indexValue, realm)
                             : 0;
                         var matched =
-                            usedIntrinsicStep ? input.Substring(intrinsicStart, intrinsicLength)
+                            usedIntrinsicStep ? string.Empty
                             : rawMatch is not null ? rawMatch.Groups[0] ?? string.Empty
                             : matchObj!.TryGetElement(0, out var matchedValue)
                                 ? realm.ToJsStringSlowPath(matchedValue)
                             : "undefined";
+                        var matchedLength = usedIntrinsicStep ? intrinsicLength : matched.Length;
 
                         if (matchIndex < nextSourcePosition)
                             continue;
+                        matchedAny = true;
 
                         result.Append(input, nextSourcePosition, matchIndex - nextSourcePosition);
 
@@ -1442,12 +1445,12 @@ public partial class Intrinsics
                             {
                                 replacement = replacementTemplate;
                                 result.Append(replacement);
-                                nextSourcePosition = matchIndex + matched.Length;
+                                nextSourcePosition = matchIndex + matchedLength;
 
                                 if (!isGlobal)
                                     break;
 
-                                if (matched.Length == 0)
+                                if (matchedLength == 0)
                                 {
                                     var lastIndex = obj.TryGetPropertyAtom(
                                         realm,
@@ -1543,12 +1546,12 @@ public partial class Intrinsics
                         }
 
                         result.Append(replacement);
-                        nextSourcePosition = matchIndex + matched.Length;
+                        nextSourcePosition = matchIndex + matchedLength;
 
                         if (!isGlobal)
                             break;
 
-                        if (matched.Length == 0)
+                        if (matchedLength == 0)
                         {
                             var lastIndex = obj.TryGetPropertyAtom(
                                 realm,
@@ -1569,6 +1572,9 @@ public partial class Intrinsics
                             );
                         }
                     }
+
+                    if (!matchedAny)
+                        return inputValue;
 
                     if (nextSourcePosition < input.Length)
                         result.Append(input, nextSourcePosition, input.Length - nextSourcePosition);

@@ -153,11 +153,15 @@ static int RunShapes(string[] args)
         var realm = runtime.DefaultRealm;
         var script = JsCompiler.Compile(realm, preamble + body);
         realm.Execute(script, pumpJobsAfterRun: false);
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < iterations; i++)
             realm.Execute(script, pumpJobsAfterRun: false);
         sw.Stop();
-        Console.WriteLine($"{name, -18} {sw.Elapsed.TotalMilliseconds / iterations, 9:F1} ms/iter");
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Console.WriteLine(
+            $"{name, -18} {sw.Elapsed.TotalMilliseconds / iterations, 9:F1} ms/iter {allocated / iterations, 12:N0} B/iter"
+        );
     }
     return 0;
 }
