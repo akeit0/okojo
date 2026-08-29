@@ -1858,7 +1858,7 @@ public class JsObject
         return false;
     }
 
-    private bool TrySetInheritedDescriptor(
+    internal bool TrySetInheritedDescriptor(
         JsRealm realm,
         JsObject receiver,
         int atom,

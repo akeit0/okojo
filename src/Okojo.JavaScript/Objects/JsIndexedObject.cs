@@ -5,7 +5,7 @@ namespace Okojo.JavaScript.Objects;
 /// <summary>
 /// Provides a public extension seam for host objects backed by a dynamic indexed collection.
 /// </summary>
-public abstract class JsIndexedObject : JsObject
+public abstract class JsIndexedObject : JsDynamicNamedObject
 {
     protected JsIndexedObject(JsRealm realm, JsObject? prototype = null)
         : base(realm)
@@ -18,12 +18,6 @@ public abstract class JsIndexedObject : JsObject
 
     protected abstract bool TryGetIndexedValue(uint index, out JsValue value);
 
-    protected virtual bool TryGetNamedValue(string name, out JsValue value)
-    {
-        value = JsValue.Undefined;
-        return false;
-    }
-
     internal override bool TryGetPropertyAtomWithReceiverValue(
         JsRealm realm,
         in JsValue receiverValue,
@@ -35,12 +29,6 @@ public abstract class JsIndexedObject : JsObject
         if (atom == AtomTable.IdLength)
         {
             value = Math.Max(0, IndexedElementCount);
-            slotInfo = SlotInfo.Invalid;
-            return true;
-        }
-
-        if (atom >= 0 && TryGetNamedValue(realm.Atoms.AtomToString(atom), out value))
-        {
             slotInfo = SlotInfo.Invalid;
             return true;
         }
@@ -81,34 +69,6 @@ public abstract class JsIndexedObject : JsObject
         }
 
         return base.TryGetOwnElementDescriptor(index, out descriptor);
-    }
-
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
-        JsRealm realm,
-        int atom,
-        out PropertyDescriptor descriptor,
-        bool needDescriptor = true
-    )
-    {
-        if (atom >= 0 && TryGetNamedValue(realm.Atoms.AtomToString(atom), out var value))
-        {
-            descriptor = needDescriptor
-                ? PropertyDescriptor.Data(
-                    value,
-                    writable: false,
-                    enumerable: true,
-                    configurable: true
-                )
-                : default;
-            return true;
-        }
-
-        return base.TryGetOwnNamedPropertyDescriptorAtom(
-            realm,
-            atom,
-            out descriptor,
-            needDescriptor
-        );
     }
 
     internal override void CollectOwnElementIndices(List<uint> indicesOut, bool enumerableOnly)

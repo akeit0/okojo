@@ -59,9 +59,11 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
 - No engine evaluation API may silently run an unrelated host task.
 - Node-specific policy such as `nextTick` priority must not be imposed on
   browser hosts.
-- Host-owned indexed/exotic objects extend the public `JsIndexedObject` seam;
-  the engine keeps VM hook overrides internal, so external hosts do not need
-  an `InternalsVisibleTo` relationship.
+- Host-owned dynamic non-index string property collections extend
+  `JsDynamicNamedObject`; `JsIndexedObject` builds on that seam so a host object
+  can combine indexed and dynamic named properties. The engine keeps VM hook
+  overrides internal, so external hosts do not need an `InternalsVisibleTo`
+  relationship.
 - Boundary changes must preserve run-to-completion, module behavior, worker
   delivery, timers, and cross-realm ownership checks. A warning or failing test
   is a defect, not an accepted migration state.
