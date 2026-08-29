@@ -50,6 +50,10 @@ internal sealed partial class JsScriptCompiler
         bool validateGlobalDeclarations
     )
     {
+        scriptSourceCode =
+            string.IsNullOrEmpty(ast.SourceText) && sourcePath is null
+                ? null
+                : new SourceCode(ast.SourceText, sourcePath);
         builder.SetSourceText(ast.SourceText);
         strictDeclared = ast.StrictDeclared;
         isAsync = ast.HasTopLevelAwait;
@@ -100,9 +104,7 @@ internal sealed partial class JsScriptCompiler
         builder.Emit(JsOpCode.Return);
         var lexicalMetadata = BuildTopLevelLexicalMetadata();
         var script = builder.ToScript(
-            sourceCode: string.IsNullOrEmpty(ast.SourceText) && sourcePath is null
-                ? null
-                : new SourceCode(ast.SourceText, sourcePath),
+            sourceCode: scriptSourceCode,
             topLevelLexicalAtoms: lexicalMetadata?.Atoms,
             topLevelLexicalSlots: lexicalMetadata?.Slots,
             topLevelLexicalConstFlags: lexicalMetadata?.ConstFlags,

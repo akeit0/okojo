@@ -225,10 +225,12 @@ internal abstract partial class JsCompilerBase
     private readonly List<int> generatorResumeTargets = [];
     private IReadOnlyDictionary<string, PlannedPrivateBinding> visiblePrivateBindings;
     private IReadOnlyList<PrivateBrandSource> activeExactPrivateBrandSources = [];
+    protected SourceCode? scriptSourceCode;
 
     protected JsCompilerBase(
         JsRealm realm,
-        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null
+        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null,
+        SourceCode? scriptSourceCode = null
     )
     {
         Vm = realm;
@@ -238,6 +240,7 @@ internal abstract partial class JsCompilerBase
         visiblePrivateBindings =
             privateBindings
             ?? new Dictionary<string, PlannedPrivateBinding>(StringComparer.Ordinal);
+        this.scriptSourceCode = scriptSourceCode;
         RegisterPrivateDebugNames(visiblePrivateBindings);
     }
 

@@ -156,6 +156,22 @@ units/op, 12,012 maximum retained units (26 outputs including the seed), and a
 97.7 MiB process peak working set. This makes the lifetime visible and keeps the
 same production registration semantics without GB-scale growth.
 
+### Shared source/debug ownership
+
+Every eagerly compiled unit previously allocated a separate `SourceCode` wrapper
+around the same source string and path. Its line-start table is lazy, but if
+debugging requested locations from many nested units each wrapper could build a
+separate full-source line index. The compiler tree now creates one `SourceCode`
+per source compilation and shares it with the root, nested functions, and async
+module wrapper.
+
+Five bounded runs reported 18.79 to 18.64 KB/op for the closure corpus (-0.8%)
+and 1,841.75 to 1,827.35 KB/op for linq-js (-0.8%). The linq-js delta is about
+14.4 KB, matching 461 avoided wrappers. Timing was neutral within run noise.
+Thirty-four general disassemblies and the complete 462-unit linq-js disassembly
+remained byte-for-byte identical. A focused test also verifies reference-shared
+source metadata across nested units.
+
 ### 5. Identifier scanning/interning
 
 The parser's main repeated work is `JsLexer.ReadIdentifier` followed by

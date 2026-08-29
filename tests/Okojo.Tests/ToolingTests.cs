@@ -130,6 +130,36 @@ public class ToolingTests
     }
 
     [Test]
+    public void Compiler_SharesSourceCodeAcrossNestedScriptUnits()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = new JsScriptCompiler(realm).Compile(
+            "function outer() { function inner() {} return inner; } function sibling() {}",
+            "shared-source.js"
+        );
+        var scripts = new HashSet<JsScript>(ReferenceEqualityComparer.Instance);
+        AddScriptTree(script);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scripts, Has.Count.EqualTo(4));
+            Assert.That(script.SourcePath, Is.EqualTo("shared-source.js"));
+            Assert.That(
+                scripts.All(candidate => ReferenceEquals(candidate.SourceCode, script.SourceCode)),
+                Is.True
+            );
+        });
+
+        void AddScriptTree(JsScript candidate)
+        {
+            if (!scripts.Add(candidate))
+                return;
+            foreach (var function in candidate.ObjectConstants.OfType<JsBytecodeFunction>())
+                AddScriptTree(function.Script);
+        }
+    }
+
+    [Test]
     public void BytecodeBuilder_EmitTime_Peephole_Omits_Star_Ldar_Same_Register()
     {
         var realm = JsRuntime.Create().DefaultRealm;

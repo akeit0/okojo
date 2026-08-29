@@ -1,5 +1,6 @@
 using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler;
 
@@ -14,9 +15,10 @@ internal sealed partial class JsFunctionCompiler : JsCompilerBase
     internal JsFunctionCompiler(
         JsRealm realm,
         IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null,
-        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null
+        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null,
+        SourceCode? scriptSourceCode = null
     )
-        : base(realm, privateBindings)
+        : base(realm, privateBindings, scriptSourceCode)
     {
         this.inheritedCaptures =
             inheritedCaptures

@@ -186,9 +186,7 @@ internal sealed partial class JsFunctionCompiler
         }
 
         var script = builder.ToScript(
-            sourceCode: string.IsNullOrEmpty(ast.SourceText) && ast.SourcePath is null
-                ? null
-                : new SourceCode(ast.SourceText, ast.SourcePath),
+            sourceCode: scriptSourceCode,
             functionSourceText: functionSourceText ?? default
         );
         script.BindAgent(Vm.Agent);

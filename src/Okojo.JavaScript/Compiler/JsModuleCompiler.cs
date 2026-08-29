@@ -21,6 +21,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         ArgumentNullException.ThrowIfNull(ast);
         if (!ast.IsModule)
             throw new ArgumentException("A module JsAst is required.", nameof(ast));
+        scriptSourceCode = new SourceCode(ast.SourceText, ast.SourcePath);
         builder.SetSourceText(ast.SourceText);
         strictDeclared = true;
         isAsync = ast.HasTopLevelAwait;
@@ -56,7 +57,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
         PatchGeneratorSwitchTable();
-        var bodyScript = builder.ToScript(new SourceCode(ast.SourceText, ast.SourcePath));
+        var bodyScript = builder.ToScript(scriptSourceCode);
         bodyScript.BindAgent(Vm.Agent);
         return ast.HasTopLevelAwait ? WrapAsyncModule(bodyScript, ast) : bodyScript;
     }
@@ -102,7 +103,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         wrapper.Emit(JsOpCode.Star, (byte)functionRegister);
         wrapper.EmitCallUndefinedReceiver(functionRegister, 0, 0);
         wrapper.Emit(JsOpCode.Return);
-        var script = wrapper.ToScript(new SourceCode(ast.SourceText, ast.SourcePath));
+        var script = wrapper.ToScript(scriptSourceCode);
         script.BindAgent(Vm.Agent);
         return script;
     }

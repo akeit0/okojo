@@ -366,7 +366,8 @@ internal abstract partial class JsCompilerBase
         var functionCompiler = new JsFunctionCompiler(
             Vm,
             BuildChildCaptureBindings(),
-            visiblePrivateBindings
+            visiblePrivateBindings,
+            scriptSourceCode
         );
         var functionObject = functionCompiler.CompileFunction(
             ast,
