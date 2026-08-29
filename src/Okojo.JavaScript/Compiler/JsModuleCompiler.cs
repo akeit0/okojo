@@ -56,11 +56,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
         PatchGeneratorSwitchTable();
-        var bodyScript = builder.ToScript() with
-        {
-            SourceCode = new SourceCode(ast.SourceText, ast.SourcePath),
-            StrictDeclared = true,
-        };
+        var bodyScript = builder.ToScript(new SourceCode(ast.SourceText, ast.SourcePath));
         bodyScript.BindAgent(Vm.Agent);
         return ast.HasTopLevelAwait ? WrapAsyncModule(bodyScript, ast) : bodyScript;
     }
@@ -106,11 +102,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         wrapper.Emit(JsOpCode.Star, (byte)functionRegister);
         wrapper.EmitCallUndefinedReceiver(functionRegister, 0, 0);
         wrapper.Emit(JsOpCode.Return);
-        var script = wrapper.ToScript() with
-        {
-            SourceCode = new SourceCode(ast.SourceText, ast.SourcePath),
-            StrictDeclared = true,
-        };
+        var script = wrapper.ToScript(new SourceCode(ast.SourceText, ast.SourcePath));
         script.BindAgent(Vm.Agent);
         return script;
     }

@@ -98,6 +98,38 @@ public class ToolingTests
     }
 
     [Test]
+    public void BytecodeBuilder_ToScript_PreservesCompilerMetadataWithoutPostBuildClone()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        using var builder = new BytecodeBuilder(realm);
+        builder.SetStrictDeclared(true);
+        builder.Emit(JsOpCode.Return);
+        const string source = "function named() {}";
+        var sourceCode = new SourceCode(source, "metadata.js");
+        var functionSource = FunctionSourceTextSegment.FromWholeString(source);
+
+        var script = builder.ToScript(
+            sourceCode,
+            functionSource,
+            topLevelLexicalAtoms: [11, 12],
+            topLevelLexicalSlots: [1, 2],
+            topLevelLexicalConstFlags: [false, true],
+            suppressTopLevelLexicalRegistration: true
+        );
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(script.SourceCode, Is.SameAs(sourceCode));
+            Assert.That(script.StrictDeclared, Is.True);
+            Assert.That(script.FunctionSourceText, Is.EqualTo(functionSource));
+            Assert.That(script.TopLevelLexicalAtoms, Is.EqualTo(new[] { 11, 12 }));
+            Assert.That(script.TopLevelLexicalSlots, Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(script.TopLevelLexicalConstFlags, Is.EqualTo(new[] { false, true }));
+            Assert.That(script.SuppressTopLevelLexicalRegistration, Is.True);
+        });
+    }
+
+    [Test]
     public void BytecodeBuilder_EmitTime_Peephole_Omits_Star_Ldar_Same_Register()
     {
         var realm = JsRuntime.Create().DefaultRealm;

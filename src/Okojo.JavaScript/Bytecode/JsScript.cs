@@ -34,7 +34,9 @@ public sealed record JsScript
         long[]? PrivateFieldDebugKeys = null,
         int[]? PrivateFieldDebugNameIndices = null,
         JsLocalDebugInfo[]? LocalDebugInfos = null,
-        OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries = null
+        OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries = null,
+        SourceCode? SourceCode = null,
+        bool SuppressTopLevelLexicalRegistration = false
     )
     {
         this.Bytecode = Bytecode;
@@ -54,10 +56,13 @@ public sealed record JsScript
         this.GlobalBindingIcEntries = GlobalBindingIcEntries;
         this.DebugPcOffsets = DebugPcOffsets;
         this.DebugSourceOffsets = DebugSourceOffsets;
-        SourceCode =
-            SourceText is null && SourcePath is null
-                ? null
-                : new SourceCode(SourceText, SourcePath);
+        this.SourceCode =
+            SourceCode
+            ?? (
+                SourceText is null && SourcePath is null
+                    ? null
+                    : new SourceCode(SourceText, SourcePath)
+            );
         functionSourceText = FunctionSourceText;
         this.GeneratorSwitchTargets = GeneratorSwitchTargets;
         this.SwitchOnSmiTargets = SwitchOnSmiTargets;
@@ -68,6 +73,7 @@ public sealed record JsScript
         this.PrivateFieldDebugNameIndices = PrivateFieldDebugNameIndices;
         this.LocalDebugInfos = LocalDebugInfos;
         this.PrototypeNamedPropertyIcEntries = PrototypeNamedPropertyIcEntries;
+        this.SuppressTopLevelLexicalRegistration = SuppressTopLevelLexicalRegistration;
     }
 
     public byte[] Bytecode { get; init; }

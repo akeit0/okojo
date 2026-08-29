@@ -185,15 +185,12 @@ internal sealed partial class JsFunctionCompiler
                 );
         }
 
-        var script = builder.ToScript() with
-        {
-            SourceCode =
-                string.IsNullOrEmpty(ast.SourceText) && ast.SourcePath is null
-                    ? null
-                    : new SourceCode(ast.SourceText, ast.SourcePath),
-            StrictDeclared = metadata.StrictDeclared,
-            FunctionSourceText = functionSourceText ?? default,
-        };
+        var script = builder.ToScript(
+            sourceCode: string.IsNullOrEmpty(ast.SourceText) && ast.SourcePath is null
+                ? null
+                : new SourceCode(ast.SourceText, ast.SourcePath),
+            functionSourceText: functionSourceText ?? default
+        );
         script.BindAgent(Vm.Agent);
         var result = new JsBytecodeFunction(
             Vm,

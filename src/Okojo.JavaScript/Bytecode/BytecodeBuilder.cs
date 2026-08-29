@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Bytecode;
 
@@ -917,7 +918,41 @@ public sealed class BytecodeBuilder : IDisposable
         debugSourceOffsets[instructionPc] = sourceOffset;
     }
 
-    public JsScript ToScript()
+    public JsScript ToScript() =>
+        ToScriptCore(
+            sourceText is null ? null : new SourceCode(sourceText, null),
+            default,
+            null,
+            null,
+            null,
+            false
+        );
+
+    internal JsScript ToScript(
+        SourceCode? sourceCode,
+        FunctionSourceTextSegment functionSourceText = default,
+        int[]? topLevelLexicalAtoms = null,
+        int[]? topLevelLexicalSlots = null,
+        bool[]? topLevelLexicalConstFlags = null,
+        bool suppressTopLevelLexicalRegistration = false
+    ) =>
+        ToScriptCore(
+            sourceCode,
+            functionSourceText,
+            topLevelLexicalAtoms,
+            topLevelLexicalSlots,
+            topLevelLexicalConstFlags,
+            suppressTopLevelLexicalRegistration
+        );
+
+    private JsScript ToScriptCore(
+        SourceCode? sourceCode,
+        FunctionSourceTextSegment functionSourceText,
+        int[]? topLevelLexicalAtoms,
+        int[]? topLevelLexicalSlots,
+        bool[]? topLevelLexicalConstFlags,
+        bool suppressTopLevelLexicalRegistration
+    )
     {
         foreach (var jump in jumps16ToPatch)
             if (labelPositions.TryGetValue(jump.Target.Id, out var targetPos))
@@ -1048,8 +1083,8 @@ public sealed class BytecodeBuilder : IDisposable
             globalBindingIcEntries,
             debugPcOffsets,
             debugSourceOffsets,
-            sourceText,
-            FunctionSourceText: default,
+            SourceText: null,
+            FunctionSourceText: functionSourceText,
             GeneratorSwitchTargets: generatorSwitchTargets.Count == 0
                 ? null
                 : generatorSwitchTargets.ToArray(),
@@ -1059,7 +1094,12 @@ public sealed class BytecodeBuilder : IDisposable
             LocalDebugInfos: localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
             PrototypeNamedPropertyIcEntries: namedPropertyFeedbackSlotCount == 0
                 ? null
-                : new OkojoPrototypeNamedPropertyIcEntry[namedPropertyFeedbackSlotCount]
+                : new OkojoPrototypeNamedPropertyIcEntry[namedPropertyFeedbackSlotCount],
+            TopLevelLexicalAtoms: topLevelLexicalAtoms,
+            TopLevelLexicalSlots: topLevelLexicalSlots,
+            TopLevelLexicalConstFlags: topLevelLexicalConstFlags,
+            SourceCode: sourceCode,
+            SuppressTopLevelLexicalRegistration: suppressTopLevelLexicalRegistration
         );
     }
 

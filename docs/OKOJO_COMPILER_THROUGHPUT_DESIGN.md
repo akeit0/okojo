@@ -119,6 +119,10 @@ Reproduce:
 
 ### Output-preserving allocation pass (2026-08-30)
 
+The detailed commands, attribution caveats, V8 source comparison, retained-script
+lifetime finding, and prioritized follow-up gates are recorded in
+`OKOJO_FRONTEND_ALLOCATION_PROFILE_20260830.md`.
+
 This pass targeted frontend work and temporary compiler diagnostics state. It did
 not change opcode selection, operands, register counts, constants, or runtime
 semantics.

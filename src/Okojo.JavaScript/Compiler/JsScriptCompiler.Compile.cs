@@ -99,18 +99,15 @@ internal sealed partial class JsScriptCompiler
         EmitLdar(completionRegister);
         builder.Emit(JsOpCode.Return);
         var lexicalMetadata = BuildTopLevelLexicalMetadata();
-        var script = builder.ToScript() with
-        {
-            SourceCode =
-                string.IsNullOrEmpty(ast.SourceText) && sourcePath is null
-                    ? null
-                    : new SourceCode(ast.SourceText, sourcePath),
-            StrictDeclared = ast.StrictDeclared,
-            TopLevelLexicalAtoms = lexicalMetadata?.Atoms,
-            TopLevelLexicalSlots = lexicalMetadata?.Slots,
-            TopLevelLexicalConstFlags = lexicalMetadata?.ConstFlags,
-            SuppressTopLevelLexicalRegistration = suppressTopLevelLexicalRegistration,
-        };
+        var script = builder.ToScript(
+            sourceCode: string.IsNullOrEmpty(ast.SourceText) && sourcePath is null
+                ? null
+                : new SourceCode(ast.SourceText, sourcePath),
+            topLevelLexicalAtoms: lexicalMetadata?.Atoms,
+            topLevelLexicalSlots: lexicalMetadata?.Slots,
+            topLevelLexicalConstFlags: lexicalMetadata?.ConstFlags,
+            suppressTopLevelLexicalRegistration: suppressTopLevelLexicalRegistration
+        );
         script.BindAgent(Vm.Agent);
         builder.Dispose();
         var result = ast.HasTopLevelAwait
