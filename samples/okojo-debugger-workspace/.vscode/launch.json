@@ -2,19 +2,29 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Okojo: DAP inspection",
+      "type": "okojo",
+      "request": "launch",
+      "program": "${workspaceFolder}/dap-inspection.js",
+      "cwd": "${workspaceFolder}",
+      "debugServerProject": "${workspaceFolder}/../../src/Okojo.DebugServer/Okojo.DebugServer.csproj",
+      "checkInterval": 1024,
+      "stopOnEntry": true
+    },
+    {
       "name": "Okojo: Sample Launch (generated JS)",
       "type": "okojo",
       "request": "launch",
       "program": "${workspaceFolder}/dist/entry.mjs",
       "cwd": "${workspaceFolder}",
       "debugServerProject": "${workspaceFolder}/../../src/Okojo.DebugServer/Okojo.DebugServer.csproj",
-      "okojo.debugger.traceAdapter": true,
       "checkInterval": 1,
       "traceBreakpoints": true,
       "moduleEntry": true,
       "stopOnEntry": true,
       "stopOnDebuggerStatement": true,
-      "stopOnBreakpoint": true
+      "stopOnBreakpoint": true,
+      "traceAdapter": true
     },
     {
       "name": "Okojo: Sample Launch (TS source maps)",

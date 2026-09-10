@@ -1,8 +1,8 @@
 {
   "name": "okojo-vscode-debug",
   "displayName": "Okojo Debugger",
-  "description": "Debug Okojo scripts from Visual Studio Code.",
-  "version": "0.0.1",
+  "description": "Source and bytecode debugging for the Okojo JavaScript engine, with a reusable stdio DAP adapter.",
+  "version": "0.1.0",
   "publisher": "local",
   "private": true,
   "engines": {
@@ -13,11 +13,11 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-        "onDebugResolve:okojo",
-        "onCommand:okojo.showBytecode",
-        "onCommand:okojo.debugOptions",
-        "onLanguage:javascript",
-        "onLanguage:typescript"
+    "onDebugResolve:okojo",
+    "onCommand:okojo.showBytecode",
+    "onCommand:okojo.debugOptions",
+    "onLanguage:javascript",
+    "onLanguage:typescript"
   ],
   "contributes": {
     "configuration": {
@@ -26,7 +26,7 @@
         "okojo.debugger.openOnStop": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "If true, the debugger UI can open the bytecode viewer on stop once the transport is wired."
+          "markdownDescription": "Open the bytecode viewer when the active Okojo session stops."
         },
         "okojo.debugger.checkInterval": {
           "type": "number",
@@ -52,6 +52,16 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Emit verbose VS Code adapter request and host-command tracing."
+        },
+        "okojo.debugger.dotnetPath": {
+          "type": "string",
+          "default": "dotnet",
+          "description": "Path to the .NET 10 dotnet executable."
+        },
+        "okojo.debugger.debugServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional published Okojo.DebugServer executable or DLL."
         }
       }
     },
@@ -68,14 +78,14 @@
       }
     ],
     "debuggers": [
-        {
-          "type": "okojo",
-          "label": "Okojo",
-          "languages": [
-            "javascript",
-            "typescript"
-          ],
-        "program": "./dist/extension.js",
+      {
+        "type": "okojo",
+        "label": "Okojo",
+        "languages": [
+          "javascript",
+          "typescript"
+        ],
+        "program": "./dist/main.js",
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -113,19 +123,19 @@
                 "description": "Emit runtime breakpoint patch tracing to stderr.",
                 "default": false
               },
-                "traceAdapter": {
-                  "type": "boolean",
-                  "description": "Emit verbose VS Code adapter request and host-command tracing.",
-                  "default": false
-                },
-                "enableSourceMaps": {
-                  "type": "boolean",
-                  "description": "Enable source-map remapping so authored TypeScript sources can be debugged through generated JavaScript.",
-                  "default": false
-                },
-                "stopOnDebuggerStatement": {
-                  "type": "boolean",
-                  "description": "Pause on debugger statements.",
+              "traceAdapter": {
+                "type": "boolean",
+                "description": "Emit verbose VS Code adapter request and host-command tracing.",
+                "default": false
+              },
+              "enableSourceMaps": {
+                "type": "boolean",
+                "description": "Enable source-map remapping so authored TypeScript sources can be debugged through generated JavaScript.",
+                "default": false
+              },
+              "stopOnDebuggerStatement": {
+                "type": "boolean",
+                "description": "Pause on debugger statements.",
                 "default": true
               },
               "stopOnBreakpoint": {
@@ -165,8 +175,61 @@
               },
               "stopOnEntry": {
                 "type": "boolean",
-                "description": "Break on entry to the program.",
+                "description": "Stop at the pre-execution configuration barrier. Locals become available after execution starts.",
                 "default": false
+              },
+              "debugServerPath": {
+                "type": "string",
+                "description": "Published Okojo.DebugServer executable or DLL. Takes precedence over debugServerProject."
+              },
+              "debugServerArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Arguments preceding the standard flags when launching a published host."
+              },
+              "dotnetPath": {
+                "type": "string",
+                "default": "dotnet",
+                "description": "dotnet executable used for .csproj or .dll hosts."
+              },
+              "noBuild": {
+                "type": "boolean",
+                "default": false,
+                "description": "Use a previously built Release debug host when launching a project."
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "description": "Host environment overrides. null removes an inherited variable."
+              },
+              "startupTimeout": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 120000,
+                "description": "Host startup/configuration-stop timeout in milliseconds."
+              },
+              "requestTimeout": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 10000,
+                "description": "Host RPC timeout in milliseconds."
+              },
+              "stepGranularity": {
+                "type": "string",
+                "enum": [
+                  "line",
+                  "instruction"
+                ],
+                "default": "line",
+                "description": "Default stepping granularity. DAP per-request granularity takes precedence."
               }
             }
           }
@@ -176,17 +239,30 @@
             "name": "Okojo: Launch",
             "type": "okojo",
             "request": "launch",
-            "program": "${workspaceFolder}/test.js",
+            "program": "${file}",
             "cwd": "${workspaceFolder}",
-            "debugServerProject": "${workspaceFolder}/src/Okojo.DebugServer/Okojo.DebugServer.csproj",
             "checkInterval": 1024,
             "enableSourceMaps": false,
-            "moduleEntry": false,
             "stopOnDebuggerStatement": true,
             "stopOnBreakpoint": true,
             "stopOnEntry": false
           }
-        ]
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Okojo: Launch JavaScript",
+            "description": "Debug a script or ES module using Okojo.",
+            "body": {
+              "type": "okojo",
+              "request": "launch",
+              "name": "Okojo: Launch",
+              "program": "${workspaceFolder}/main.js",
+              "cwd": "${workspaceFolder}",
+              "stopOnEntry": true
+            }
+          }
+        ],
+        "runtime": "node"
       }
     ]
   },
@@ -194,13 +270,31 @@
     "compile": "tsc -p .",
     "build": "npm run compile",
     "watch": "tsc -w -p .",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "compile:adapter": "tsc -p tsconfig.adapter.json",
+    "test": "npm run compile:adapter && node --test test/*.test.cjs",
+    "test:engine": "npm run compile:adapter && node --test test/engine.e2e.cjs",
+    "dap": "node dist/main.js",
+    "package": "npx --yes @vscode/vsce package --allow-missing-repository"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.94.0",
-    "@vscode/debugadapter": "^1.68.0",
-    "@vscode/debugprotocol": "^1.68.0",
     "typescript": "^5.5.4"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akeit0/okojo"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Debugging launches local executable code."
+    },
+    "virtualWorkspaces": false
+  },
+  "bin": {
+    "okojo-dap": "./dist/main.js"
   }
 }

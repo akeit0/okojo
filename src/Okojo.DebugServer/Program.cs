@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using Okojo.DebugServer;
 using Okojo.Hosting;
@@ -6,6 +7,11 @@ using Okojo.JavaScript;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.SourceMaps;
+
+// The host protocol is newline-delimited JSON over stdio and must survive
+// non-ASCII source paths on machines whose ANSI code page is not UTF-8.
+Console.InputEncoding = Encoding.UTF8;
+Console.OutputEncoding = Encoding.UTF8;
 
 var options = DebugServerOptions.Parse(args);
 WriteVersionBanner();
@@ -16,7 +22,7 @@ if (!string.IsNullOrWhiteSpace(options.Cwd))
 if (string.IsNullOrWhiteSpace(options.ScriptPath))
 {
     Console.Error.WriteLine(
-        "Usage: Okojo.DebugServer --script <file.js|file.mjs> [--cwd <dir>] [--module-entry|--script-entry] [--break <source:line>] [--check-interval <n>] [--enable-source-maps] [--stop-entry] [--stop-debugger|--no-stop-debugger] [--stop-breakpoint|--no-stop-breakpoint] [--stop-call] [--stop-return] [--stop-pump] [--stop-suspend] [--stop-resume] [--stop-periodic]"
+        "Usage: Okojo.DebugServer --script <file.js|file.mjs> [--cwd <dir>] [--module-entry|--script-entry] [--break <source:line>] [--check-interval <n>] [--enable-source-maps] [--structured-output] [--stop-entry] [--stop-debugger|--no-stop-debugger] [--stop-breakpoint|--no-stop-breakpoint] [--stop-call] [--stop-return] [--stop-pump] [--stop-suspend] [--stop-resume] [--stop-periodic]"
     );
     return 2;
 }
@@ -36,8 +42,11 @@ using var runtime = JsRuntime.Create(builder =>
     if (options.CheckInterval != ulong.MaxValue)
         builder.UseAgent(agent => agent.SetCheckInterval(options.CheckInterval));
 });
-OkojoDebugConsole.Install(runtime.MainRealm);
 var session = new DebuggerSession(runtime.MainAgent, options);
+OkojoDebugConsole.Install(
+    runtime.MainRealm,
+    options.StructuredOutput ? session.PublishOutput : null
+);
 runtime.MainAgent.AttachDebugger(session);
 
 ApplyCheckpointHookSelection(runtime.MainAgent, options);
@@ -73,6 +82,11 @@ try
         runtime.MainRealm.Execute(script, options.PumpJobsAfterRun);
     }
 
+    session.PublishTerminated(0);
+    return 0;
+}
+catch (Exception) when (session.IsStopRequested)
+{
     session.PublishTerminated(0);
     return 0;
 }

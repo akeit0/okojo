@@ -54,3 +54,12 @@ Core steps 1–6 are implemented and their conformance gates are green (see
 - [ ] Implement true lazy nested bodies with owned binding summaries and a thread-safe compilation/error publication policy (proposal step 7).
 - [ ] Make module import/export binding plans portable before advertising compilation units as complete reusable modules. Current portable module units contain executable bodies only.
 - [ ] Define versioned bytecode serialization and private-name ID relocation before adding persistent caches.
+
+## DAP debugger follow-up
+
+- [x] Run the .NET build, focused/full tests, and CSharpier validation for the DAP implementation (done on Windows; see `docs/dap-debugger/`).
+- [ ] Run real-engine DAP tests on Linux and VS Code installation/F5/source-map acceptance checks.
+- [ ] Add named outer lexical-scope/receiver metadata rather than exposing caller frames as captured scopes.
+- [ ] Extend exception inspection with thrown values and uncaught-only classification.
+- [ ] Consider conditional/log/hit breakpoints, controlled expression execution, mutation, and attach as separate capabilities with explicit safety/lifecycle policies.
+- [ ] Profile large/sparse-object inspection and generator/async stepping; the delivered adapter preserves the existing VM/source-map integration without claiming those acceptance gates passed.

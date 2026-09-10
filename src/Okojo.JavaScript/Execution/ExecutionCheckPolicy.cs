@@ -444,7 +444,12 @@ internal sealed class ExecutionCheckPolicy
         for (var i = 0; i < constraints.Length; i++)
             constraints[i].OnCheckpoint(in checkpoint);
 
-        nextCheck = interval;
+        // A debugger may change the interval while stopped in this callback.
+        // Do not overwrite its new countdown with the pre-pause interval.
+        lock (gate)
+        {
+            nextCheck = checkInterval;
+        }
     }
 
     private static void ThrowIfCanceled(CancellationToken cancellationToken)

@@ -7,16 +7,16 @@ namespace Okojo.DebugServer;
 
 public static class OkojoDebugConsole
 {
-    public static void Install(JsRealm realm)
+    public static void Install(JsRealm realm, Action<string, string>? output = null)
     {
         ArgumentNullException.ThrowIfNull(realm);
 
         var console = new JsPlainObject(realm);
-        InstallMethod(realm, console, "log");
-        InstallMethod(realm, console, "info");
-        InstallMethod(realm, console, "warn");
-        InstallMethod(realm, console, "error");
-        InstallMethod(realm, console, "debug");
+        InstallMethod(realm, console, output, "log");
+        InstallMethod(realm, console, output, "info");
+        InstallMethod(realm, console, output, "warn");
+        InstallMethod(realm, console, output, "error");
+        InstallMethod(realm, console, output, "debug");
         realm.GlobalObject.DefineDataProperty(
             "console",
             JsValue.FromObject(console),
@@ -24,14 +24,25 @@ public static class OkojoDebugConsole
         );
     }
 
-    private static void InstallMethod(JsRealm realm, JsPlainObject console, string name)
+    private static void InstallMethod(
+        JsRealm realm,
+        JsPlainObject console,
+        Action<string, string>? output,
+        string name
+    )
     {
         var method = new JsHostFunction(
             realm,
             (in info) =>
             {
                 var text = FormatConsoleArguments(realm, info.Arguments);
-                Console.Error.WriteLine(string.IsNullOrEmpty(text) ? name : text);
+                if (output is null)
+                    Console.Error.WriteLine(string.IsNullOrEmpty(text) ? name : text);
+                else
+                    output(
+                        name is "warn" or "error" ? "stderr" : "stdout",
+                        text + Environment.NewLine
+                    );
                 return JsValue.Undefined;
             },
             name,

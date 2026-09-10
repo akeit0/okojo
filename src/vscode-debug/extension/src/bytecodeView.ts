@@ -327,6 +327,7 @@ export function renderBytecodeShellHtml(): string {
     const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
     if (vscode) {
       vscode.setState({ ready: true });
+      vscode.postMessage({ type: 'ready' });
     }
   </script>
 </body>

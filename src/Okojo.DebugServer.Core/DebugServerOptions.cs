@@ -19,6 +19,7 @@ public sealed class DebugServerOptions
     public bool StopOnResumeGenerator { get; private set; }
     public bool StopOnPeriodic { get; private set; }
     public bool EnableSourceMaps { get; private set; }
+    public bool StructuredOutput { get; private set; }
     public DebugStepGranularity StepGranularity { get; private set; } = DebugStepGranularity.Line;
     public IReadOnlyList<BreakpointSpec> Breakpoints => breakpoints;
 
@@ -30,6 +31,9 @@ public sealed class DebugServerOptions
             var arg = args[i];
             switch (arg)
             {
+                case "--structured-output":
+                    options.StructuredOutput = true;
+                    break;
                 case "--script":
                     if (i + 1 < args.Length)
                         options.ScriptPath = args[++i];

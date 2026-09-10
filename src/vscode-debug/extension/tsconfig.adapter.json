@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "types": ["node"],
+    "noEmitOnError": true
+  },
+  "include": [
+    "src/adapter.ts", "src/main.ts", "src/dapProtocol.ts",
+    "src/hostClient.ts", "src/breakpointStore.ts", "src/debugTypes.ts"
+  ]
+}

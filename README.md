@@ -544,27 +544,30 @@ declare namespace OkojoArtSandbox {
 
 The tool entry point lives in `src/Okojo.DocGenerator.Cli/Program.cs`.
 
-## VS Code debugger
+## DAP and VS Code debugger
 
-There is also an in-repo VS Code debugger scaffold under `src/vscode-debug/extension`.
+`src/vscode-debug/extension` contains a shared DAP adapter with both a standalone
+stdio entry and a VS Code extension. It launches `Okojo.DebugServer` and exposes
+source breakpoints, execution controls, call stacks, selected-frame scopes,
+lazy object/array inspection, read-only property-path watches and the existing
+bytecode viewer. Runtime inspection is dispatched on the VM thread.
 
-Current capabilities include:
-
-- debugger contribution and configuration provider
-- inline adapter that launches `src/Okojo.DebugServer`
-- paused stack, locals, and source inspection from debug-server checkpoints
-- source breakpoints by `sourcePath:line`
-- `stopOnEntry` support
-
-Quick local run:
-
-```powershell
+```sh
+dotnet build src/Okojo.DebugServer/Okojo.DebugServer.csproj -c Release
 cd src/vscode-debug/extension
-npm install
+npm ci
 npm run compile
+npm test
 ```
 
-Then open `src/vscode-debug/extension` in VS Code, press `F5`, and use the sample workspace under `samples/okojo-debugger-workspace`.
+Open the extension directory in VS Code and press F5, then select **Okojo: DAP
+inspection** in the sample workspace. For another DAP client, spawn
+`node src/vscode-debug/extension/dist/main.js` from the repository root after
+building the adapter. The debug host's private protocol is not DAP.
+
+See the [extension README](../../src/vscode-debug/extension/README.md) for installation,
+launch.json, supported requests and explicit limits, and
+[docs/dap-debugger/](docs/dap-debugger/) for the implementation and validation record.
 
 ## Useful examples and sandboxes
 
@@ -582,7 +585,7 @@ If you want concrete code before reading internals, start here:
 | `sandbox/OkojoProbeSandbox` | Small probes for script/module execution and namespace inspection |
 | `sandbox/OkojoInkProbe` | Node-like host with Wasmtime-enabled WebAssembly support |
 | `src/Okojo.Node.Cli` | Node-like CLI entry point for scripts, eval, print, inspect, and InkProbe launching |
-| `src/vscode-debug/extension` | VS Code debugger adapter scaffold and sample workspace integration |
+| `src/vscode-debug/extension` | DAP/VS Code debugger and sample workspace integration |
 
 ## `src/` project map
 
