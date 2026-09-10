@@ -3439,6 +3439,34 @@ public class NodeCommonJsTests
         Assert.That(result[3], Is.EqualTo("true"));
     }
 
+    [Test]
+    public void RunMainModule_ThrownError_StackFrames_Carry_Source_Location()
+    {
+        using var runtime = NodeRuntime
+            .CreateBuilder()
+            .UseModuleSourceLoader(
+                new InMemoryModuleLoader(
+                    new(StringComparer.Ordinal)
+                    {
+                        ["/app/main.js"] = """
+                        const title = "probe";
+                        function boom() { throw new Error("boom"); }
+                        boom();
+                        """,
+                    }
+                )
+            )
+            .Build();
+
+        var ex = Assert.Throws<JsRuntimeException>(() => runtime.RunMainModule("/app/main.js"));
+
+        Assert.That(ex, Is.Not.Null);
+        var boomFrame = ex!.StackFrames.FirstOrDefault(frame => frame.FunctionName == "boom");
+        Assert.That(boomFrame.HasSourceLocation, Is.True);
+        Assert.That(boomFrame.SourcePath, Does.Contain("main.js"));
+        Assert.That(boomFrame.SourceLine, Is.EqualTo(2));
+    }
+
     private static string ToJsStringLiteral(string value)
     {
         return "\""

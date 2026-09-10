@@ -9,6 +9,9 @@ migration history, kept so past decisions stay traceable.
 - `OKOJO_FEATURE_DEBUG_TABLE_DEFECTS.md` — implemented 2026-09-10
   (commit `3eb7447`); line-start index, synthetic-local flag, dormant
   optimizer deletion.
+- `OKOJO_FEATURE_CJS_WRAPPER_SOURCE.md` — implemented 2026-09-10; CommonJS
+  wrapper attaches source so stack frames carry locations (also repairs the
+  Node source-maps CLI test).
 
 `performance/reports/` holds dated evidence that stays addressable (not
 archive).

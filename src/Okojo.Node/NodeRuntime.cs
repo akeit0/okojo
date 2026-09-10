@@ -307,7 +307,16 @@ public sealed class NodeRuntime : IDisposable
             );
 
         var function = ast.GetFunction(ast[expression].Arg0);
-        return new JsFunctionCompiler(realm).CompileFunction(ast, function, ast[expression].Arg1);
+        // The wrapper is compiled through a bare JsFunctionCompiler, which
+        // does not inherit source from an outer compile: attach the wrapped
+        // source explicitly or stack frames carry no file/line locations.
+        // The wrapper prefix holds no newline, so reported lines already
+        // match user source lines; columns shift by the prefix length (a
+        // wrapper-to-user remap belongs to the debug-info redesign).
+        return new JsFunctionCompiler(
+            realm,
+            scriptSourceCode: new SourceCode(wrappedSource, resolvedId)
+        ).CompileFunction(ast, function, ast[expression].Arg1);
     }
 
     private JsHostFunction CreateRequireFunction(JsRealm realm, string resolvedId)
