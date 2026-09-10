@@ -6,6 +6,10 @@ the current sources it would replace and the gate that accepts it. These are
 work orders with reasoning, not implementation claims — verify against source
 before building.
 
+Lifecycle: `proposed` and `accepted` notes live here. Once implemented, a
+note moves to `../archive/` with its verification record — implemented work
+is not sustained in `proposals/`.
+
 | Proposal | Priority | Status |
 |---|---|---|
 | [code-instance-split.md](code-instance-split.md) — immutable code vs realm state vs closures vs debug info | highest architectural | proposed |
