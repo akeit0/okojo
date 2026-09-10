@@ -164,11 +164,7 @@ internal abstract partial class JsCompilerBase
         {
             var binding = bindings[i];
             var name = binding.Planned.Name;
-            if (
-                name.Length == 0
-                || name.StartsWith("$", StringComparison.Ordinal)
-                || name.IndexOf('#') >= 0
-            )
+            if (name.Length == 0 || binding.Planned.IsSynthetic || name.IndexOf('#') >= 0)
                 continue;
 
             JsLocalDebugStorageKind storageKind;

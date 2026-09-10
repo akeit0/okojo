@@ -966,7 +966,10 @@ internal static partial class CompilerBindingCollector
                             CompilerCollectedBindingKind.Parameter,
                             ast.GetString(parameter.NameStringIndex),
                             parameter.NameId,
-                            position: parameter.Position
+                            position: parameter.Position,
+                            isSynthetic: parameter.Kind
+                                is JsFormalParameterBindingKind.Pattern
+                                    or JsFormalParameterBindingKind.RestPattern
                         );
                     if (parameter.InitializerNode >= 0)
                         VisitExpression(ast, parameter.InitializerNode, scopeId);
@@ -996,7 +999,8 @@ internal static partial class CompilerBindingCollector
             string name,
             int nameId = -1,
             bool isConst = false,
-            int position = 0
+            int position = 0,
+            bool isSynthetic = false
         )
         {
             var key = (scopeId, name);
@@ -1017,7 +1021,8 @@ internal static partial class CompilerBindingCollector
                         name,
                         nameId,
                         isConst,
-                        position
+                        position,
+                        bindings[existing.Index].IsSynthetic
                     );
                     if (mergeableBindings is not null)
                         mergeableBindings[key] = (kind, existing.Index);
@@ -1027,7 +1032,15 @@ internal static partial class CompilerBindingCollector
             if (IsVariableEnvironmentBinding(kind))
                 mergeableBindingCount++;
             bindings.Add(
-                new CompilerCollectedBinding(scopeId, kind, name, nameId, isConst, position)
+                new CompilerCollectedBinding(
+                    scopeId,
+                    kind,
+                    name,
+                    nameId,
+                    isConst,
+                    position,
+                    isSynthetic
+                )
             );
             if (IsVariableEnvironmentBinding(kind))
             {

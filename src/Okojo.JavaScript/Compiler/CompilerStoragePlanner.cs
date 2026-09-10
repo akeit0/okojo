@@ -119,7 +119,8 @@ internal static class CompilerStoragePlanner
                         storageIndex,
                         captured[bindingIndex],
                         binding.IsConst,
-                        binding.Position
+                        binding.Position,
+                        binding.IsSynthetic
                     )
                 );
             }

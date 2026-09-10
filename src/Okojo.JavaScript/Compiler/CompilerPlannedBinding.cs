@@ -9,5 +9,6 @@ internal readonly record struct CompilerPlannedBinding(
     int StorageIndex,
     bool IsCaptured,
     bool IsConst,
-    int Position
+    int Position,
+    bool IsSynthetic = false
 );

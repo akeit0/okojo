@@ -86,11 +86,18 @@ public static class SourceLocation
         var line = 1;
         var lineStart = 0;
         for (var i = 0; i < clamped; i++)
-            if (source[i] == '\n')
+        {
+            var c = source[i];
+            // A CR followed by LF defers to the LF so CRLF counts once,
+            // matching GetOrCreateLineStarts (which starts the line after LF).
+            if (c == '\r' && i + 1 < source.Length && source[i + 1] == '\n')
+                continue;
+            if (c is '\r' or '\n' or '\u2028' or '\u2029')
             {
                 line++;
                 lineStart = i + 1;
             }
+        }
 
         return (line, clamped - lineStart + 1);
     }

@@ -196,4 +196,83 @@ public partial class ExecutionCheckTests
             Is.True
         );
     }
+
+    [Test]
+    public void DebuggerStatement_Exposes_DollarPrefixed_User_Local()
+    {
+        var debugger = new RecordingDebugger();
+        var runtime = JsRuntime.Create(builder =>
+            builder.UseAgent(agent =>
+            {
+                agent.DebuggerSession = debugger;
+                agent.EnableDebuggerStatementHook();
+            })
+        );
+        var realm = runtime.DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function t() {
+                    let $value = 41;
+                    debugger;
+                    return $value;
+                }
+                t();
+                """,
+                "locals-dollar.js"
+            )
+        );
+
+        realm.Execute(script);
+
+        var checkpoint = debugger.Checkpoints.First(checkpoint =>
+            checkpoint.Kind == ExecutionCheckpointKind.DebuggerStatement
+            && checkpoint.SourcePath == "locals-dollar.js"
+        );
+
+        Assert.That(checkpoint.TryGetLocalValue("$value", out var value), Is.True);
+        Assert.That(value.Value.Int32Value, Is.EqualTo(41));
+    }
+
+    [Test]
+    public void DebuggerStatement_Hides_Synthetic_Pattern_Parameter_Temps()
+    {
+        var debugger = new RecordingDebugger();
+        var runtime = JsRuntime.Create(builder =>
+            builder.UseAgent(agent =>
+            {
+                agent.DebuggerSession = debugger;
+                agent.EnableDebuggerStatementHook();
+            })
+        );
+        var realm = runtime.DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function t([a, b], { x }) {
+                    debugger;
+                    return a + b + x;
+                }
+                t([1, 2], { x: 3 });
+                """,
+                "locals-pattern.js"
+            )
+        );
+
+        realm.Execute(script);
+
+        var checkpoint = debugger.Checkpoints.First(checkpoint =>
+            checkpoint.Kind == ExecutionCheckpointKind.DebuggerStatement
+            && checkpoint.SourcePath == "locals-pattern.js"
+        );
+
+        Assert.That(checkpoint.Locals, Is.Not.Null);
+        Assert.That(
+            checkpoint.Locals!.Any(local => local.Name.StartsWith("$", StringComparison.Ordinal)),
+            Is.False
+        );
+        Assert.That(checkpoint.TryGetLocalValue("a", out _), Is.True);
+    }
 }
