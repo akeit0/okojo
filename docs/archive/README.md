@@ -12,6 +12,8 @@ migration history, kept so past decisions stay traceable.
 - `OKOJO_FEATURE_CJS_WRAPPER_SOURCE.md` — implemented 2026-09-10; CommonJS
   wrapper attaches source so stack frames carry locations (also repairs the
   Node source-maps CLI test).
+- `OKOJO_FEATURE_DEBUG_SLICES.md` — implemented 2026-09-10; leading-pc clamp,
+  stale slot-0 root-frame removal, source-map column binary search.
 
 `performance/reports/` holds dated evidence that stays addressable (not
 archive).

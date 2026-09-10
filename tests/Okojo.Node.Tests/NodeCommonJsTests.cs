@@ -3465,6 +3465,12 @@ public class NodeCommonJsTests
         Assert.That(boomFrame.HasSourceLocation, Is.True);
         Assert.That(boomFrame.SourcePath, Does.Contain("main.js"));
         Assert.That(boomFrame.SourceLine, Is.EqualTo(2));
+
+        // Stale slot-0 "root" frames are no longer resurrected: every frame
+        // in the trace belongs to this run and carries a location.
+        Assert.That(ex.StackFrames.Count, Is.EqualTo(2));
+        Assert.That(ex.StackFrames.All(frame => frame.HasSourceLocation), Is.True);
+        Assert.That(ex.StackFrames[^1].SourceLine, Is.EqualTo(3));
     }
 
     private static string ToJsStringLiteral(string value)

@@ -5006,32 +5006,12 @@ public sealed partial class JsRealm
 
             if (fpCursor == 0 && pcCursor == 0)
             {
-                if ((uint)fpCursor < (uint)fullStack.Length)
-                {
-                    ref readonly var root = ref Unsafe.As<JsValue, CallFrame>(
-                        ref fullStack[fpCursor]
-                    );
-                    var rootFunction = root.Value0.Obj as JsFunction;
-                    var rootSourcePath = root.Value0.Obj is JsBytecodeFunction rootBytecodeFunction
-                        ? rootBytecodeFunction.Script.SourcePath
-                        : null;
-                    frames.Add(
-                        new(
-                            rootFunction?.Name ?? "<script>",
-                            0,
-                            root.FrameKind,
-                            root.Flags,
-                            false,
-                            GeneratorState.SuspendedStart,
-                            -1,
-                            false,
-                            0,
-                            0,
-                            rootSourcePath
-                        )
-                    );
-                }
-
+                // A chain bottoming out at (0, 0) has no live caller frame:
+                // Execute-started runs seat their bottom frame at fp 0 with
+                // callerFp == fpCursor and break out above, and fresh Invoke
+                // runs do the same. Slot 0 here can only hold a previous
+                // run's frame object, so stop instead of resurrecting it as
+                // a location-less "root" frame.
                 break;
             }
         }

@@ -90,6 +90,8 @@ internal static class JsScriptDebugInfo
         var index = Array.BinarySearch(pcOffsets, opcodePc);
         if (index < 0)
             index = ~index - 1;
+        if (index < 0)
+            index = 0;
         if ((uint)index >= (uint)pcOffsets.Length)
             return false;
 

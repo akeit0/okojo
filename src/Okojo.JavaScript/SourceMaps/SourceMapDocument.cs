@@ -31,7 +31,6 @@ public sealed class SourceMapDocument
             }
 
             generatedEntries.Add(entry);
-
             if (
                 !entriesByOriginalSource.TryGetValue(
                     entry.OriginalSourcePath,
@@ -51,6 +50,14 @@ public sealed class SourceMapDocument
 
             originalEntries.Add(entry);
         }
+
+        // Per-line columns must be ascending for upper-bound lookup below.
+        // OrderBy is stable, so duplicate columns keep parse order and the
+        // last duplicate still wins, exactly like the previous linear scan.
+        foreach (var line in entriesByGeneratedLine.Keys)
+            entriesByGeneratedLine[line] = entriesByGeneratedLine[line]
+                .OrderBy(static entry => entry.GeneratedColumn)
+                .ToList();
     }
 
     public string GeneratedSourcePath { get; }
@@ -72,14 +79,19 @@ public sealed class SourceMapDocument
         }
 
         SourceMapEntry? best = null;
-        for (var i = 0; i < entries.Count; i++)
+        var lo = 0;
+        var hi = entries.Count;
+        while (lo < hi)
         {
-            var entry = entries[i];
-            if (entry.GeneratedColumn > generatedColumn)
-                break;
-
-            best = entry;
+            var mid = lo + ((hi - lo) >> 1);
+            if (entries[mid].GeneratedColumn <= generatedColumn)
+                lo = mid + 1;
+            else
+                hi = mid;
         }
+
+        if (lo > 0)
+            best = entries[lo - 1];
 
         if (best is null)
         {
