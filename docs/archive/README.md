@@ -14,6 +14,9 @@ migration history, kept so past decisions stay traceable.
   Node source-maps CLI test).
 - `OKOJO_FEATURE_DEBUG_SLICES.md` — implemented 2026-09-10; leading-pc clamp,
   stale slot-0 root-frame removal, source-map column binary search.
+- `OKOJO_FEATURE_SPLIT_STEP1_NAMES.md` — implemented 2026-09-10; builder
+  pools names symbolically, interns once at finalization (byte-identical
+  output, allocation within noise).
 
 `performance/reports/` holds dated evidence that stays addressable (not
 archive).

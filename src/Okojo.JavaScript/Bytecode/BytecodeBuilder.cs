@@ -10,7 +10,7 @@ public sealed class BytecodeBuilder : IDisposable
 {
     private const int ConstantDedupDictionaryThreshold = 32;
     private readonly List<int> activeTemporaryRegisters;
-    private readonly List<int> atomizedStringConstants;
+    private readonly List<string> atomizedStringSymbols;
     private readonly Dictionary<int, string> callSiteDebugNames;
     private readonly List<byte> code;
     private readonly Dictionary<int, int> debugSourceOffsets;
@@ -24,7 +24,7 @@ public sealed class BytecodeBuilder : IDisposable
     private readonly List<object> objectConstants;
     private Dictionary<ulong, int>? numericConstantIndices;
     private Dictionary<object, int>? objectConstantIndices;
-    private Dictionary<int, int>? atomizedStringConstantIndices;
+    private Dictionary<string, int>? atomizedStringSymbolIndices;
     private readonly Dictionary<long, string> privateFieldDebugNames;
     private readonly JsRealm realm;
     private readonly Dictionary<int, string> runtimeCallDebugNames;
@@ -51,7 +51,7 @@ public sealed class BytecodeBuilder : IDisposable
         code = realm.RentCompileList<byte>(256);
         numericConstants = realm.RentCompileList<double>(32);
         objectConstants = realm.RentCompileList<object>(64);
-        atomizedStringConstants = realm.RentCompileList<int>(64);
+        atomizedStringSymbols = realm.RentCompileList<string>(64);
         callSiteDebugNames = realm.RentCompileDictionary<int, string>(32);
         generatorSwitchTargets = realm.RentCompileList<int>(16);
         switchOnSmiTargets = realm.RentCompileList<int>(32);
@@ -632,47 +632,36 @@ public sealed class BytecodeBuilder : IDisposable
                 $"Atomized string constant cannot be a canonical array index: '{value}'."
             );
 
-        return AddAtomizedStringConstantCore(realm.Atoms.InternNoCheck(value));
-    }
-
-    public int AddAtomizedStringConstant(int atom)
-    {
-        var text = realm.Atoms.AtomToString(atom);
-        if (TryGetArrayIndexFromCanonicalString(text, out _))
-            throw new InvalidOperationException(
-                $"Atomized string constant cannot be a canonical array index: '{text}'."
-            );
-
-        return AddAtomizedStringConstantCore(atom);
-    }
-
-    private int AddAtomizedStringConstantCore(int atom)
-    {
-        if (atomizedStringConstantIndices is null)
+        // Recorded symbolically: interning against the realm atom table
+        // happens once per distinct name at finalization, so emission itself
+        // no longer depends on realm atom state. Dedup by string is
+        // equivalent to the old dedup by atom (1:1 per realm, both Ordinal).
+        if (atomizedStringSymbolIndices is null)
         {
-            for (var i = 0; i < atomizedStringConstants.Count; i++)
-                if (atomizedStringConstants[i] == atom)
+            for (var i = 0; i < atomizedStringSymbols.Count; i++)
+                if (atomizedStringSymbols[i] == value)
                     return i;
 
-            if (atomizedStringConstants.Count < ConstantDedupDictionaryThreshold)
+            if (atomizedStringSymbols.Count < ConstantDedupDictionaryThreshold)
             {
-                atomizedStringConstants.Add(atom);
-                return atomizedStringConstants.Count - 1;
+                atomizedStringSymbols.Add(value);
+                return atomizedStringSymbols.Count - 1;
             }
 
-            atomizedStringConstantIndices = realm.RentCompileDictionary<int, int>(
-                atomizedStringConstants.Count + 1
+            atomizedStringSymbolIndices = realm.RentCompileDictionary<string, int>(
+                atomizedStringSymbols.Count + 1,
+                StringComparer.Ordinal
             );
-            for (var i = 0; i < atomizedStringConstants.Count; i++)
-                atomizedStringConstantIndices.Add(atomizedStringConstants[i], i);
+            for (var i = 0; i < atomizedStringSymbols.Count; i++)
+                atomizedStringSymbolIndices.Add(atomizedStringSymbols[i], i);
         }
 
-        if (atomizedStringConstantIndices.TryGetValue(atom, out var existing))
+        if (atomizedStringSymbolIndices.TryGetValue(value, out var existing))
             return existing;
 
-        atomizedStringConstants.Add(atom);
-        var index = atomizedStringConstants.Count - 1;
-        atomizedStringConstantIndices.Add(atom, index);
+        atomizedStringSymbols.Add(value);
+        var index = atomizedStringSymbols.Count - 1;
+        atomizedStringSymbolIndices.Add(value, index);
         return index;
     }
 
@@ -1063,12 +1052,19 @@ public sealed class BytecodeBuilder : IDisposable
         if (globalBindingFeedbackSlotCount != 0)
             globalBindingIcEntries = new GlobalBindingIcEntry[globalBindingFeedbackSlotCount];
 
+        // Link the symbolic name table against this realm: one intern per
+        // distinct name, in first-add order, so pool contents equal the old
+        // eager-interning order.
+        var atomizedStringConstants = new int[atomizedStringSymbols.Count];
+        for (var i = 0; i < atomizedStringSymbols.Count; i++)
+            atomizedStringConstants[i] = realm.Atoms.InternNoCheck(atomizedStringSymbols[i]);
+
         return new(
             code.ToArray(),
             ToNumericConstantBits(),
             objectConstants.ToArray(),
             RegisterCount,
-            atomizedStringConstants.ToArray(),
+            atomizedStringConstants,
             strictDeclared,
             debugNames,
             callSiteDebugPcs,
@@ -1110,7 +1106,7 @@ public sealed class BytecodeBuilder : IDisposable
         realm.ReturnCompileList(code);
         realm.ReturnCompileList(numericConstants);
         realm.ReturnCompileList(objectConstants);
-        realm.ReturnCompileList(atomizedStringConstants);
+        realm.ReturnCompileList(atomizedStringSymbols);
         realm.ReturnCompileList(generatorSwitchTargets);
         realm.ReturnCompileList(switchOnSmiTargets);
         realm.ReturnCompileList(jumps16ToPatch);
@@ -1125,7 +1121,7 @@ public sealed class BytecodeBuilder : IDisposable
         realm.ReturnCompileDictionary(debugSourceOffsets);
         realm.ReturnCompileDictionary(numericConstantIndices);
         realm.ReturnCompileDictionary(objectConstantIndices);
-        realm.ReturnCompileDictionary(atomizedStringConstantIndices);
+        realm.ReturnCompileDictionary(atomizedStringSymbolIndices);
         realm.ReturnCompileList(freeTemporaryRegisters);
         realm.ReturnCompileList(activeTemporaryRegisters);
 #if DEBUG
