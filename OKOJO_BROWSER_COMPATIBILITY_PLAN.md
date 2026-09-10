@@ -89,11 +89,11 @@ Because Okojo is heavily influenced by V8:
 
 ## API Split Goal
 
-The package and namespace boundary is defined by [docs/OKOJO_LIBRARY_SPLIT_PLAN.md](docs/OKOJO_LIBRARY_SPLIT_PLAN.md). This roadmap uses four conceptual API layers; it does not define an alternate assembly graph.
+The package and namespace boundary is defined by [docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md](docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md). This roadmap uses four conceptual API layers; it does not define an alternate assembly graph.
 
 Compiler architecture note:
 
-- see [docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md](docs\OKOJO_MULTI_PASS_COMPILER_DESIGN.md) for the target multi-pass compiler direction, especially binding collection, capture planning, storage planning, and register allocation cleanup
+- see [docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md](docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md) for the target multi-pass compiler direction, especially binding collection, capture planning, storage planning, and register allocation cleanup
 
 ### 1. Stable Embedding API
 
@@ -384,9 +384,9 @@ Every substantial feature or compliance slice should still keep its own focused 
 
 Current supporting documents:
 
-- `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
-- `docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
-- `docs/OKOJO_NODE_RUNTIME_PLAN.md`
+- `docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`
+- `docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
+- `docs/integrations/node/OKOJO_NODE_RUNTIME_PLAN.md`
 
 ## Licensing Note
 

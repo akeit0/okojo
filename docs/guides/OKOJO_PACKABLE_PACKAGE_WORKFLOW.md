@@ -2,7 +2,7 @@
 
 This note defines the **steady-state operating model** for Okojo package versioning, internal references, and publishing.
 
-Package and assembly naming is defined by [`OKOJO_LIBRARY_SPLIT_PLAN.md`](OKOJO_LIBRARY_SPLIT_PLAN.md). The project/package tables below describe the current split repository and its two engine/runtime packages.
+Package and assembly naming is defined by [`OKOJO_LIBRARY_SPLIT_PLAN.md`](../architecture/OKOJO_LIBRARY_SPLIT_PLAN.md). The project/package tables below describe the current split repository and its two engine/runtime packages.
 
 The repository is still prerelease, but the policy here is intended to describe the normal shape to keep as the package set grows.
 

@@ -1,5 +1,5 @@
 # Okojo
-<img src="./docs/okojo_logo.svg" width="20%">
+<img src="./docs/assets/okojo_logo.svg" width="20%">
 
 
 "Okojo" means "ermine" or "stoat" in Japanese.
@@ -24,7 +24,7 @@ The project is still **prerelease**. Public APIs and package boundaries are bein
 - core language and runtime correctness are the top priority
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
 - deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
-- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262-progress-and-compatibility-tracking)
+- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262)
 - Unlike jint, its RegExp implementation is ECMAScript 262 compliant, although its performance is not very good.
 - runtime support is currently **.NET 10+**
 - core runtime packages are intended to stay **NativeAOT-friendly by default**
@@ -40,7 +40,7 @@ I'd like to emphasize the **low allocation**.
 [for-loop-sum.js](benchmarks/Okojo.Benchmarks/scripts/for-loop-sum.js)
 [many-object.js](benchmarks/Okojo.Benchmarks/scripts/many-object.js)
 [pure-function-call.js](benchmarks/Okojo.Benchmarks/scripts/pure-function-call.js)
-![img](./docs/benchmark.png)
+![img](./docs/assets/benchmark.png)
 https://chartbenchmark.net/
 
 | Method | Scenario           | Mean       | Error     | StdDev   | Ratio | Gen0     | Allocated | Alloc Ratio |
@@ -370,7 +370,7 @@ Useful references:
 
 - `sandbox/OkojoInkProbe`
 - `src/Okojo.Node.Cli/NodeCliApplication.cs`
-- `docs/OKOJO_NODE_INK_DEBUG_WORKFLOW.md`
+- `docs/integrations/node/OKOJO_NODE_INK_DEBUG_WORKFLOW.md`
 
 ## Source generation with `Okojo.Annotations` and `Okojo.SourceGenerator`
 
@@ -609,7 +609,7 @@ If you want concrete code before reading internals, start here:
 | `Okojo.DebugServer.Core` | Shared debug server core types | Internal diagnostics infrastructure |
 | `vscode-debug/extension` | VS Code debugger adapter and launch configuration support | Internal tooling |
 
-Package/versioning/publishing strategy for the packable projects is documented in [docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
+Package/versioning/publishing strategy for the packable projects is documented in [docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
 
 ## Requirements
 
@@ -639,7 +639,7 @@ Important files:
 | --- | --- |
 | [`TEST262_PROGRESS_INCREMENTAL.md`](TEST262_PROGRESS_INCREMENTAL.md) | Human-readable progress snapshot grouped by category and folder, including passed, failed, and split skip classes |
 | `TEST262_PROGRESS_INCREMENTAL.json` | Machine-readable version of the same incremental progress data (gitignored)|
-| [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
+| [`docs/conformance/TEST262_SKIP_TAXONOMY.md`](docs/conformance/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
 | `tools/Test262Runner` | Runner and progress generation logic |
 
 ### How to read `TEST262_PROGRESS_INCREMENTAL.md`
@@ -661,9 +661,9 @@ That last column is usually the best single number to use for practical baseline
 ## Key docs
 
 - [`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`](OKOJO_BROWSER_COMPATIBILITY_PLAN.md) - top-level compatibility direction
-- [`docs/OKOJO_LIBRARY_SPLIT_PLAN.md`](docs/OKOJO_LIBRARY_SPLIT_PLAN.md) - target package, namespace, and ownership boundaries
-- [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
-- [`docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
+- [`docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`](docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md) - target package, namespace, and ownership boundaries
+- [`docs/conformance/TEST262_SKIP_TAXONOMY.md`](docs/conformance/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
+- [`docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
 
 ## Licensing
 

@@ -54,7 +54,7 @@ Use this as a gate check for PRs and planning.
 
 1. Create/maintain one living matrix row per ECMA feature family you touch.
 2. For each row, pin to one section in ECMA-262 and one or more local evidence points:
-   - feature doc (`docs/OKOJO_FEATURE_*.md`)
+   - feature doc (`docs/proposals/OKOJO_FEATURE_*.md`)
    - focused `tests/Okojo.Tests`
    - `tools/Test262Runner` exact file/filter result
 3. Before merging, fill one status cell + one `next action` row for every changed family.
@@ -134,7 +134,7 @@ Add rows as needed and keep section IDs exact for traceability.
 - Status: In progress
 - Evidence:
   - tests/Okojo.Tests/ProxyTests.cs
-  - docs/OKOJO_FEATURE_PROXY_PHASE1.md
+  - docs/proposals/OKOJO_FEATURE_PROXY_PHASE1.md
 - Test262 slice: language / built-ins / Proxy
 - Last reviewed: YYYY-MM-DD
 - Next: close trap-order mismatch for delete/defineProperty

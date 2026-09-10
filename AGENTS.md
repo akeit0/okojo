@@ -156,11 +156,11 @@ For every new Okojo feature (syntax or runtime):
 
 Template:
 
-- `docs/OKOJO_FEATURE_NOTE_TEMPLATE.md`
+- `docs/guides/OKOJO_FEATURE_NOTE_TEMPLATE.md`
 
 Also follow:
 
-- `docs/FEATURE_IMPLEMENTATION_WORKFLOW.md`
+- `docs/guides/FEATURE_IMPLEMENTATION_WORKFLOW.md`
 
 ## Planning Doc Rule
 
@@ -172,7 +172,7 @@ Current top-level anchor document:
 
 Supporting architecture document for the current next slice:
 
-- `docs/OKOJO_LIBRARY_SPLIT_PLAN.md`
+- `docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`
 
 ## Formatting (Required)
 
