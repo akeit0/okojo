@@ -108,7 +108,13 @@ internal static class BytecodeInfo
             or JsOpCode.StaKeyedProperty
             or JsOpCode.DefineOwnKeyedProperty
             or JsOpCode.DefineOwnKeyedPropertyNoName
-            or JsOpCode.Add
+            or JsOpCode.CreateArrayLiteral
+            or JsOpCode.CreateArrayLiteralWithLength => 2,
+
+            // Former feedback-operand carriers: the trailing slot/zero
+            // operand was removed (see OKOJO_FEATURE_DROP_UNUSED_FEEDBACK_OPERANDS).
+            // Single register (or small-int immediate) operand only.
+            JsOpCode.Add
             or JsOpCode.Sub
             or JsOpCode.Mul
             or JsOpCode.Div
@@ -137,9 +143,7 @@ internal static class BytecodeInfo
             or JsOpCode.TestLessThanOrEqual
             or JsOpCode.TestGreaterThanOrEqual
             or JsOpCode.TestInstanceOf
-            or JsOpCode.TestIn
-            or JsOpCode.CreateArrayLiteral
-            or JsOpCode.CreateArrayLiteralWithLength => 2,
+            or JsOpCode.TestIn => 1,
 
             JsOpCode.CreateObjectLiteralWide
             or JsOpCode.ResumeGenerator
@@ -278,7 +282,29 @@ internal static class BytecodeInfo
                 or JsOpCode.StaKeyedProperty
                 or JsOpCode.DefineOwnKeyedProperty
                 or JsOpCode.DefineOwnKeyedPropertyNoName
-                or JsOpCode.Construct;
+                or JsOpCode.Construct
+                // Single register operand, scaled by Wide/ExtraWide in both
+                // the VM loop and the static decoder (feedback operand removed).
+                or JsOpCode.Add
+                or JsOpCode.Sub
+                or JsOpCode.Mul
+                or JsOpCode.Div
+                or JsOpCode.Mod
+                or JsOpCode.Exp
+                or JsOpCode.BitwiseAnd
+                or JsOpCode.BitwiseOr
+                or JsOpCode.BitwiseXor
+                or JsOpCode.ShiftLeft
+                or JsOpCode.ShiftRight
+                or JsOpCode.ShiftRightLogical
+                or JsOpCode.TestEqual
+                or JsOpCode.TestNotEqual
+                or JsOpCode.TestLessThan
+                or JsOpCode.TestGreaterThan
+                or JsOpCode.TestLessThanOrEqual
+                or JsOpCode.TestGreaterThanOrEqual
+                or JsOpCode.TestInstanceOf
+                or JsOpCode.TestIn;
     }
 
     public static int GetOperandByteCount(JsOpCode op, OperandScale scale)

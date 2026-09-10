@@ -235,7 +235,11 @@ Discipline:
 
 ### Test262 workflow
 
-`tools/Test262Runner -help`
+```powershell
+dotnet run --project tools/Test262Runner/Test262Runner.csproj -- --help
+```
+
+(`-help` is not a flag; a bare unknown argument starts a full run.)
 
 ### Test262 prioritization
 

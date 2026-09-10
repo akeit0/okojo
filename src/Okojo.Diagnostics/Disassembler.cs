@@ -232,7 +232,7 @@ public static class Disassembler
             or JsOpCode.TestLessThanOrEqual
             or JsOpCode.TestGreaterThanOrEqual
             or JsOpCode.TestInstanceOf
-            or JsOpCode.TestIn => $"r{operands[0]}, slot:{operands[1]}",
+            or JsOpCode.TestIn => $"r{BytecodeInfo.ReadUnsignedOperand(operands, 0, scale)}",
             JsOpCode.AddSmi
             or JsOpCode.SubSmi
             or JsOpCode.MulSmi
@@ -241,8 +241,7 @@ public static class Disassembler
             or JsOpCode.TestLessThanSmi
             or JsOpCode.TestGreaterThanSmi
             or JsOpCode.TestLessThanOrEqualSmi
-            or JsOpCode.TestGreaterThanOrEqualSmi =>
-                $"imm:{(sbyte)operands[0]}, slot:{operands[1]}",
+            or JsOpCode.TestGreaterThanOrEqualSmi => $"imm:{(sbyte)operands[0]}",
             JsOpCode.LdaGlobal
             or JsOpCode.StaGlobal
             or JsOpCode.StaGlobalInit

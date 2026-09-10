@@ -357,11 +357,11 @@ internal abstract partial class JsCompilerBase
     private void EmitRegisterWithSlotOp(JsOpCode op, int register)
     {
         if (register <= byte.MaxValue)
-            builder.Emit(op, (byte)register, 0);
+            builder.Emit(op, (byte)register);
         else
         {
             builder.Emit(JsOpCode.Wide);
-            builder.Emit(op, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF), 0, 0);
+            builder.Emit(op, (byte)(register & 0xFF), (byte)((register >> 8) & 0xFF));
         }
     }
 
@@ -369,7 +369,7 @@ internal abstract partial class JsCompilerBase
     {
         if (value is < sbyte.MinValue or > sbyte.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(value));
-        builder.Emit(op, unchecked((byte)(sbyte)value), 0);
+        builder.Emit(op, unchecked((byte)(sbyte)value));
     }
 
     private void EmitModuleVariableAccess(JsOpCode op, int cellIndex, int depth)

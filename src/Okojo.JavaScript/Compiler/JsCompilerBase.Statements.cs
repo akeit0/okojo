@@ -451,7 +451,7 @@ internal abstract partial class JsCompilerBase
             var doneLabel = builder.CreateLabel();
 
             EmitLdar(arrayLengthRegister);
-            builder.Emit(JsOpCode.TestLessThanSmi, 0, 0);
+            builder.Emit(JsOpCode.TestLessThanSmi, 0);
             EmitJumpIfToBooleanFalse(fastArrayLabel);
             EmitJump(fallbackLabel);
 
@@ -515,7 +515,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitCallRuntime((int)RuntimeId.ForOfFastPathLength, sourceRegister, 1);
         EmitStar(arrayLengthRegister);
         EmitLdar(arrayLengthRegister);
-        builder.Emit(JsOpCode.TestLessThan, (byte)indexRegister, 0);
+        builder.Emit(JsOpCode.TestLessThan, (byte)indexRegister);
         EmitJumpIfToBooleanFalse(doneLabel);
 
         EmitLdar(indexRegister);

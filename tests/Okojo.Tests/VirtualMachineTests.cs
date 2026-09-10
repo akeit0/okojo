@@ -30,8 +30,7 @@ public class VirtualMachineTests
                 (byte)JsOpCode.LdaSmi,
                 2,
                 (byte)JsOpCode.Add,
-                0,
-                0, // reg 0, slot 0
+                0, // reg 0 (single operand; feedback operand removed)
                 (byte)JsOpCode.Return,
             ],
             Array.Empty<ulong>(),

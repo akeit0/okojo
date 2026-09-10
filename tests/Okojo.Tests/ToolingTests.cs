@@ -273,21 +273,29 @@ public class ToolingTests
     }
 
     [Test]
-    public void Compiler_Uses_Mov_For_ArrayDestructuring_Source_Copy()
+    public void Compiler_Uses_Mov_For_Parameter_Snapshot_Copy()
     {
+        // Pins a genuine Mov instruction via disassembly. A previous revision
+        // of this test scanned raw bytes for the Mov opcode value on an
+        // array-destructuring snippet whose stream never contained a Mov
+        // instruction - it matched a coincidental operand byte (a branch
+        // displacement), which shifted when the feedback-operand removal
+        // changed instruction lengths. Byte-value scans are not instruction
+        // assertions; assert decoded instructions instead.
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
             realm,
             JavaScriptParser.ParseScript(
                 """
-                function t(a) { let b; [b] = a; return b; }
-                t([7]);
+                function t(a = 1, b = 2) { return a + b; }
+                t();
                 """
             )
         );
 
         var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        Assert.That(t.Script.Bytecode.Contains((byte)JsOpCode.Mov), Is.True);
+        var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
+        Assert.That(disasm, Does.Match(@"Mov r\d+ -> r\d+"));
     }
 
     [Test]
@@ -522,8 +530,7 @@ public class ToolingTests
                 0x01,
                 0x00, // 70000
                 (byte)JsOpCode.Add,
-                0,
-                0,
+                0, // reg 0 (single operand; feedback operand removed)
                 (byte)JsOpCode.Return,
             ],
             Array.Empty<ulong>(),

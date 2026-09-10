@@ -2080,7 +2080,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             // One byref read per operand: every tag test and value
@@ -2145,7 +2144,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             uLhs = slotRef.U;
@@ -2201,7 +2199,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             uLhs = slotRef.U;
@@ -2256,7 +2253,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             uLhs = slotRef.U;
@@ -2285,7 +2281,6 @@ public sealed partial class JsRealm
                             {
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                pc = ref Unsafe.Add(ref pc, 1); // slot
                                 uRhs = acc.U;
                                 if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                                 {
@@ -2385,7 +2380,6 @@ public sealed partial class JsRealm
                             {
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                pc = ref Unsafe.Add(ref pc, 1); // slot
                                 uRhs = acc.U;
                                 if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
                                     acc = Mul(acc, intNum1);
@@ -2409,7 +2403,6 @@ public sealed partial class JsRealm
                                 // imm operand in intNum1
                                 intNum1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                pc = ref Unsafe.Add(ref pc, 1); // slot
                                 uRhs = acc.U;
                                 if (
                                     (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
@@ -2463,8 +2456,6 @@ public sealed partial class JsRealm
                                         acc,
                                         intNum1
                                     );
-
-                                pc = ref Unsafe.Add(ref pc, 1); // slot
                             }
                             break;
 
@@ -2572,7 +2563,6 @@ public sealed partial class JsRealm
                                     operandScale
                                 );
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
 
                                 // One byref read per operand; tag tests and value
@@ -2612,7 +2602,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             // Number == number abstract equality is the exact
@@ -2645,7 +2634,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
 
                             uLhs = slotRef.U;
@@ -2672,7 +2660,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
                             this.acc = acc;
                             acc = InstanceOfSlowPath(this, slotRef, acc)
@@ -2690,7 +2677,6 @@ public sealed partial class JsRealm
                                 operandScale
                             );
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
-                            ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                             pc = ref Unsafe.Add(ref pc, operandOffset);
                             this.acc = acc;
                             acc = InOperatorSlowPath(this, slotRef, acc)
@@ -2705,7 +2691,6 @@ public sealed partial class JsRealm
                             {
                                 num1 = (sbyte)pc;
                                 pc = ref Unsafe.Add(ref pc, 1);
-                                pc = ref Unsafe.Add(ref pc, 1); // slot
 
                                 uRhs = acc.U;
                                 if (JsValue.TryGetNumberValueFromUlong(uRhs, out num2))
@@ -2742,7 +2727,6 @@ public sealed partial class JsRealm
                                     operandScale
                                 );
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
-                                ReadScaledUnsignedOperand(ref pc, ref operandOffset, operandScale); // slot
                                 pc = ref Unsafe.Add(ref pc, operandOffset);
 
                                 // One byref read per operand; tag tests and value
