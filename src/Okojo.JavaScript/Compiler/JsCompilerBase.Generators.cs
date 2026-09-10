@@ -208,7 +208,7 @@ internal abstract partial class JsCompilerBase
             (byte)registerCount,
             (byte)suspendId
         );
-        var resumeTargets = generatorResumeTargets ??= Vm.RentCompileList<int>();
+        var resumeTargets = generatorResumeTargets ??= Pool.RentCompileList<int>();
         while (resumeTargets.Count <= suspendId)
             resumeTargets.Add(-1);
         resumeTargets[suspendId] = builder.CodeLength;

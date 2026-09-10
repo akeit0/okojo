@@ -8,7 +8,7 @@ namespace Okojo.JavaScript.Compiler;
 
 internal sealed partial class JsFunctionCompiler
 {
-    internal JsBytecodeFunction CompileFunction(
+    internal JsFunctionDescriptor CompileFunction(
         JsAst ast,
         in JsFunctionInfo function,
         int bodyRoot,
@@ -51,7 +51,7 @@ internal sealed partial class JsFunctionCompiler
         );
     }
 
-    private JsBytecodeFunction CompileFunctionCore(
+    private JsFunctionDescriptor CompileFunctionCore(
         in FunctionCompileMetadata metadata,
         CompilerBindingCollectionResult collected,
         JsAst ast,
@@ -185,14 +185,12 @@ internal sealed partial class JsFunctionCompiler
                 );
         }
 
-        var script = builder.ToScript(
+        var code = builder.ToCode(
             sourceCode: scriptSourceCode,
             functionSourceText: functionSourceText ?? default
         );
-        script.BindAgent(Vm.Agent);
-        var result = new JsBytecodeFunction(
-            Vm,
-            script,
+        var result = new JsFunctionDescriptor(
+            code,
             metadata.Name,
             requiresClosureBinding: false,
             isStrict: metadata.StrictDeclared,
@@ -209,18 +207,22 @@ internal sealed partial class JsFunctionCompiler
             isDerivedConstructor: metadata.IsDerivedConstructor,
             hasEagerGeneratorParameterBinding: isGenerator && !metadata.HasSimpleParameterList,
             expectedArgumentCount: metadata.FunctionLength
-        );
-        result.ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata);
-        result.SuperBaseContextSlot = superBaseContextSlot;
-        result.DerivedThisContextSlot = derivedThisContextSlot;
-        if (
-            metadata.IsArrow
-            && inheritedCaptures.TryGetValue(DerivedThisBindingName, out var derivedThis)
         )
         {
-            result.LexicalThisContextSlot = derivedThis.Slot;
-            result.LexicalThisContextDepth = derivedThis.Depth;
-        }
+            ArgumentsMappedSlots = BuildArgumentsMappedSlots(metadata),
+            SuperBaseContextSlot = superBaseContextSlot,
+            DerivedThisContextSlot = derivedThisContextSlot,
+            LexicalThisContextSlot =
+                metadata.IsArrow
+                && inheritedCaptures.TryGetValue(DerivedThisBindingName, out var derivedThis)
+                    ? derivedThis.Slot
+                    : -1,
+            LexicalThisContextDepth =
+                metadata.IsArrow
+                && inheritedCaptures.TryGetValue(DerivedThisBindingName, out var derivedThisDepth)
+                    ? derivedThisDepth.Depth
+                    : -1,
+        };
         // Return all pooled collections before handing the finished script out;
         // skipping this made every nested-function compile pay full pool-rent cost.
         builder.Dispose();

@@ -2,13 +2,8 @@ namespace Okojo.JavaScript.Execution;
 
 internal sealed class JsTemplateSiteDescriptor(string?[] cooked, string[] raw)
 {
-    private readonly Dictionary<JsRealm, JsArray> cache = new();
-
-    public JsArray GetOrCreate(JsRealm realm)
+    internal JsArray Create(JsRealm realm)
     {
-        if (cache.TryGetValue(realm, out var existing))
-            return existing;
-
         var cookedArray = realm.CreateArrayObject();
         for (var i = 0; i < cooked.Length; i++)
             cookedArray.DefineElementDescriptor(
@@ -40,7 +35,14 @@ internal sealed class JsTemplateSiteDescriptor(string?[] cooked, string[] raw)
         cookedArray.FreezeDataProperties();
         cookedArray.PreventExtensions();
 
-        cache[realm] = cookedArray;
         return cookedArray;
     }
+}
+
+// Template identity and its frozen arrays belong to the linked realm, not the code graph.
+internal sealed class JsTemplateSite(JsRealm realm, JsTemplateSiteDescriptor descriptor)
+{
+    private JsArray? templateObject;
+
+    internal JsArray GetOrCreate() => templateObject ??= descriptor.Create(realm);
 }

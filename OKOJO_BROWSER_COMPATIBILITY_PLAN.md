@@ -14,6 +14,19 @@ Target outcome:
 
 ## Current status
 
+### Code/instance split implementation (gates green 2026-09-10)
+
+Portable compilation units and function descriptors now separate shared bytecode
+from realm-local atoms, literal layouts, feedback and breakpoint copies. Runtime
+closures are constructed explicitly. Compile-and-link convenience remains; the
+old mutable low-level script constructor and clone API are removed. Module binding
+plans and lazy nested compilation remain separate work. Verified on application:
+warning-free `Okojo.slnx` Release build, all .NET suites green (`Okojo.Tests`
+2244 passed / 4 skipped), full Test262 42618 passed with zero non-staging
+failures, overlapping bytecode snapshots byte-identical. See
+`docs/implementation/CODE_INSTANCE_SPLIT_IMPLEMENTATION.md`.
+
+
 Current baseline:
 
 - the non-legacy, non-staging `test262` target is currently achieved

@@ -16,15 +16,23 @@ internal sealed partial class JsFunctionCompiler : JsCompilerBase
     private bool initializeParametersInPrologue;
 
     internal JsFunctionCompiler(
+        CompileCollectionPool pool,
+        IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null,
+        IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null,
+        SourceCode? scriptSourceCode = null
+    )
+        : base(pool, privateBindings, scriptSourceCode)
+    {
+        this.inheritedCaptures = inheritedCaptures ?? EmptyCaptures;
+    }
+
+    internal JsFunctionCompiler(
         JsRealm realm,
         IReadOnlyDictionary<string, CapturedBindingAccess>? inheritedCaptures = null,
         IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null,
         SourceCode? scriptSourceCode = null
     )
-        : base(realm, privateBindings, scriptSourceCode)
-    {
-        this.inheritedCaptures = inheritedCaptures ?? EmptyCaptures;
-    }
+        : this(realm.CompilationPool, inheritedCaptures, privateBindings, scriptSourceCode) { }
 
     private void EnsureParameterMaps()
     {

@@ -121,7 +121,8 @@ public class ErrorConstructorTests
             JavaScriptParser.ParseScript($"function f({parameters}) {{ p259(); }} f();")
         );
         var function = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(value => value.Name == "f");
 
         Assert.That(function.Script.CallSiteDebugPcs, Has.Length.EqualTo(1));
@@ -129,10 +130,10 @@ public class ErrorConstructorTests
         Assert.Multiple(() =>
         {
             Assert.That(
-                function.Script.Bytecode[callPc],
+                function.Script.BytecodeArray[callPc],
                 Is.EqualTo((byte)JsOpCode.CallUndefinedReceiver)
             );
-            Assert.That(function.Script.Bytecode[callPc - 1], Is.EqualTo((byte)JsOpCode.Wide));
+            Assert.That(function.Script.BytecodeArray[callPc - 1], Is.EqualTo((byte)JsOpCode.Wide));
             Assert.That(function.Script.TryGetCallSiteDebugNameAtPc(callPc, out var name), Is.True);
         });
         Assert.That(

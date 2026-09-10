@@ -166,7 +166,7 @@ public sealed partial class JsAgent
                     for (var i = 0; i < compilation.HoistedFunctions.Count; i++)
                     {
                         var hoisted = compilation.HoistedFunctions[i];
-                        var closure = hoisted.Template.CloneForClosure(targetRealm);
+                        var closure = hoisted.Template.CreateClosure(targetRealm);
                         closure.BoundParentContext = context;
                         if (hoisted.StorageKind == ModuleHoistedFunctionStorageKind.ModuleCell)
                             moduleExecutionBindings

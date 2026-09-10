@@ -19,7 +19,8 @@ public class VmOptimizationTests
             """
         );
         var function = script
-            .ObjectConstants.OfType<Okojo.JavaScript.Objects.JsBytecodeFunction>()
+            .ObjectConstants.OfType<Okojo.JavaScript.Bytecode.JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static candidate => candidate.Name == "read");
 
         realm.Execute(script);
@@ -49,7 +50,8 @@ public class VmOptimizationTests
             """
         );
         var function = script
-            .ObjectConstants.OfType<Okojo.JavaScript.Objects.JsBytecodeFunction>()
+            .ObjectConstants.OfType<Okojo.JavaScript.Bytecode.JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static candidate => candidate.Name == "read");
 
         realm.Execute(script);
@@ -150,11 +152,12 @@ public class VmOptimizationTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = realm.CompileScript("function make() { return [1, 2, 3]; } make().join(',');");
         var function = script
-            .ObjectConstants.OfType<Okojo.JavaScript.Objects.JsBytecodeFunction>()
+            .ObjectConstants.OfType<Okojo.JavaScript.Bytecode.JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static candidate => candidate.Name == "make");
 
         Assert.That(
-            function.Script.Bytecode.Contains((byte)JsOpCode.CreateArrayLiteralWithLength),
+            function.Script.BytecodeArray.Contains((byte)JsOpCode.CreateArrayLiteralWithLength),
             Is.True
         );
         Assert.That(function.Script.ObjectConstants.OfType<int>(), Is.Empty);

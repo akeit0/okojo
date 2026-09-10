@@ -94,8 +94,11 @@ public class ForInTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        var code = t.Script.Bytecode;
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        var code = t.Script.BytecodeArray;
 
         var sawEnumerate = false;
         var sawNext = false;

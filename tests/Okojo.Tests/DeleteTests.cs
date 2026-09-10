@@ -106,8 +106,11 @@ public class DeleteTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        var code = t.Script.Bytecode;
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        var code = t.Script.BytecodeArray;
 
         var sawDeleteRuntime = false;
         for (var i = 0; i + 3 < code.Length; i++)
@@ -140,8 +143,11 @@ public class DeleteTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        var code = t.Script.Bytecode;
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        var code = t.Script.BytecodeArray;
 
         var sawDeleteRuntime = false;
         for (var i = 0; i + 3 < code.Length; i++)

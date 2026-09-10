@@ -18,7 +18,7 @@ public class BigIntBytecodeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = realm.CompileScript("1n;");
 
-        Assert.That(script.Bytecode.Contains((byte)JsOpCode.LdaTypedConst), Is.True);
+        Assert.That(script.BytecodeArray.Contains((byte)JsOpCode.LdaTypedConst), Is.True);
         Assert.That(script.ObjectConstants.OfType<JsBigInt>().Any(b => b.Value == 1), Is.True);
     }
 
@@ -26,13 +26,14 @@ public class BigIntBytecodeTests
     public void Vm_Loads_BigInt_Through_LdaTypedConst()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
             Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -43,12 +44,15 @@ public class BigIntBytecodeTests
     [Test]
     public void Disassembler_Formats_LdaTypedConst()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
             Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script);

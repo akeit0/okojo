@@ -35,7 +35,7 @@ public static class Disassembler
         sb.AppendLine(
             $"; constants: {script.NumericConstants.Length + script.ObjectConstants.Length}"
         );
-        sb.AppendLine($"; context-slots: {ResolveContextSlots(script.Bytecode, options)}");
+        sb.AppendLine($"; context-slots: {ResolveContextSlots(script.BytecodeArray, options)}");
 
         if (options.IncludeConstants)
         {
@@ -50,7 +50,7 @@ public static class Disassembler
 
         sb.AppendLine(".code");
 
-        var code = script.Bytecode;
+        var code = script.BytecodeArray;
         var pc = 0;
         while (pc < code.Length)
         {
@@ -156,6 +156,7 @@ public static class Disassembler
         {
             string s => $"String(\"{EscapeAndMaybeTruncate(s)}\")",
             JsValue jv => JsValueDebugString.FormatValue(jv),
+            JsScript instance => $"Function({instance.Function.Name})",
             JsFunction fn => $"Function({fn.Name ?? "<anonymous>"})",
             JsObject _ => $"Object({value.GetType().Name})",
             _ => value.ToString() ?? "<null>",

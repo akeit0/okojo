@@ -32,16 +32,6 @@ public class JsObject
             SlotsArray = new JsValue[shape.StorageSlotCount];
     }
 
-    protected void ResetObjectStateForClosure(JsRealm realm)
-    {
-        NamedPropertyLayout = realm.EmptyShape;
-        SlotsArray = Array.Empty<JsValue>();
-        IndexedProperties = null;
-        IsExtensibleFlag = true;
-        deleteChurn = 0;
-        redefineChurn = 0;
-    }
-
     public JsObject? Prototype { get; internal set; }
     public virtual bool IsExtensible => IsExtensibleFlag;
 

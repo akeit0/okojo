@@ -21,7 +21,7 @@ public class VirtualMachineTests
         // LdaSmi 2
         // Add r0
         // Return
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaSmi,
                 1,
@@ -36,8 +36,9 @@ public class VirtualMachineTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -48,7 +49,7 @@ public class VirtualMachineTests
     public void Mov_Does_Not_Clobber_Accumulator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaSmi,
                 7,
@@ -64,8 +65,9 @@ public class VirtualMachineTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             2,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 

@@ -5,8 +5,22 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Compiler;
 
-internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
+internal sealed class JsModuleCompiler : JsCompilerBase
 {
+    private readonly JsRealm? targetRealm;
+
+    internal JsModuleCompiler(JsRealm realm)
+        : this(realm.CompilationPool)
+    {
+        targetRealm = realm;
+    }
+
+    internal JsModuleCompiler(CompileCollectionPool pool)
+        : base(pool) { }
+
+    private JsRealm TargetRealm =>
+        targetRealm ?? throw new InvalidOperationException("Link the module to an explicit realm.");
+
     private readonly List<ModuleHoistedFunction> hoistedFunctions = [];
     private bool deferHoistedFunctions;
 
@@ -16,15 +30,17 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         return Compile(ast);
     }
 
-    public JsScript Compile(JsAst ast)
+    public JsScript Compile(JsAst ast) => CompileUnit(ast).Link(TargetRealm);
+
+    internal JsCompilationUnit CompileUnit(JsAst ast)
     {
-        var script = CompileCore(ast);
+        var function = CompileCore(ast);
         builder.Dispose();
         ReleaseCompilerStorage();
-        return script;
+        return new(function);
     }
 
-    private JsScript CompileCore(JsAst ast)
+    private JsFunctionDescriptor CompileCore(JsAst ast)
     {
         ArgumentNullException.ThrowIfNull(ast);
         if (!ast.IsModule)
@@ -65,15 +81,18 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         builder.EmitLda(JsOpCode.LdaUndefined);
         builder.Emit(JsOpCode.Return);
         PatchGeneratorSwitchTable();
-        var bodyScript = builder.ToScript(scriptSourceCode);
-        bodyScript.BindAgent(Vm.Agent);
-        return ast.HasTopLevelAwait ? WrapAsyncModule(bodyScript, ast) : bodyScript;
+        var bodyCode = builder.ToCode(scriptSourceCode);
+        return ast.HasTopLevelAwait
+            ? WrapAsyncModule(Pool, bodyCode, ast)
+            : new JsFunctionDescriptor(bodyCode, "module", isStrict: true);
     }
 
     internal ModuleExecutionCompilation CompileForExecution(JsAst ast)
     {
         deferHoistedFunctions = true;
-        var script = CompileCore(ast);
+        var entry = CompileCore(ast);
+        var additionalFunctions = hoistedFunctions.Select(static h => h.Template).ToArray();
+        var script = new JsCompilationUnit(entry, additionalFunctions).Link(TargetRealm);
         var initialContextSlots = new JsValue[rootContextSlotCount];
         Array.Fill(initialContextSlots, JsValue.Undefined);
         var bindings = GetPlannedBindings(0);
@@ -97,11 +116,15 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         return result;
     }
 
-    internal JsScript WrapAsyncModule(JsScript bodyScript, JsAst ast)
+    internal static JsFunctionDescriptor WrapAsyncModule(
+        CompileCollectionPool pool,
+        JsFunctionCode bodyCode,
+        JsAst ast,
+        JsGlobalDeclarationPlan? declarations = null
+    )
     {
-        var function = new JsBytecodeFunction(
-            Vm,
-            bodyScript,
+        var function = new JsFunctionDescriptor(
+            bodyCode,
             string.Empty,
             requiresClosureBinding: false,
             isStrict: true,
@@ -110,7 +133,7 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
             hasSimpleParameterList: true,
             expectedArgumentCount: 0
         );
-        using var wrapper = new BytecodeBuilder(Vm);
+        using var wrapper = new BytecodeBuilder(pool);
         wrapper.SetSourceText(ast.SourceText);
         wrapper.SetStrictDeclared(true);
         wrapper.Emit(JsOpCode.CreateClosure, (byte)wrapper.AddObjectConstant(function), 0);
@@ -118,14 +141,13 @@ internal sealed class JsModuleCompiler(JsRealm realm) : JsCompilerBase(realm)
         wrapper.Emit(JsOpCode.Star, (byte)functionRegister);
         wrapper.EmitCallUndefinedReceiver(functionRegister, 0, 0);
         wrapper.Emit(JsOpCode.Return);
-        var script = wrapper.ToScript(scriptSourceCode);
-        script.BindAgent(Vm.Agent);
-        return script;
+        var code = wrapper.ToCode(bodyCode.SourceCode, declarations: declarations);
+        return new(code, "module", isStrict: true);
     }
 
     protected override bool DeferHoistedFunction(
         in BindingStorage binding,
-        JsBytecodeFunction function
+        JsFunctionDescriptor function
     )
     {
         if (!deferHoistedFunctions || activeScopes.Peek().ScopeId != 0)

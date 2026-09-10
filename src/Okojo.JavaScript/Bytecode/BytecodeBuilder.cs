@@ -26,7 +26,8 @@ public sealed class BytecodeBuilder : IDisposable
     private Dictionary<object, int>? objectConstantIndices;
     private Dictionary<string, int>? atomizedStringSymbolIndices;
     private readonly Dictionary<long, string> privateFieldDebugNames;
-    private readonly JsRealm realm;
+    private readonly CompileCollectionPool pool;
+    private readonly JsRealm? targetRealm;
     private readonly Dictionary<int, string> runtimeCallDebugNames;
     private readonly List<int> switchOnSmiTargets;
     private readonly List<SwitchOnSmiPatchInfo> switchOnSmiToPatch;
@@ -46,29 +47,38 @@ public sealed class BytecodeBuilder : IDisposable
     private bool strictDeclared;
 
     public BytecodeBuilder(JsRealm realm)
+        : this(realm.CompilationPool)
     {
-        this.realm = realm;
-        code = realm.RentCompileList<byte>(256);
-        numericConstants = realm.RentCompileList<double>(32);
-        objectConstants = realm.RentCompileList<object>(64);
-        atomizedStringSymbols = realm.RentCompileList<string>(64);
-        callSiteDebugNames = realm.RentCompileDictionary<int, string>(32);
-        generatorSwitchTargets = realm.RentCompileList<int>(16);
-        switchOnSmiTargets = realm.RentCompileList<int>(32);
-        jumps16ToPatch = realm.RentCompileList<JumpInfo>(64);
-        switchOnSmiToPatch = realm.RentCompileList<SwitchOnSmiPatchInfo>(16);
-        labelPositions = realm.RentCompileDictionary<int, int>(64);
-        globalBindingFeedbackSlotByName = realm.RentCompileDictionary<string, int>(32);
-        runtimeCallDebugNames = realm.RentCompileDictionary<int, string>(16);
-        tdzReadDebugNames = realm.RentCompileDictionary<int, string>(32);
-        privateFieldDebugNames = realm.RentCompileDictionary<long, string>(8);
-        localDebugInfos = realm.RentCompileList<JsLocalDebugInfo>(32);
-        debugSourceOffsets = realm.RentCompileDictionary<int, int>(128);
-        freeTemporaryRegisters = realm.RentCompileList<int>(32);
-        activeTemporaryRegisters = realm.RentCompileList<int>(64);
+        targetRealm = realm;
+    }
+
+    public BytecodeBuilder()
+        : this(new CompileCollectionPool()) { }
+
+    internal BytecodeBuilder(CompileCollectionPool pool)
+    {
+        this.pool = pool;
+        code = pool.RentCompileList<byte>(256);
+        numericConstants = pool.RentCompileList<double>(32);
+        objectConstants = pool.RentCompileList<object>(64);
+        atomizedStringSymbols = pool.RentCompileList<string>(64);
+        callSiteDebugNames = pool.RentCompileDictionary<int, string>(32);
+        generatorSwitchTargets = pool.RentCompileList<int>(16);
+        switchOnSmiTargets = pool.RentCompileList<int>(32);
+        jumps16ToPatch = pool.RentCompileList<JumpInfo>(64);
+        switchOnSmiToPatch = pool.RentCompileList<SwitchOnSmiPatchInfo>(16);
+        labelPositions = pool.RentCompileDictionary<int, int>(64);
+        globalBindingFeedbackSlotByName = pool.RentCompileDictionary<string, int>(32);
+        runtimeCallDebugNames = pool.RentCompileDictionary<int, string>(16);
+        tdzReadDebugNames = pool.RentCompileDictionary<int, string>(32);
+        privateFieldDebugNames = pool.RentCompileDictionary<long, string>(8);
+        localDebugInfos = pool.RentCompileList<JsLocalDebugInfo>(32);
+        debugSourceOffsets = pool.RentCompileDictionary<int, int>(128);
+        freeTemporaryRegisters = pool.RentCompileList<int>(32);
+        activeTemporaryRegisters = pool.RentCompileList<int>(64);
 #if DEBUG
-        freeTemporaryRegisterSet = realm.RentCompileHashSet<int>(32);
-        reportedSuspiciousAccumulatorCopies = realm.RentCompileHashSet<long>(32);
+        freeTemporaryRegisterSet = pool.RentCompileHashSet<int>(32);
+        reportedSuspiciousAccumulatorCopies = pool.RentCompileHashSet<long>(32);
 #endif
     }
 
@@ -578,7 +588,7 @@ public sealed class BytecodeBuilder : IDisposable
                 return numericConstants.Count - 1;
             }
 
-            numericConstantIndices = realm.RentCompileDictionary<ulong, int>(
+            numericConstantIndices = pool.RentCompileDictionary<ulong, int>(
                 numericConstants.Count + 1
             );
             for (var i = 0; i < numericConstants.Count; i++)
@@ -608,7 +618,7 @@ public sealed class BytecodeBuilder : IDisposable
                 return objectConstants.Count - 1;
             }
 
-            objectConstantIndices = realm.RentCompileDictionary<object, int>(
+            objectConstantIndices = pool.RentCompileDictionary<object, int>(
                 objectConstants.Count + 1,
                 ReferenceEqualityComparer.Instance
             );
@@ -633,7 +643,7 @@ public sealed class BytecodeBuilder : IDisposable
             );
 
         // Recorded symbolically: interning against the realm atom table
-        // happens once per distinct name at finalization, so emission itself
+        // happens once per distinct name at realm linking, so emission itself
         // no longer depends on realm atom state. Dedup by string is
         // equivalent to the old dedup by atom (1:1 per realm, both Ordinal).
         if (atomizedStringSymbolIndices is null)
@@ -648,7 +658,7 @@ public sealed class BytecodeBuilder : IDisposable
                 return atomizedStringSymbols.Count - 1;
             }
 
-            atomizedStringSymbolIndices = realm.RentCompileDictionary<string, int>(
+            atomizedStringSymbolIndices = pool.RentCompileDictionary<string, int>(
                 atomizedStringSymbols.Count + 1,
                 StringComparer.Ordinal
             );
@@ -907,42 +917,34 @@ public sealed class BytecodeBuilder : IDisposable
         debugSourceOffsets[instructionPc] = sourceOffset;
     }
 
+    public JsCompilationUnit ToCompilationUnit() => new(new(ToCode(), isStrict: strictDeclared));
+
     public JsScript ToScript() =>
-        ToScriptCore(
-            sourceText is null ? null : new SourceCode(sourceText, null),
-            default,
-            null,
-            null,
-            null,
-            false
-        );
+        ToCompilationUnit()
+            .Link(
+                targetRealm
+                    ?? throw new InvalidOperationException("Use ToCompilationUnit().Link(realm).")
+            );
 
     internal JsScript ToScript(
         SourceCode? sourceCode,
+        FunctionSourceTextSegment functionSourceText = default
+    ) =>
+        new JsCompilationUnit(
+            new(ToCode(sourceCode, functionSourceText), isStrict: strictDeclared)
+        ).Link(targetRealm ?? throw new InvalidOperationException("A target realm is required."));
+
+    internal JsFunctionCode ToCode(
+        SourceCode? sourceCode = null,
         FunctionSourceTextSegment functionSourceText = default,
-        int[]? topLevelLexicalAtoms = null,
+        string[]? topLevelLexicalNames = null,
         int[]? topLevelLexicalSlots = null,
         bool[]? topLevelLexicalConstFlags = null,
-        bool suppressTopLevelLexicalRegistration = false
-    ) =>
-        ToScriptCore(
-            sourceCode,
-            functionSourceText,
-            topLevelLexicalAtoms,
-            topLevelLexicalSlots,
-            topLevelLexicalConstFlags,
-            suppressTopLevelLexicalRegistration
-        );
-
-    private JsScript ToScriptCore(
-        SourceCode? sourceCode,
-        FunctionSourceTextSegment functionSourceText,
-        int[]? topLevelLexicalAtoms,
-        int[]? topLevelLexicalSlots,
-        bool[]? topLevelLexicalConstFlags,
-        bool suppressTopLevelLexicalRegistration
+        bool suppressTopLevelLexicalRegistration = false,
+        JsGlobalDeclarationPlan? declarations = null
     )
     {
+        sourceCode ??= sourceText is null ? null : new SourceCode(sourceText, null);
         foreach (var jump in jumps16ToPatch)
             if (labelPositions.TryGetValue(jump.Target.Id, out var targetPos))
             {
@@ -999,8 +1001,8 @@ public sealed class BytecodeBuilder : IDisposable
             || privateFieldDebugNames.Count != 0
         )
         {
-            var nameIndexByText = realm.RentCompileDictionary<string, int>();
-            var names = realm.RentCompileList<string>();
+            var nameIndexByText = pool.RentCompileDictionary<string, int>();
+            var names = pool.RentCompileList<string>();
             try
             {
                 if (callSiteDebugNames.Count != 0)
@@ -1043,58 +1045,62 @@ public sealed class BytecodeBuilder : IDisposable
             }
             finally
             {
-                realm.ReturnCompileDictionary(nameIndexByText);
-                realm.ReturnCompileList(names);
+                pool.ReturnCompileDictionary(nameIndexByText);
+                pool.ReturnCompileList(names);
             }
         }
 
-        GlobalBindingIcEntry[]? globalBindingIcEntries = null;
-        if (globalBindingFeedbackSlotCount != 0)
-            globalBindingIcEntries = new GlobalBindingIcEntry[globalBindingFeedbackSlotCount];
-
-        // Link the symbolic name table against this realm: one intern per
-        // distinct name, in first-add order, so pool contents equal the old
-        // eager-interning order.
-        var atomizedStringConstants = new int[atomizedStringSymbols.Count];
-        for (var i = 0; i < atomizedStringSymbols.Count; i++)
-            atomizedStringConstants[i] = realm.Atoms.InternNoCheck(atomizedStringSymbols[i]);
+        JsFunctionDebugInfo? debugInfo = null;
+        if (debugNames is not null || debugPcOffsets is not null || localDebugInfos.Count != 0)
+            debugInfo = new()
+            {
+                Names = debugNames,
+                CallSitePcs = callSiteDebugPcs,
+                CallSiteNameIndices = callSiteDebugNameIndices,
+                RuntimeCallPcs = runtimeCallDebugPcs,
+                RuntimeCallNameIndices = runtimeCallDebugNameIndices,
+                TdzReadPcs = tdzReadDebugPcs,
+                TdzReadNameIndices = tdzReadDebugNameIndices,
+                PcOffsets = debugPcOffsets,
+                SourceOffsets = debugSourceOffsets,
+                PrivateFieldKeys = privateFieldDebugKeys,
+                PrivateFieldNameIndices = privateFieldDebugNameIndices,
+                Locals = localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
+            };
 
         return new(
             code.ToArray(),
             ToNumericConstantBits(),
-            objectConstants.ToArray(),
+            SnapshotPortableConstants(),
             RegisterCount,
-            atomizedStringConstants,
+            atomizedStringSymbols.ToArray(),
             strictDeclared,
-            debugNames,
-            callSiteDebugPcs,
-            callSiteDebugNameIndices,
-            runtimeCallDebugPcs,
-            runtimeCallDebugNameIndices,
-            tdzReadDebugPcs,
-            tdzReadDebugNameIndices,
-            namedPropertyFeedbackSlotCount == 0
+            namedPropertyFeedbackSlotCount,
+            globalBindingFeedbackSlotCount,
+            debugInfo,
+            sourceCode,
+            functionSourceText,
+            generatorSwitchTargets.Count == 0 ? null : generatorSwitchTargets.ToArray(),
+            switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
+            declarations,
+            topLevelLexicalNames is null
                 ? null
-                : new OkojoNamedPropertyIcEntry[namedPropertyFeedbackSlotCount],
-            globalBindingIcEntries,
-            debugPcOffsets,
-            debugSourceOffsets,
-            SourceText: null,
-            FunctionSourceText: functionSourceText,
-            GeneratorSwitchTargets: generatorSwitchTargets.Count == 0
-                ? null
-                : generatorSwitchTargets.ToArray(),
-            SwitchOnSmiTargets: switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
-            PrivateFieldDebugKeys: privateFieldDebugKeys,
-            PrivateFieldDebugNameIndices: privateFieldDebugNameIndices,
-            LocalDebugInfos: localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
-            PrototypeNamedPropertyIcEntries: null,
-            TopLevelLexicalAtoms: topLevelLexicalAtoms,
-            TopLevelLexicalSlots: topLevelLexicalSlots,
-            TopLevelLexicalConstFlags: topLevelLexicalConstFlags,
-            SourceCode: sourceCode,
-            SuppressTopLevelLexicalRegistration: suppressTopLevelLexicalRegistration
+                : new JsTopLevelLexicalPlan(
+                    topLevelLexicalNames,
+                    topLevelLexicalSlots!,
+                    topLevelLexicalConstFlags!
+                ),
+            suppressTopLevelLexicalRegistration
         );
+    }
+
+    private object[] SnapshotPortableConstants()
+    {
+        var constants = objectConstants.ToArray();
+        for (var i = 0; i < constants.Length; i++)
+            if (constants[i] is int[] values)
+                constants[i] = (int[])values.Clone();
+        return constants;
     }
 
     private void ReturnPooledCollections()
@@ -1103,30 +1109,30 @@ public sealed class BytecodeBuilder : IDisposable
             return;
 
         returnedToPool = true;
-        realm.ReturnCompileList(code);
-        realm.ReturnCompileList(numericConstants);
-        realm.ReturnCompileList(objectConstants);
-        realm.ReturnCompileList(atomizedStringSymbols);
-        realm.ReturnCompileList(generatorSwitchTargets);
-        realm.ReturnCompileList(switchOnSmiTargets);
-        realm.ReturnCompileList(jumps16ToPatch);
-        realm.ReturnCompileList(switchOnSmiToPatch);
-        realm.ReturnCompileDictionary(labelPositions);
-        realm.ReturnCompileDictionary(globalBindingFeedbackSlotByName);
-        realm.ReturnCompileDictionary(callSiteDebugNames);
-        realm.ReturnCompileDictionary(runtimeCallDebugNames);
-        realm.ReturnCompileDictionary(tdzReadDebugNames);
-        realm.ReturnCompileDictionary(privateFieldDebugNames);
-        realm.ReturnCompileList(localDebugInfos);
-        realm.ReturnCompileDictionary(debugSourceOffsets);
-        realm.ReturnCompileDictionary(numericConstantIndices);
-        realm.ReturnCompileDictionary(objectConstantIndices);
-        realm.ReturnCompileDictionary(atomizedStringSymbolIndices);
-        realm.ReturnCompileList(freeTemporaryRegisters);
-        realm.ReturnCompileList(activeTemporaryRegisters);
+        pool.ReturnCompileList(code);
+        pool.ReturnCompileList(numericConstants);
+        pool.ReturnCompileList(objectConstants);
+        pool.ReturnCompileList(atomizedStringSymbols);
+        pool.ReturnCompileList(generatorSwitchTargets);
+        pool.ReturnCompileList(switchOnSmiTargets);
+        pool.ReturnCompileList(jumps16ToPatch);
+        pool.ReturnCompileList(switchOnSmiToPatch);
+        pool.ReturnCompileDictionary(labelPositions);
+        pool.ReturnCompileDictionary(globalBindingFeedbackSlotByName);
+        pool.ReturnCompileDictionary(callSiteDebugNames);
+        pool.ReturnCompileDictionary(runtimeCallDebugNames);
+        pool.ReturnCompileDictionary(tdzReadDebugNames);
+        pool.ReturnCompileDictionary(privateFieldDebugNames);
+        pool.ReturnCompileList(localDebugInfos);
+        pool.ReturnCompileDictionary(debugSourceOffsets);
+        pool.ReturnCompileDictionary(numericConstantIndices);
+        pool.ReturnCompileDictionary(objectConstantIndices);
+        pool.ReturnCompileDictionary(atomizedStringSymbolIndices);
+        pool.ReturnCompileList(freeTemporaryRegisters);
+        pool.ReturnCompileList(activeTemporaryRegisters);
 #if DEBUG
-        realm.ReturnCompileHashSet(freeTemporaryRegisterSet);
-        realm.ReturnCompileHashSet(reportedSuspiciousAccumulatorCopies);
+        pool.ReturnCompileHashSet(freeTemporaryRegisterSet);
+        pool.ReturnCompileHashSet(reportedSuspiciousAccumulatorCopies);
 #endif
     }
 

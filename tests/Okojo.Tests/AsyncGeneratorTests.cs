@@ -1,4 +1,5 @@
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -24,7 +25,10 @@ public class AsyncGeneratorTests
             )
         );
 
-        var g = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "AG");
+        var g = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "AG");
         Assert.That(g.Kind, Is.EqualTo(JsBytecodeFunctionKind.AsyncGenerator));
     }
 

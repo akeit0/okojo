@@ -1,0 +1,1 @@
+BLOCKED: dotnet is not installed. .NET 10 SDK is required. No C# gate was executed.

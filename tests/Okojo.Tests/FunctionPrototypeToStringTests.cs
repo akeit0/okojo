@@ -96,13 +96,16 @@ public class FunctionPrototypeToStringTests
     public void JsScript_GetFunctionSourceTextString_CachesMaterializedString()
     {
         const string source = "prefix function demo() {} suffix";
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [],
             [],
             [],
             0,
             [],
-            FunctionSourceText: new FunctionSourceTextSegment(source, 7, 18)
+            functionSourceText: new FunctionSourceTextSegment(source, 7, 18)
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var first = script.GetFunctionSourceTextString();

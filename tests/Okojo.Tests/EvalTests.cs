@@ -151,6 +151,35 @@ public class EvalTests
     }
 
     [Test]
+    public void StrictEval_ThisValue_IsGlobalThis()
+    {
+        // Regression coverage for test262 language/function-code/10.4.3-1-18gs,
+        // 10.4.3-1-20gs and 10.4.3-1-20-s: the eval intrinsic serves every call
+        // without caller-context threading, so strict eval code observes the
+        // global this just like sloppy eval code does.
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var global = this;
+                var my_eval = eval;
+                function testcase() {
+                  return my_eval('"use strict";\nthis') === this;
+                }
+                eval('"use strict";\nthis') === global &&
+                  my_eval('"use strict";\nthis') === global &&
+                  testcase();
+                """
+            )
+        );
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void StrictIndirectEval_VarDeclaration_DoesNot_Leak_Global_Binding()
     {
         var realm = JsRuntime.Create().DefaultRealm;

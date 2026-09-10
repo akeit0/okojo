@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -482,7 +483,10 @@ public class OkojoGlobalTests
             )
         );
 
-        var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
+        var f = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(fn => fn.Name == "f");
         var disasm = Disassembler.Dump(f.Script, new() { UnitKind = "function", UnitName = "f" });
 
         Assert.That(disasm, Does.Contain("ForInEnumerate obj:r"));
@@ -510,7 +514,10 @@ public class OkojoGlobalTests
             )
         );
 
-        var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
+        var f = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(fn => fn.Name == "f");
         var disasm = Disassembler.Dump(f.Script, new() { UnitKind = "function", UnitName = "f" });
 
         Assert.That(disasm, Does.Contain("ForInEnumerate obj:r"));
@@ -538,7 +545,10 @@ public class OkojoGlobalTests
             )
         );
 
-        var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
+        var f = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(fn => fn.Name == "f");
         var disasm = Disassembler.Dump(f.Script, new() { UnitKind = "function", UnitName = "f" });
 
         Assert.That(disasm, Does.Not.Contain("Jump 0"));

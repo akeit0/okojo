@@ -278,7 +278,7 @@ internal static class JsScriptDebugInfo
         int opcodePc
     )
     {
-        var bytecode = script.Bytecode;
+        var bytecode = script.BytecodeArray;
         if ((uint)opcodePc >= (uint)bytecode.Length)
             return null;
 

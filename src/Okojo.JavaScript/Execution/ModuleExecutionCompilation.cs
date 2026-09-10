@@ -10,7 +10,7 @@ internal sealed record ModuleExecutionCompilation(
 );
 
 internal readonly record struct ModuleHoistedFunction(
-    JsBytecodeFunction Template,
+    JsFunctionDescriptor Template,
     ModuleHoistedFunctionStorageKind StorageKind,
     int StorageIndex
 );

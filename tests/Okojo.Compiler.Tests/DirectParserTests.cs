@@ -1346,7 +1346,7 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(2));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Debugger));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Debugger));
     }
 
     [Test]
@@ -1959,7 +1959,10 @@ public class DirectParserTests
 
         realm.Execute(script);
 
-        var choose = script.ObjectConstants.OfType<JsBytecodeFunction>().Single();
+        var choose = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single();
         var disassembly = Disassembler.Dump(choose.Script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(100));
         Assert.That(disassembly, Does.Not.Contain(nameof(JsOpCode.LogicalNot)));
@@ -2056,8 +2059,8 @@ public class DirectParserTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(0));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.CallUndefinedReceiver));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.CallUndefinedReceiver));
     }
 
     [Test]
@@ -2304,7 +2307,7 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Wide));
     }
 
     [Test]
@@ -2445,7 +2448,7 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Wide));
     }
 
     [Test]
@@ -2601,7 +2604,7 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(259));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Wide));
     }
 
     [Test]
@@ -2731,8 +2734,8 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.Int32Value, Is.Zero);
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Wide));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.Construct));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Wide));
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.Construct));
     }
 
     [Test]
@@ -2811,10 +2814,12 @@ public class DirectParserTests
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("true|true|true|true|true"));
         var make = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "make");
         var arrows = make
-            .Script.ObjectConstants.OfType<JsBytecodeFunction>()
+            .Script.ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Where(static function => function.IsArrow)
             .ToArray();
         Assert.That(make.HasNewTarget, Is.True);
@@ -3147,13 +3152,17 @@ public class DirectParserTests
             Is.EqualTo("p|2|false|5|false|6|true|9|true|7|true|19|true|5|true|8|true|pfrti")
         );
         var sequence = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "sequence");
         Assert.That(sequence.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));
         Assert.That(sequence.HasEagerGeneratorParameterBinding, Is.True);
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(
+            sequence.Script.BytecodeArray,
+            Does.Contain((byte)JsOpCode.SwitchOnGeneratorState)
+        );
+        Assert.That(sequence.Script.BytecodeArray, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(sequence.Script.BytecodeArray, Does.Contain((byte)JsOpCode.ResumeGenerator));
         Assert.That(sequence.Script.GeneratorSwitchTargets, Has.Length.EqualTo(3));
     }
 
@@ -3200,12 +3209,16 @@ public class DirectParserTests
 
         Assert.That(realm.Evaluate("__flatAsync").AsString(), Is.EqualTo("t9f5r8"));
         var fulfilled = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "fulfilled");
         Assert.That(fulfilled.Kind, Is.EqualTo(JsBytecodeFunctionKind.Async));
-        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
-        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
-        Assert.That(fulfilled.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(
+            fulfilled.Script.BytecodeArray,
+            Does.Contain((byte)JsOpCode.SwitchOnGeneratorState)
+        );
+        Assert.That(fulfilled.Script.BytecodeArray, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(fulfilled.Script.BytecodeArray, Does.Contain((byte)JsOpCode.ResumeGenerator));
         Assert.That(fulfilled.Script.GeneratorSwitchTargets, Has.Length.EqualTo(1));
     }
 
@@ -3252,7 +3265,8 @@ public class DirectParserTests
 
         Assert.That(realm.Evaluate("__flatAsyncMethod").AsString(), Is.EqualTo("5|true|read"));
         var read = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Kind == JsBytecodeFunctionKind.Async);
         Assert.That(read.IsMethod, Is.True);
     }
@@ -3306,7 +3320,8 @@ public class DirectParserTests
         Assert.That(realm.Evaluate("__flatAsyncArrowRegex").IsTrue, Is.True);
         Assert.That(realm.Evaluate("typeof divisionArrow").AsString(), Is.EqualTo("function"));
         var advanced = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "advanced");
         Assert.That(advanced.Kind, Is.EqualTo(JsBytecodeFunctionKind.Async));
         Assert.That(advanced.IsArrow, Is.True);
@@ -3368,23 +3383,29 @@ public class DirectParserTests
             Is.EqualTo("a2falseb5falsefc6true")
         );
         var sequence = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "sequence");
         Assert.That(sequence.Kind, Is.EqualTo(JsBytecodeFunctionKind.AsyncGenerator));
         Assert.That(sequence.HasEagerGeneratorParameterBinding, Is.True);
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SwitchOnGeneratorState));
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.SuspendGenerator));
-        Assert.That(sequence.Script.Bytecode, Does.Contain((byte)JsOpCode.ResumeGenerator));
+        Assert.That(
+            sequence.Script.BytecodeArray,
+            Does.Contain((byte)JsOpCode.SwitchOnGeneratorState)
+        );
+        Assert.That(sequence.Script.BytecodeArray, Does.Contain((byte)JsOpCode.SuspendGenerator));
+        Assert.That(sequence.Script.BytecodeArray, Does.Contain((byte)JsOpCode.ResumeGenerator));
         Assert.That(sequence.Script.GeneratorSwitchTargets, Has.Length.EqualTo(5));
         Assert.That(
             script
-                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .ObjectConstants.OfType<JsScript>()
+                .Select(static instance => instance.CreateClosure())
                 .Count(static function => function.Kind == JsBytecodeFunctionKind.AsyncGenerator),
             Is.EqualTo(3)
         );
         Assert.That(
             script
-                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .ObjectConstants.OfType<JsScript>()
+                .Select(static instance => instance.CreateClosure())
                 .Single(static function => function.Name == "values")
                 .IsMethod,
             Is.True
@@ -3534,7 +3555,8 @@ public class DirectParserTests
         Assert.That(realm.Evaluate("__flatForAwaitSync").Int32Value, Is.EqualTo(3));
         Assert.That(realm.Evaluate("__flatForAwaitAsync").Int32Value, Is.EqualTo(7));
         var collectSync = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "collectSync");
         Assert.That(collectSync.Script.GeneratorSwitchTargets, Has.Length.EqualTo(2));
     }
@@ -4096,8 +4118,8 @@ public class DirectParserTests
         realm.Execute(read);
 
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(47));
-        Assert.That(declarations.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalInit));
-        Assert.That(declarations.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalFuncDecl));
+        Assert.That(declarations.BytecodeArray, Does.Contain((byte)JsOpCode.StaGlobalInit));
+        Assert.That(declarations.BytecodeArray, Does.Contain((byte)JsOpCode.StaGlobalFuncDecl));
         Assert.That(declarations.TopLevelLexicalAtoms, Has.Length.EqualTo(2));
         Assert.Throws<JsRuntimeException>(() =>
             realm.Execute(new JsScriptCompiler(realm).Compile("__plannedPersistentConst = 4;"))
@@ -4202,9 +4224,10 @@ public class DirectParserTests
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(329));
         Assert.That(
             script
-                .ObjectConstants.OfType<JsBytecodeFunction>()
+                .ObjectConstants.OfType<JsScript>()
+                .Select(static instance => instance.CreateClosure())
                 .Count(static function =>
-                    function.Script.Bytecode.Contains((byte)JsOpCode.CreateMappedArguments)
+                    function.Script.BytecodeArray.Contains((byte)JsOpCode.CreateMappedArguments)
                 ),
             Is.EqualTo(5)
         );
@@ -4265,7 +4288,10 @@ public class DirectParserTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.AsString(), Is.EqualTo("2|6|counter|true|true"));
-        var functions = script.ObjectConstants.OfType<JsBytecodeFunction>().ToArray();
+        var functions = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .ToArray();
         Assert.That(
             functions.Single(static function => function.Name == "Counter").IsClassConstructor,
             Is.True
@@ -4360,7 +4386,8 @@ public class DirectParserTests
             Is.EqualTo("1,2|Implicit|x,3,4|Explicit|true|true|true")
         );
         var constructors = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Where(static function => function.IsClassConstructor)
             .ToArray();
         Assert.That(
@@ -4489,7 +4516,8 @@ public class DirectParserTests
         );
 
         var runFunction = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "run");
         Assert.That(runFunction.SuperBaseContextSlot, Is.GreaterThanOrEqualTo(0));
         realm.Execute(script);

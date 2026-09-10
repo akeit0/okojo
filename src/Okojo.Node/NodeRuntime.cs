@@ -316,7 +316,9 @@ public sealed class NodeRuntime : IDisposable
         return new JsFunctionCompiler(
             realm,
             scriptSourceCode: new SourceCode(wrappedSource, resolvedId)
-        ).CompileFunction(ast, function, ast[expression].Arg1);
+        )
+            .CompileFunction(ast, function, ast[expression].Arg1)
+            .CreateClosure(realm);
     }
 
     private JsHostFunction CreateRequireFunction(JsRealm realm, string resolvedId)

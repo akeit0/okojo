@@ -164,7 +164,7 @@ IEnumerable<(JsOpCode? Prev, JsOpCode? Cur)> WalkUnits(JsScript rootScript)
         units++;
         var prev = default(JsOpCode?);
         var pc = 0;
-        var code = script.Bytecode;
+        var code = script.BytecodeArray;
         while (pc < code.Length)
         {
             if (
@@ -186,8 +186,8 @@ IEnumerable<(JsOpCode? Prev, JsOpCode? Cur)> WalkUnits(JsScript rootScript)
         }
 
         foreach (var obj in script.ObjectConstants)
-            if (obj is JsBytecodeFunction fn)
-                stack.Push(fn.Script);
+            if (obj is JsScript fn)
+                stack.Push(fn);
     }
 }
 

@@ -1,4 +1,5 @@
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
 using Okojo.JavaScript.Objects;
@@ -139,7 +140,8 @@ public class RegisterRecycleSnapshotTests
         );
 
         var function = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static fn => fn.Name == "t");
         Assert.That(function.Script.RegisterCount, Is.LessThanOrEqualTo(45));
     }

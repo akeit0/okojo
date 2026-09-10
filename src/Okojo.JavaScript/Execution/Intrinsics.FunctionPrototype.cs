@@ -20,11 +20,8 @@ public partial class Intrinsics
                 {
                     if (fn is JsBytecodeFunction { IsArrow: true })
                         return "function () { [native code] }";
-                    if (
-                        fn is JsBytecodeFunction bytecodeFn
-                        && bytecodeFn.Script.HasFunctionSourceText
-                    )
-                        return bytecodeFn.Script.GetFunctionSourceTextString()!;
+                    if (fn is JsBytecodeFunction bytecodeFn && bytecodeFn.HasFunctionSourceText)
+                        return bytecodeFn.GetFunctionSourceTextString()!;
                     return "function () { [native code] }";
                 }
 

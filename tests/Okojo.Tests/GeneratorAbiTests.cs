@@ -12,7 +12,7 @@ public class GeneratorAbiTests
     [Test]
     public void Disassembler_Includes_Generator_Opcodes()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.SwitchOnGeneratorState,
                 0,
@@ -32,7 +32,10 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script);
@@ -46,7 +49,7 @@ public class GeneratorAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var generatorBody = new JsScript(
+        var generatorCode = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaSmi,
                 1,
@@ -64,19 +67,16 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>()
+            []
         );
-        var g = new JsBytecodeFunction(
-            realm,
-            generatorBody,
+        var g = new JsFunctionDescriptor(
+            generatorCode,
             "G",
             kind: JsBytecodeFunctionKind.Generator
-        );
+        ).CreateClosure(realm);
         realm.Global["G"] = JsValue.FromObject(g);
 
-        var atomG = realm.Atoms.InternNoCheck("G");
-        var atomNext = realm.Atoms.InternNoCheck("next");
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaGlobal,
                 0,
@@ -122,9 +122,10 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             ["G", "next"],
             5,
-            [atomG, atomNext],
-            GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["G", "next"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -149,7 +150,7 @@ public class GeneratorAbiTests
     public void SwitchOnGeneratorState_InvalidRegister_IsSafeNoOp()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.SwitchOnGeneratorState,
                 7,
@@ -162,8 +163,9 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         Assert.DoesNotThrow(() => realm.Execute(script));
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(1));
@@ -174,7 +176,7 @@ public class GeneratorAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var generatorBody = new JsScript(
+        var generatorCode = new JsFunctionCode(
             [
                 (byte)JsOpCode.SwitchOnGeneratorState,
                 0,
@@ -196,20 +198,17 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>(),
-            GeneratorSwitchTargets: [11] // jump target for suspend_id:0 -> ResumeGenerator
+            [],
+            generatorSwitchTargets: [11] // jump target for suspend_id:0 -> ResumeGenerator
         );
-        var g = new JsBytecodeFunction(
-            realm,
-            generatorBody,
+        var g = new JsFunctionDescriptor(
+            generatorCode,
             "G",
             kind: JsBytecodeFunctionKind.Generator
-        );
+        ).CreateClosure(realm);
         realm.Global["G"] = JsValue.FromObject(g);
 
-        var atomG = realm.Atoms.InternNoCheck("G");
-        var atomNext = realm.Atoms.InternNoCheck("next");
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaGlobal,
                 0,
@@ -255,9 +254,10 @@ public class GeneratorAbiTests
             Array.Empty<ulong>(),
             ["G", "next"],
             5,
-            [atomG, atomNext],
-            GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["G", "next"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 

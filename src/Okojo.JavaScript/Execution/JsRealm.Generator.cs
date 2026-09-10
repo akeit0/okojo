@@ -336,7 +336,7 @@ public sealed partial class JsRealm
     {
         firstReg = 0;
         regCount = 0;
-        var code = script.Bytecode;
+        var code = script.BytecodeArray;
         if ((uint)resumePc >= (uint)code.Length)
             return false;
         if ((JsOpCode)code[resumePc] != JsOpCode.ResumeGenerator)
@@ -357,7 +357,7 @@ public sealed partial class JsRealm
     )
     {
         generatorReg = 0xFF;
-        var code = script.Bytecode;
+        var code = script.BytecodeArray;
         if ((uint)resumePc >= (uint)code.Length)
             return false;
         if ((JsOpCode)code[resumePc] != JsOpCode.ResumeGenerator)
@@ -413,7 +413,7 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool StartsWithSwitchOnGeneratorState(JsScript script)
     {
-        var code = script.Bytecode;
+        var code = script.BytecodeArray;
         return code.Length != 0 && (JsOpCode)code[0] == JsOpCode.SwitchOnGeneratorState;
     }
 

@@ -40,7 +40,7 @@ public class JsObjectPathBenchmarks
         var program = JavaScriptParser.ParseScript(source);
         jsVm = JsRuntime.CreateBuilder().Build().DefaultRealm;
         var okojoScript = JsCompiler.Compile(jsVm, program);
-        jsFunction = new(jsVm, okojoScript);
+        jsFunction = okojoScript.CreateClosure();
     }
 
     public double Okojo_Execute_Function()

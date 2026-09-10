@@ -16,7 +16,7 @@ public class ToolingTests
     public void Vm_Executes_JumpIfTrue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaTrue,
                 (byte)JsOpCode.JumpIfTrue,
@@ -29,8 +29,9 @@ public class ToolingTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -41,7 +42,7 @@ public class ToolingTests
     public void Vm_Executes_JumpIfToBooleanFalse16()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaUndefined,
                 (byte)JsOpCode.JumpIfToBooleanFalse,
@@ -54,8 +55,9 @@ public class ToolingTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -76,8 +78,11 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        Assert.That(t.Script.Bytecode.Contains((byte)JsOpCode.Mov), Is.True);
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        Assert.That(t.Script.BytecodeArray.Contains((byte)JsOpCode.Mov), Is.True);
     }
 
     [Test]
@@ -92,7 +97,7 @@ public class ToolingTests
         var script = builder.ToScript();
 
         Assert.That(
-            script.Bytecode,
+            script.BytecodeArray,
             Is.EqualTo(new[] { (byte)JsOpCode.LdaZero, (byte)JsOpCode.Return })
         );
     }
@@ -108,21 +113,25 @@ public class ToolingTests
         var sourceCode = new SourceCode(source, "metadata.js");
         var functionSource = FunctionSourceTextSegment.FromWholeString(source);
 
-        var script = builder.ToScript(
+        var code = builder.ToCode(
             sourceCode,
             functionSource,
-            topLevelLexicalAtoms: [11, 12],
+            topLevelLexicalNames: ["lexA", "lexB"],
             topLevelLexicalSlots: [1, 2],
             topLevelLexicalConstFlags: [false, true],
             suppressTopLevelLexicalRegistration: true
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         Assert.Multiple(() =>
         {
             Assert.That(script.SourceCode, Is.SameAs(sourceCode));
             Assert.That(script.StrictDeclared, Is.True);
             Assert.That(script.FunctionSourceText, Is.EqualTo(functionSource));
-            Assert.That(script.TopLevelLexicalAtoms, Is.EqualTo(new[] { 11, 12 }));
+            Assert.That(
+                script.TopLevelLexicalAtoms!.Select(realm.Atoms.AtomToString),
+                Is.EqualTo(new[] { "lexA", "lexB" })
+            );
             Assert.That(script.TopLevelLexicalSlots, Is.EqualTo(new[] { 1, 2 }));
             Assert.That(script.TopLevelLexicalConstFlags, Is.EqualTo(new[] { false, true }));
             Assert.That(script.SuppressTopLevelLexicalRegistration, Is.True);
@@ -154,7 +163,11 @@ public class ToolingTests
         {
             if (!scripts.Add(candidate))
                 return;
-            foreach (var function in candidate.ObjectConstants.OfType<JsBytecodeFunction>())
+            foreach (
+                var function in candidate
+                    .ObjectConstants.OfType<JsScript>()
+                    .Select(static instance => instance.CreateClosure())
+            )
                 AddScriptTree(function.Script);
         }
     }
@@ -172,7 +185,7 @@ public class ToolingTests
         var script = builder.ToScript();
 
         Assert.That(
-            script.Bytecode,
+            script.BytecodeArray,
             Is.EqualTo(
                 new byte[]
                 {
@@ -200,7 +213,7 @@ public class ToolingTests
         var script = builder.ToScript();
 
         Assert.That(
-            script.Bytecode,
+            script.BytecodeArray,
             Is.EqualTo(
                 new[] { (byte)JsOpCode.LdaTheHole, (byte)JsOpCode.LdaZero, (byte)JsOpCode.Return }
             )
@@ -293,7 +306,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
         Assert.That(disasm, Does.Match(@"Mov r\d+ -> r\d+"));
     }
@@ -313,7 +329,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Contain("CallUndefinedReceiver func:r0"));
@@ -337,7 +356,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Contain("CallProperty func:r2, obj:r0, args:r1.., argc:1"));
@@ -361,7 +383,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Contain("LdaStringConstant str:0"));
@@ -388,7 +413,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Not.Contain("Star r2"));
@@ -411,8 +439,11 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        var bytecode = t.Script.Bytecode;
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        var bytecode = t.Script.BytecodeArray;
 
         var hasDeadForInitCompletionLoad = false;
         for (var i = 0; i < bytecode.Length - 1; i++)
@@ -448,7 +479,10 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Not.Contain("LdaTheHole\n0010  LdaZero"));
@@ -471,7 +505,10 @@ public class ToolingTests
             """
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
         var codeLines = disasm
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -494,12 +531,15 @@ public class ToolingTests
     [Test]
     public void Disassembler_Dumps_Header_Constants_And_Code()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [(byte)JsOpCode.LdaSmi, 1, (byte)JsOpCode.Star, 0, (byte)JsOpCode.Return],
             Array.Empty<ulong>(),
             ["x"],
             1,
-            new[] { 1 }
+            ["x"]
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script, new() { UnitKind = "function", UnitName = "test" });
@@ -517,7 +557,7 @@ public class ToolingTests
     public void Vm_Executes_LdaSmiWide_And_ExtraWide()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaSmiWide,
                 0x2C,
@@ -536,8 +576,9 @@ public class ToolingTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(70300));
@@ -560,15 +601,18 @@ public class ToolingTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
-        Assert.That(t.Script.Bytecode.Contains((byte)JsOpCode.LdaSmiWide), Is.True);
-        Assert.That(t.Script.Bytecode.Contains((byte)JsOpCode.LdaSmiExtraWide), Is.True);
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
+        Assert.That(t.Script.BytecodeArray.Contains((byte)JsOpCode.LdaSmiWide), Is.True);
+        Assert.That(t.Script.BytecodeArray.Contains((byte)JsOpCode.LdaSmiExtraWide), Is.True);
     }
 
     [Test]
     public void Disassembler_Formats_LdaSmiWide_And_ExtraWide()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.LdaSmiWide,
                 0x2C,
@@ -583,7 +627,10 @@ public class ToolingTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script);
@@ -594,7 +641,7 @@ public class ToolingTests
     [Test]
     public void Disassembler_Does_Not_Emit_Orphan_Bytes_After_Explicit_Wide_Instructions()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
                 (byte)JsOpCode.CreateClosureWide,
                 0x18,
@@ -621,7 +668,10 @@ public class ToolingTests
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script);
@@ -654,8 +704,11 @@ public class ToolingTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = realm.CompileScript(source.ToString());
 
-        var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "f");
-        Assert.That(f.Script.Bytecode.Contains((byte)JsOpCode.LdaNamedPropertyWide), Is.True);
+        var f = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(fn => fn.Name == "f");
+        Assert.That(f.Script.BytecodeArray.Contains((byte)JsOpCode.LdaNamedPropertyWide), Is.True);
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(7));

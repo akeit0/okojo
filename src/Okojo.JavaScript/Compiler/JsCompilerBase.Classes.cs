@@ -341,7 +341,7 @@ internal abstract partial class JsCompilerBase
             }
             ref var brandId = ref (element.IsStatic ? ref staticBrandId : ref instanceBrandId);
             if (brandId == 0)
-                brandId = Vm.Agent.AllocatePrivateBrandId();
+                brandId = PrivateNameIdAllocator.Allocate();
             var binding = new PlannedPrivateBinding(brandId, nextSlot++, kind, element.IsStatic);
             ownBindings.Add(name, binding);
             bindings[name] = binding;

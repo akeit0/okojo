@@ -134,7 +134,7 @@ internal sealed class JsBreakpointRegistry
     {
         ArgumentNullException.ThrowIfNull(script);
         ArgumentNullException.ThrowIfNull(agent);
-        if ((uint)pc >= (uint)script.Bytecode.Length)
+        if ((uint)pc >= (uint)script.BytecodeArray.Length)
             throw new ArgumentOutOfRangeException(nameof(pc));
 
         if (!TryCreateExactPatch(script, pc, out var patch))
@@ -448,7 +448,7 @@ internal sealed class JsBreakpointRegistry
                 )
         )
         {
-            var length = BytecodeInfo.GetInstructionLength(script.Bytecode, pc);
+            var length = BytecodeInfo.GetInstructionLength(script.BytecodeArray, pc);
             patch = new(script, pc, length, script.SourcePath, actualLine, column);
             if (STraceBreakpoints)
             {
@@ -467,7 +467,7 @@ internal sealed class JsBreakpointRegistry
 
     private static bool TryCreateExactPatch(JsScript script, int pc, out BreakpointPatch patch)
     {
-        if ((uint)pc >= (uint)script.Bytecode.Length)
+        if ((uint)pc >= (uint)script.BytecodeArray.Length)
         {
             patch = null!;
             return false;
@@ -476,7 +476,7 @@ internal sealed class JsBreakpointRegistry
         var line = 0;
         var column = 0;
         JsScriptDebugInfo.TryGetSourceLocation(script, pc, out line, out column);
-        var length = BytecodeInfo.GetInstructionLength(script.Bytecode, pc);
+        var length = BytecodeInfo.GetInstructionLength(script.BytecodeArray, pc);
         patch = new(script, pc, length, script.SourcePath, line, column);
         return true;
     }
@@ -490,7 +490,7 @@ internal sealed class JsBreakpointRegistry
     private static IEnumerable<int> GetExecutableLines(JsScript script)
     {
         var seen = new HashSet<int>();
-        for (var pc = 0; pc < script.Bytecode.Length; pc++)
+        for (var pc = 0; pc < script.BytecodeArray.Length; pc++)
         {
             if (
                 !JsScriptDebugInfo.TryGetSourceLocation(script, pc, out var line, out _)
@@ -573,7 +573,7 @@ internal sealed class JsBreakpointRegistry
             Line = line;
             Column = column;
             originalBytes = new byte[length];
-            Array.Copy(script.Bytecode, pc, originalBytes, 0, length);
+            Array.Copy(script.BytecodeArray, pc, originalBytes, 0, length);
         }
 
         internal JsScript Script { get; }
@@ -593,7 +593,7 @@ internal sealed class JsBreakpointRegistry
 
         internal void Arm()
         {
-            Script.Bytecode[Pc] = (byte)JsOpCode.Debugger;
+            Script.GetOrCreateDebugBytecode()[Pc] = (byte)JsOpCode.Debugger;
             IsArmed = true;
             if (STraceBreakpoints)
                 Console.Error.WriteLine(
@@ -603,7 +603,7 @@ internal sealed class JsBreakpointRegistry
 
         internal void Restore()
         {
-            Array.Copy(originalBytes, 0, Script.Bytecode, Pc, originalBytes.Length);
+            Array.Copy(originalBytes, 0, Script.ExecutionBytecode, Pc, originalBytes.Length);
             IsArmed = false;
             if (STraceBreakpoints)
                 Console.Error.WriteLine(

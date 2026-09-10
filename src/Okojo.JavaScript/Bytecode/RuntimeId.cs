@@ -202,4 +202,8 @@ internal enum RuntimeId : byte
 
     // Resolve a linked namespace import for the current module. Args: [specifier, importType].
     GetCurrentModuleNamespace,
+
+    // Resolve an identifier against the executing realm, then delete its global binding.
+    // Appended to preserve existing RuntimeId values. Args: [name].
+    DeleteGlobalBinding,
 }

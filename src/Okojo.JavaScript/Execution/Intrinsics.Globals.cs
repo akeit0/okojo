@@ -46,7 +46,7 @@ public partial class Intrinsics
                     );
                 }
 
-                var root = new JsBytecodeFunction(realm, script, "eval");
+                var root = new JsBytecodeFunction(script.PrepareForExecution(realm));
                 var useIndirectEvalGlobalBindingSemantics = !script.StrictDeclared;
                 if (useIndirectEvalGlobalBindingSemantics)
                     realm.EnterIndirectEvalGlobalBindingSemantics();
@@ -54,9 +54,14 @@ public partial class Intrinsics
                 JsValue result;
                 try
                 {
+                    // The intrinsic serves every eval call without caller-context
+                    // threading, so the root runs with the global this. This keeps
+                    // the pre-split observable behavior (the old eval root was
+                    // always sloppy, coercing undefined to the global object) for
+                    // both sloppy and strict eval sources.
                     result = realm.InvokeBytecodeFunction(
                         root,
-                        JsValue.Undefined,
+                        realm.GlobalObject,
                         ReadOnlySpan<JsValue>.Empty,
                         JsValue.Undefined
                     );

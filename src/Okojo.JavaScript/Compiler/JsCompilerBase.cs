@@ -229,21 +229,21 @@ internal abstract partial class JsCompilerBase
     protected SourceCode? scriptSourceCode;
 
     protected JsCompilerBase(
-        JsRealm realm,
+        CompileCollectionPool pool,
         IReadOnlyDictionary<string, PlannedPrivateBinding>? privateBindings = null,
         SourceCode? scriptSourceCode = null
     )
     {
-        Vm = realm;
-        builder = new(realm);
-        activeScopes = realm.RentCompileStack<ActiveScope>(8);
-        controlScopes = realm.RentCompileStack<ControlScope>(8);
+        Pool = pool;
+        builder = new(pool);
+        activeScopes = pool.RentCompileStack<ActiveScope>(8);
+        controlScopes = pool.RentCompileStack<ControlScope>(8);
         visiblePrivateBindings = privateBindings ?? EmptyPrivateBindings;
         this.scriptSourceCode = scriptSourceCode;
         RegisterPrivateDebugNames(visiblePrivateBindings);
     }
 
-    protected JsRealm Vm { get; }
+    protected CompileCollectionPool Pool { get; }
     protected string CompilerName => GetType().Name;
 
     private void RegisterPrivateDebugNames(

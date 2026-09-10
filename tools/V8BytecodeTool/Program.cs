@@ -604,8 +604,8 @@ internal class Program
             result.Add((name, script));
 
             foreach (var obj in script.ObjectConstants)
-                if (obj is JsBytecodeFunction fn)
-                    Walk(fn.Script, fn.Name ?? "<anonymous>");
+                if (obj is JsScript fn)
+                    Walk(fn, fn.Function.Name ?? "<anonymous>");
         }
 
         Walk(root, "<script>");

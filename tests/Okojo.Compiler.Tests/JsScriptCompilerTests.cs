@@ -30,7 +30,7 @@ public class JsScriptCompilerTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));
-        Assert.That(script.Bytecode.Contains((byte)JsOpCode.AddSmi), Is.True);
+        Assert.That(script.BytecodeArray.Contains((byte)JsOpCode.AddSmi), Is.True);
     }
 
     [Test]
@@ -50,11 +50,11 @@ public class JsScriptCompilerTests
             )
         );
 
-        Assert.That(script.Bytecode.Length, Is.GreaterThan(0));
+        Assert.That(script.BytecodeArray.Length, Is.GreaterThan(0));
         Assert.That(script.RegisterCount, Is.GreaterThanOrEqualTo(1));
         Assert.That(script.TopLevelLexicalAtoms, Has.Length.EqualTo(1));
-        Assert.That(script.Bytecode, Does.Contain((byte)JsOpCode.StaGlobalInit));
-        Assert.That(script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
+        Assert.That(script.BytecodeArray, Does.Contain((byte)JsOpCode.StaGlobalInit));
+        Assert.That(script.BytecodeArray.Contains((byte)JsOpCode.Return), Is.True);
     }
 
     [Test]
@@ -80,7 +80,10 @@ public class JsScriptCompilerTests
             Assert.That(disassembly, Does.Contain("StaModuleVariable cell_index:3, depth:0"));
         });
 
-        var read = script.ObjectConstants.OfType<JsBytecodeFunction>().Single();
+        var read = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single();
         Assert.That(
             Disassembler.Dump(read.Script),
             Does.Contain("LdaModuleVariable cell_index:3, depth:0")
@@ -113,10 +116,7 @@ public class JsScriptCompilerTests
             JsValue.Undefined
         );
         var context = new JsContext(null, 0) { ModuleBindings = bindings };
-        var root = new JsBytecodeFunction(realm, script, isStrict: true)
-        {
-            BoundParentContext = context,
-        };
+        var root = new JsBytecodeFunction(script) { BoundParentContext = context };
 
         realm.Execute(root);
 
@@ -487,12 +487,14 @@ public class JsScriptCompilerTests
         Assert.That(realm.Evaluate("__flatRan").IsTrue, Is.True);
 
         var run = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "run");
         Assert.That(run.Script.SourcePath, Is.EqualTo("/mods/main.js"));
 
         var read = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static function => function.Name == "read");
         Assert.That(read.Script.SourcePath, Is.EqualTo("/mods/main.js"));
     }

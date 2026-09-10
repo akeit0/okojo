@@ -364,7 +364,7 @@ internal abstract partial class JsCompilerBase
         var hasSelfBinding =
             !suppressSelfBinding && ast.GetString(function.NameStringIndex).Length != 0;
         var functionCompiler = new JsFunctionCompiler(
-            Vm,
+            Pool,
             BuildChildCaptureBindings(),
             visiblePrivateBindings,
             scriptSourceCode
@@ -580,26 +580,42 @@ internal abstract partial class JsCompilerBase
                 EmitStar(targetRegister);
             return;
         }
-        var shape = Vm.EmptyShape;
         var shapePrefixCount = 0;
-        for (; shapePrefixCount < properties.Length; shapePrefixCount++)
+        var prefixNames = Pool.RentCompileList<string>(Math.Min(properties.Length, 16));
+        var seenNames =
+            properties.Length > 16
+                ? Pool.RentCompileHashSet<string>(comparer: StringComparer.Ordinal)
+                : null;
+        JsObjectLiteralLayout layout;
+        try
         {
-            ref readonly var property = ref properties[shapePrefixCount];
-            if (property.IsComputed || property.IsRest || property.IsAccessor)
-                break;
-            var name = ast.GetString(property.Key);
-            if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out _))
-                break;
-            var atom = Vm.Atoms.InternNoCheck(name);
-            if (shape.TryGetSlotInfo(atom, out _))
-                break;
-            shape = shape.GetOrAddTransition(atom, JsShapePropertyFlags.Open, out _);
+            for (; shapePrefixCount < properties.Length; shapePrefixCount++)
+            {
+                ref readonly var property = ref properties[shapePrefixCount];
+                if (property.IsComputed || property.IsRest || property.IsAccessor)
+                    break;
+                var name = ast.GetString(property.Key);
+                if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out _))
+                    break;
+                if (seenNames is not null ? !seenNames.Add(name) : prefixNames.Contains(name))
+                    break;
+                prefixNames.Add(name);
+            }
+            layout =
+                prefixNames.Count == 0
+                    ? JsObjectLiteralLayout.Empty
+                    : new JsObjectLiteralLayout(prefixNames.ToArray());
+        }
+        finally
+        {
+            Pool.ReturnCompileList(prefixNames);
+            Pool.ReturnCompileHashSet(seenNames);
         }
 
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            builder.EmitCreateObjectLiteral(builder.AddObjectConstant(shape));
+            builder.EmitCreateObjectLiteral(builder.AddObjectConstant(layout));
             var objectRegister =
                 targetRegister >= 0 ? targetRegister : builder.AllocateTemporaryRegister();
             EmitStar(objectRegister);
@@ -612,12 +628,8 @@ internal abstract partial class JsCompilerBase
                     var name = ast.GetString(property.Key);
                     EmitExpressionWithInferredName(ast, property.ValueNode, name);
                     EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
-                    var atom = Vm.Atoms.InternNoCheck(name);
-                    if (!shape.TryGetSlotInfo(atom, out var slotInfo))
-                        throw new InvalidOperationException(
-                            "Missing precomputed object-literal shape slot."
-                        );
-                    builder.EmitInitializeNamedProperty(objectRegister, slotInfo.Slot);
+                    // Open named slots are assigned in descriptor order when linked.
+                    builder.EmitInitializeNamedProperty(objectRegister, i);
                     continue;
                 }
 
@@ -1814,21 +1826,14 @@ internal abstract partial class JsCompilerBase
                 builder.EmitLda(JsOpCode.LdaFalse);
                 return;
             }
-            else if (Vm.HasGlobalLexicalBindingAtom(Vm.Atoms.InternNoCheck(name)))
-            {
-                builder.EmitLda(JsOpCode.LdaFalse);
-                return;
-            }
 
             var marker = builder.GetTemporaryRegisterScopeMarker();
             try
             {
-                var registers = builder.AllocateTemporaryRegisterBlock(2);
-                EmitGlobalAccess("globalThis", JsOpCode.LdaGlobal, JsOpCode.LdaGlobalWide);
-                EmitStar(registers);
+                var keyRegister = builder.AllocateTemporaryRegister();
                 EmitStringLiteral(name);
-                EmitStar(registers + 1);
-                builder.EmitCallRuntime((int)RuntimeId.DeleteKeyedProperty, registers, 2);
+                EmitStar(keyRegister);
+                builder.EmitCallRuntime((int)RuntimeId.DeleteGlobalBinding, keyRegister, 1);
             }
             finally
             {

@@ -6,43 +6,31 @@ namespace Okojo.JavaScript.Compiler;
 
 internal sealed partial class JsScriptCompiler
 {
-    public JsScript Compile(string source, string? sourcePath = null)
-    {
-        using var ast = JavaScriptParser.ParseScript(source, sourcePath);
-        return Compile(ast, sourcePath);
-    }
+    public JsScript Compile(string source, string? sourcePath = null) =>
+        CompileUnit(source, sourcePath).Link(TargetRealm);
 
-    internal JsScript Compile(JsAst ast, string? sourcePath)
-    {
-        return Compile(
-            ast,
-            sourcePath,
-            ephemeralTopLevelLocality: false,
-            suppressTopLevelLexicalRegistration: false,
-            validateGlobalDeclarations: true
-        );
-    }
+    internal JsScript Compile(JsAst ast, string? sourcePath) =>
+        CompileUnit(ast, sourcePath).Link(TargetRealm);
 
     internal JsScript Compile(JsAst ast) => Compile(ast, ast.SourcePath);
 
-    /// <summary>
-    ///     Compiles an indirect-eval body. Sloppy eval keeps var/function bindings
-    ///     on the global object but its lexicals stay ephemeral; strict eval keeps
-    ///     every declaration in the eval's own environment.
-    /// </summary>
-    internal JsScript CompileIndirectEval(JsAst ast, string? sourcePath)
+    internal JsCompilationUnit CompileUnit(string source, string? sourcePath = null)
     {
-        var strict = ast.StrictDeclared;
-        return Compile(
-            ast,
-            sourcePath,
-            ephemeralTopLevelLocality: strict,
-            suppressTopLevelLexicalRegistration: true,
-            validateGlobalDeclarations: !strict
-        );
+        using var ast = JavaScriptParser.ParseScript(source, sourcePath);
+        return CompileUnit(ast, sourcePath);
     }
 
-    private JsScript Compile(
+    internal JsCompilationUnit CompileUnit(JsAst ast, string? sourcePath) =>
+        new(CompileCore(ast, sourcePath, false, false, true));
+
+    // Sloppy indirect eval has ephemeral lexicals and global var/function bindings;
+    // strict eval keeps all declarations in the eval environment.
+    internal JsScript CompileIndirectEval(JsAst ast, string? sourcePath) =>
+        new JsCompilationUnit(
+            CompileCore(ast, sourcePath, ast.StrictDeclared, true, !ast.StrictDeclared)
+        ).Link(TargetRealm);
+
+    private JsFunctionDescriptor CompileCore(
         JsAst ast,
         string? sourcePath,
         bool ephemeralTopLevelLocality,
@@ -59,11 +47,9 @@ internal sealed partial class JsScriptCompiler
         isAsync = ast.HasTopLevelAwait;
         builder.SetStrictDeclared(strictDeclared);
         using var collected = CompilerBindingCollector.Collect(ast);
-        if (validateGlobalDeclarations)
-            ValidateGlobalDeclarations(
-                collected,
-                allowEphemeralTopLevelLexicals: suppressTopLevelLexicalRegistration
-            );
+        var declarations = validateGlobalDeclarations
+            ? BuildGlobalDeclarationPlan(collected, suppressTopLevelLexicalRegistration)
+            : null;
         using var plan = CompilerStoragePlanner.Plan(
             collected,
             null,
@@ -103,18 +89,22 @@ internal sealed partial class JsScriptCompiler
         EmitLdar(completionRegister);
         builder.Emit(JsOpCode.Return);
         var lexicalMetadata = BuildTopLevelLexicalMetadata();
-        var script = builder.ToScript(
+        var code = builder.ToCode(
             sourceCode: scriptSourceCode,
-            topLevelLexicalAtoms: lexicalMetadata?.Atoms,
+            topLevelLexicalNames: lexicalMetadata?.Names,
             topLevelLexicalSlots: lexicalMetadata?.Slots,
             topLevelLexicalConstFlags: lexicalMetadata?.ConstFlags,
-            suppressTopLevelLexicalRegistration: suppressTopLevelLexicalRegistration
+            suppressTopLevelLexicalRegistration: suppressTopLevelLexicalRegistration,
+            declarations: ast.HasTopLevelAwait ? null : declarations
         );
-        script.BindAgent(Vm.Agent);
         builder.Dispose();
         var result = ast.HasTopLevelAwait
-            ? new JsModuleCompiler(Vm).WrapAsyncModule(script, ast)
-            : script;
+            ? JsModuleCompiler.WrapAsyncModule(Pool, code, ast, declarations)
+            : new JsFunctionDescriptor(
+                code,
+                suppressTopLevelLexicalRegistration ? "eval" : "root",
+                isStrict: strictDeclared
+            );
         ReleaseCompilerStorage();
         return result;
     }
@@ -155,94 +145,54 @@ internal sealed partial class JsScriptCompiler
         SetSuppressCompletionSink(false);
     }
 
-    private void ValidateGlobalDeclarations(
+    private JsGlobalDeclarationPlan? BuildGlobalDeclarationPlan(
         CompilerBindingCollectionResult collected,
-        bool allowEphemeralTopLevelLexicals = false
+        bool allowEphemeralTopLevelLexicals
     )
     {
-        // Root binding counts are tiny; a linear list beats a HashSet allocation.
-        List<string> seen = [];
-        foreach (ref readonly var binding in collected.Bindings)
+        var seen = Pool.RentCompileHashSet<string>(comparer: StringComparer.Ordinal);
+        List<JsGlobalDeclaration> declarations = [];
+        try
         {
-            if (binding.ScopeId != 0)
-                continue;
-
-            // AnnexB B.3.3 function declarations that are direct if-statement
-            // consequents/alternates do not participate in global declaration
-            // instantiation conflicts: when creating their variable-like binding
-            // would produce an early error, the binding is skipped silently.
-            if (
-                collected.AnnexBIfFunctionNames is { } conditionalNames
-                && conditionalNames.Contains(binding.Name)
-            )
-                continue;
-
-            if (seen.Contains(binding.Name))
-                throw GlobalDeclarationError(
-                    JsErrorKind.SyntaxError,
-                    binding.Name,
-                    "SCRIPT_GLOBAL_DUPLICATE_DECLARATION"
-                );
-            seen.Add(binding.Name);
-
-            var atom = Vm.Atoms.InternNoCheck(binding.Name);
-            if (
-                binding.Kind
-                is CompilerCollectedBindingKind.Lexical
-                    or CompilerCollectedBindingKind.ClassDeclaration
-            )
+            foreach (ref readonly var binding in collected.Bindings)
             {
-                if (allowEphemeralTopLevelLexicals)
-                {
-                    // Sloppy indirect eval lexicals live in the eval's ephemeral
-                    // environment; they never interact with persistent globals.
+                if (binding.ScopeId != 0)
                     continue;
-                }
                 if (
-                    Vm.HasGlobalLexicalBindingAtom(atom)
-                    || Vm.GlobalObject.HasRestrictedGlobalPropertyAtom(atom)
+                    collected.AnnexBIfFunctionNames is { } conditionalNames
+                    && conditionalNames.Contains(binding.Name)
                 )
-                    throw GlobalDeclarationError(
+                    continue;
+                if (!seen.Add(binding.Name))
+                    throw new JsRuntimeException(
                         JsErrorKind.SyntaxError,
-                        binding.Name,
-                        "SCRIPT_GLOBAL_LEXICAL_CONFLICT"
+                        $"Identifier '{binding.Name}' has already been declared",
+                        "SCRIPT_GLOBAL_DUPLICATE_DECLARATION"
                     );
-                continue;
+                switch (binding.Kind)
+                {
+                    case CompilerCollectedBindingKind.Lexical:
+                    case CompilerCollectedBindingKind.ClassDeclaration:
+                        if (!allowEphemeralTopLevelLexicals)
+                            declarations.Add(new(binding.Name, JsGlobalDeclarationKind.Lexical));
+                        break;
+                    case CompilerCollectedBindingKind.Var:
+                        declarations.Add(new(binding.Name, JsGlobalDeclarationKind.Var));
+                        break;
+                    case CompilerCollectedBindingKind.FunctionDeclaration:
+                        declarations.Add(new(binding.Name, JsGlobalDeclarationKind.Function));
+                        break;
+                }
             }
-
-            if (
-                binding.Kind
-                is not (
-                    CompilerCollectedBindingKind.Var
-                    or CompilerCollectedBindingKind.FunctionDeclaration
-                )
-            )
-                continue;
-            if (Vm.HasGlobalLexicalBindingAtom(atom))
-                throw GlobalDeclarationError(
-                    JsErrorKind.SyntaxError,
-                    binding.Name,
-                    "SCRIPT_GLOBAL_VAR_LEXICAL_CONFLICT"
-                );
-            var canDeclare =
-                binding.Kind == CompilerCollectedBindingKind.FunctionDeclaration
-                    ? Vm.GlobalObject.CanDeclareGlobalFunctionAtom(atom)
-                    : Vm.GlobalObject.CanDeclareGlobalVarAtom(atom);
-            if (!canDeclare)
-                throw GlobalDeclarationError(
-                    JsErrorKind.TypeError,
-                    binding.Name,
-                    binding.Kind == CompilerCollectedBindingKind.FunctionDeclaration
-                        ? "SCRIPT_GLOBAL_FUNCTION_NOT_DEFINABLE"
-                        : "SCRIPT_GLOBAL_VAR_NOT_DEFINABLE"
-                );
+            return declarations.Count == 0 ? null : new(declarations.ToArray());
         }
-
-        JsRuntimeException GlobalDeclarationError(JsErrorKind kind, string name, string code) =>
-            new(kind, $"Identifier '{name}' has already been declared", code);
+        finally
+        {
+            Pool.ReturnCompileHashSet(seen);
+        }
     }
 
-    private (int[] Atoms, int[] Slots, bool[] ConstFlags)? BuildTopLevelLexicalMetadata()
+    private (string[] Names, int[] Slots, bool[] ConstFlags)? BuildTopLevelLexicalMetadata()
     {
         var bindings = GetPlannedBindings(0);
         var count = 0;
@@ -257,7 +207,7 @@ internal sealed partial class JsScriptCompiler
         if (count == 0)
             return null;
 
-        var atoms = new int[count];
+        var names = new string[count];
         var slots = new int[count];
         var constFlags = new bool[count];
         var index = 0;
@@ -274,11 +224,11 @@ internal sealed partial class JsScriptCompiler
                 )
             )
                 continue;
-            atoms[index] = Vm.Atoms.InternNoCheck(binding.Name);
+            names[index] = binding.Name;
             slots[index] = binding.StorageIndex;
             constFlags[index] = binding.IsConst;
             index++;
         }
-        return (atoms, slots, constFlags);
+        return (names, slots, constFlags);
     }
 }

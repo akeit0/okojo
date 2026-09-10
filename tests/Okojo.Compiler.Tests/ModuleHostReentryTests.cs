@@ -49,11 +49,13 @@ public sealed class ModuleHostReentryTests
         );
         var statements = parsed.ChildRange(parsed[parsed.Root].Arg0, parsed[parsed.Root].Arg1);
         var expression = parsed[statements[0]].Arg0;
-        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            parsed,
-            parsed.GetFunction(parsed[expression].Arg0),
-            parsed[expression].Arg1
-        );
+        var wrapper = new JsFunctionCompiler(realm)
+            .CompileFunction(
+                parsed,
+                parsed.GetFunction(parsed[expression].Arg0),
+                parsed[expression].Arg1
+            )
+            .CreateClosure(realm);
 
         var requireFunction = realm.Evaluate("(s) => ({ version: '19' })");
         var hostImport = new JsHostFunction(
@@ -134,11 +136,13 @@ public sealed class ModuleHostReentryTests
         );
         var statements = parsed.ChildRange(parsed[parsed.Root].Arg0, parsed[parsed.Root].Arg1);
         var expression = parsed[statements[0]].Arg0;
-        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            parsed,
-            parsed.GetFunction(parsed[expression].Arg0),
-            parsed[expression].Arg1
-        );
+        var wrapper = new JsFunctionCompiler(realm)
+            .CompileFunction(
+                parsed,
+                parsed.GetFunction(parsed[expression].Arg0),
+                parsed[expression].Arg1
+            )
+            .CreateClosure(realm);
         var wrapperValue = JsValue.FromObject(wrapper);
 
         var requireFunction = realm.Evaluate("(s) => ({ version: '19' })");

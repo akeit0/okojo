@@ -198,11 +198,13 @@ public class CompilerFeatureSupportTests
         var expression = parsed[statements[0]].Arg0;
         if (parsed[expression].Kind != AstKind.FunctionExpression)
             throw new InvalidOperationException("CommonJS wrapper did not parse as a function.");
-        var wrapper = new JsFunctionCompiler(realm).CompileFunction(
-            parsed,
-            parsed.GetFunction(parsed[expression].Arg0),
-            parsed[expression].Arg1
-        );
+        var wrapper = new JsFunctionCompiler(realm)
+            .CompileFunction(
+                parsed,
+                parsed.GetFunction(parsed[expression].Arg0),
+                parsed[expression].Arg1
+            )
+            .CreateClosure(realm);
 
         var exportsObject = new JsPlainObject(realm);
         _ = realm.Call(

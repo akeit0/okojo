@@ -103,12 +103,12 @@ internal abstract partial class JsCompilerBase
 
     private List<BindingStorage> RentBindingStorageList(int capacity)
     {
-        return Vm.RentCompileList<BindingStorage>(capacity);
+        return Pool.RentCompileList<BindingStorage>(capacity);
     }
 
     private void ReturnBindingStorageList(List<BindingStorage> list)
     {
-        Vm.ReturnCompileList(list);
+        Pool.ReturnCompileList(list);
     }
 
     private void EnterScope(int scopeId)

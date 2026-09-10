@@ -1,4 +1,5 @@
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -106,7 +107,8 @@ public class JsObjectTests
         var realm = JsRuntime.Create().DefaultRealm;
         var script = realm.CompileScript("function t(){ let o={x:1}; return o.x; } t();");
         var func = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(static f => f.Name == "t");
         var funcScript = func.Script;
 

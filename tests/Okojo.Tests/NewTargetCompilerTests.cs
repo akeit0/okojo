@@ -24,7 +24,7 @@ public class NewTargetCompilerTests
             )
         );
 
-        Assert.That(Array.IndexOf(script.Bytecode, (byte)JsOpCode.Construct) >= 0, Is.True);
+        Assert.That(Array.IndexOf(script.BytecodeArray, (byte)JsOpCode.Construct) >= 0, Is.True);
     }
 
     [Test]
@@ -41,7 +41,8 @@ public class NewTargetCompilerTests
             )
         );
         var a = withNewTarget
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(f => f.Name == "A");
         Assert.That(a.HasNewTarget, Is.True);
 
@@ -54,7 +55,8 @@ public class NewTargetCompilerTests
             )
         );
         var b = withoutNewTarget
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(f => f.Name == "B");
         Assert.That(b.HasNewTarget, Is.False);
     }
@@ -130,8 +132,14 @@ public class NewTargetCompilerTests
             )
         );
 
-        var foo = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "Foo");
-        Assert.That(Array.IndexOf(foo.Script.Bytecode, (byte)JsOpCode.Construct), Is.EqualTo(-1));
+        var foo = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "Foo");
+        Assert.That(
+            Array.IndexOf(foo.Script.BytecodeArray, (byte)JsOpCode.Construct),
+            Is.EqualTo(-1)
+        );
     }
 
     //[Test]
@@ -153,8 +161,11 @@ public class NewTargetCompilerTests
             )
         );
 
-        var foo = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "Foo");
-        var code = foo.Script.Bytecode;
+        var foo = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "Foo");
+        var code = foo.Script.BytecodeArray;
 
         var returnCount = code.Count(b => b == (byte)JsOpCode.Return);
         var jumpCount = code.Count(b => b == (byte)JsOpCode.Jump);

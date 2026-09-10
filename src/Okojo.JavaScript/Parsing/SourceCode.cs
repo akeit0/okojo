@@ -9,11 +9,12 @@ public sealed class SourceCode(string? source, string? path)
 
     internal int[] GetOrCreateLineStarts()
     {
-        if (lineStarts is not null)
-            return lineStarts;
+        var cached = Volatile.Read(ref lineStarts);
+        if (cached is not null)
+            return cached;
 
         if (string.IsNullOrEmpty(Source))
-            return lineStarts = [0];
+            return Interlocked.CompareExchange(ref lineStarts, [0], null) ?? lineStarts!;
 
         // ECMA-262 line terminators: LF, CR, CRLF (single terminator), LS, PS.
         // Keep in sync with JsLexer.IsLineTerminator; the lexer is the
@@ -35,7 +36,7 @@ public sealed class SourceCode(string? source, string? path)
             }
         }
 
-        lineStarts = starts.ToArray();
-        return lineStarts;
+        var created = starts.ToArray();
+        return Interlocked.CompareExchange(ref lineStarts, created, null) ?? created;
     }
 }

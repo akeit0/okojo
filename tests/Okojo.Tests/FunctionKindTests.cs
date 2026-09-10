@@ -1,4 +1,5 @@
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -22,7 +23,10 @@ public class FunctionKindTests
             )
         );
 
-        var g = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "G");
+        var g = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "G");
         Assert.That(g.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));
     }
 
@@ -39,7 +43,10 @@ public class FunctionKindTests
             )
         );
 
-        var f = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(fn => fn.Name == "F");
+        var f = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(fn => fn.Name == "F");
         Assert.That(f.Kind, Is.EqualTo(JsBytecodeFunctionKind.Normal));
     }
 
@@ -56,7 +63,10 @@ public class FunctionKindTests
             )
         );
 
-        var h = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "H");
+        var h = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "H");
         Assert.That(h.Kind, Is.EqualTo(JsBytecodeFunctionKind.Generator));
     }
 }

@@ -610,10 +610,10 @@ internal static class Program
 
         result.Add((rootName, root));
         foreach (var obj in root.ObjectConstants)
-            if (obj is JsBytecodeFunction fn)
+            if (obj is JsScript fn)
                 CollectOkojoFunctions(
-                    fn.Script,
-                    string.IsNullOrEmpty(fn.Name) ? "<anonymous>" : fn.Name,
+                    fn,
+                    string.IsNullOrEmpty(fn.Function.Name) ? "<anonymous>" : fn.Function.Name,
                     result,
                     seen
                 );

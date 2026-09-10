@@ -1723,7 +1723,7 @@ internal abstract partial class JsCompilerBase
             {
                 builder.EmitLda(JsOpCode.LdaUndefined);
                 var resourceScopes = activeExplicitResourceScopes ??=
-                    Vm.RentCompileStack<ExplicitResourceScope>();
+                    Pool.RentCompileStack<ExplicitResourceScope>();
                 resourceScopes.Push(new(stackRegister, isAsyncScope));
                 try
                 {
@@ -2642,7 +2642,7 @@ internal abstract partial class JsCompilerBase
             throw new InvalidOperationException($"No planned binding found for function '{name}'.");
 
         var functionCompiler = new JsFunctionCompiler(
-            Vm,
+            Pool,
             BuildChildCaptureBindings(),
             visiblePrivateBindings,
             scriptSourceCode
@@ -2658,6 +2658,6 @@ internal abstract partial class JsCompilerBase
 
     protected virtual bool DeferHoistedFunction(
         in BindingStorage binding,
-        JsBytecodeFunction function
+        JsFunctionDescriptor function
     ) => false;
 }

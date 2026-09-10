@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -361,7 +362,10 @@ public class AssignmentTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         var loadMatches = Regex.Matches(disasm, @"LdaNamedProperty .* slot:(\d+)");
@@ -392,7 +396,10 @@ public class AssignmentTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Contain("LdaKeyedProperty"));
@@ -534,7 +541,8 @@ public class AssignmentTests
         );
 
         var effects = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(f => f.Name == "effects");
         var effectsDisasm = Disassembler.Dump(
             effects.Script,
@@ -543,7 +551,8 @@ public class AssignmentTests
         Assert.That(effectsDisasm, Does.Not.Contain("ToNumeric"));
 
         var values = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(f => f.Name == "values");
         var valuesDisasm = Disassembler.Dump(
             values.Script,
@@ -569,7 +578,10 @@ public class AssignmentTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         var loadMatches = Regex.Matches(disasm, @"LdaNamedProperty .* slot:(\d+)");

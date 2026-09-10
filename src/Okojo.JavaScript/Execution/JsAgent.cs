@@ -74,7 +74,6 @@ public sealed partial class JsAgent : IDisposable
     private bool isPumpingJobs;
     private bool isRunningPromiseJobs;
 
-    private int nextPrivateBrandId;
     private int lastScriptRegistryPruneCollectionCount = GC.CollectionCount(0);
     private int scriptRegistrationsSincePrune;
     private DebuggerStepRequest? stepRequest;
@@ -393,6 +392,9 @@ public sealed partial class JsAgent : IDisposable
 
     public JsBreakpointHandle AddBreakpoint(JsScript script, int pc)
     {
+        ArgumentNullException.ThrowIfNull(script);
+        if (!ReferenceEquals(script.Agent, this))
+            throw new ArgumentException("The script belongs to a different agent.", nameof(script));
         return breakpointRegistry.AddBreakpoint(this, script, pc);
     }
 
@@ -734,20 +736,26 @@ public sealed partial class JsAgent : IDisposable
 
     private void RefreshExecutionCheckScheduling(bool resetCountdown)
     {
+        if (codeReloadScheduled)
+            ExecutionCheckCountdown = deferredExecutionCheckCountdown;
         if (!ExecutionCheckPolicy.HasPeriodicChecks)
-        {
             ExecutionCheckCountdown = ulong.MaxValue;
-            return;
+        else
+        {
+            var interval = ExecutionCheckPolicy.CheckInterval;
+            ExecutionCheckInterval = interval;
+            if (
+                resetCountdown
+                || ExecutionCheckCountdown == ulong.MaxValue
+                || ExecutionCheckCountdown > interval
+            )
+                ExecutionCheckCountdown = interval;
         }
-
-        var interval = ExecutionCheckPolicy.CheckInterval;
-        ExecutionCheckInterval = interval;
-        if (
-            resetCountdown
-            || ExecutionCheckCountdown == ulong.MaxValue
-            || ExecutionCheckCountdown > interval
-        )
-            ExecutionCheckCountdown = interval;
+        if (codeReloadScheduled)
+        {
+            deferredExecutionCheckCountdown = ExecutionCheckCountdown;
+            ExecutionCheckCountdown = 1;
+        }
     }
 
     private void RegisterScriptRecursive(JsScript script)
@@ -755,8 +763,12 @@ public sealed partial class JsAgent : IDisposable
         if (registeredScripts.TryGetValue(script, out _))
             return;
 
+        if (!ReferenceEquals(script.Agent, this))
+            throw new ArgumentException(
+                "A script instance belongs to a different agent.",
+                nameof(script)
+            );
         registeredScripts.Add(script, SScriptRegistrationMarker);
-        script.Agent = this;
 
         if (script.SourcePath is { Length: > 0 } sourcePath)
         {
@@ -785,8 +797,8 @@ public sealed partial class JsAgent : IDisposable
         }
 
         for (var i = 0; i < script.ObjectConstants.Length; i++)
-            if (script.ObjectConstants[i] is JsBytecodeFunction function)
-                RegisterScriptRecursive(function.Script);
+            if (script.ObjectConstants[i] is JsScript function)
+                RegisterScriptRecursive(function);
 
         breakpointRegistry.ArmPendingBreakpoints(this, script);
     }
@@ -839,12 +851,6 @@ public sealed partial class JsAgent : IDisposable
             moduleSourceCache.TryAdd(resolvedId, source);
             return moduleSourceCache[resolvedId];
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal int AllocatePrivateBrandId()
-    {
-        return Interlocked.Increment(ref nextPrivateBrandId);
     }
 
     internal void ClearModuleCaches()

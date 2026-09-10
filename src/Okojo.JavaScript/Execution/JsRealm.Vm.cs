@@ -94,6 +94,7 @@ public sealed partial class JsRealm
         HandleRuntimeForInStep, // ForInStep = 77
         HandleRuntimeMaterializeSpreadArgument, // MaterializeSpreadArgument = 78
         HandleRuntimeGetCurrentModuleNamespace, // GetCurrentModuleNamespace = 79
+        HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -144,16 +145,11 @@ public sealed partial class JsRealm
 
     public void Execute(JsScript script, bool pumpJobsAfterRun = true)
     {
+        script = script.PrepareForExecution(this);
         StackTop = 0;
         fp = 0;
         ClearExceptionHandlers();
-        script.ArmBreakpoints();
-        var rootFunc = new JsBytecodeFunction(
-            this,
-            script,
-            "root",
-            isStrict: script.StrictDeclared
-        );
+        var rootFunc = new JsBytecodeFunction(script);
         PushFrame(
             rootFunc,
             0,
@@ -185,8 +181,8 @@ public sealed partial class JsRealm
 
     private JsValue ExecuteProgramInline(JsScript script)
     {
-        script.ArmBreakpoints();
-        var root = new JsBytecodeFunction(this, script, "script", isStrict: script.StrictDeclared);
+        script = script.PrepareForExecution(this);
+        var root = new JsBytecodeFunction(script);
         var result = InvokeBytecodeFunction(
             root,
             GlobalObject,
@@ -205,6 +201,9 @@ public sealed partial class JsRealm
 
     public void Execute(JsBytecodeFunction rootFunc, bool pumpJobsAfterRun = true)
     {
+        if (!ReferenceEquals(rootFunc.Realm, this))
+            throw new ArgumentException("Execute a closure in its owning realm.", nameof(rootFunc));
+        rootFunc.Script.ValidateDeclarationsForExecution();
         StackTop = 0;
         fp = 0;
         ClearExceptionHandlers();
@@ -3216,8 +3215,8 @@ public sealed partial class JsRealm
     private void HandleSwitchOnGeneratorState(JsScript script, ref int pc, int fp)
     {
         pc++; // gen_reg (reserved, currently frame-active generator lookup)
-        int tableStart = script.Bytecode[pc++];
-        int tableLength = script.Bytecode[pc++];
+        int tableStart = script.BytecodeArray[pc++];
+        int tableLength = script.BytecodeArray[pc++];
 
         var generator = ResolveGeneratorForSwitch(fp);
         if (generator is null || !generator.HasContinuation)
@@ -3253,7 +3252,7 @@ public sealed partial class JsRealm
                 "Generator state table index out of bounds"
             );
         var targetPc = typedTargets[idx];
-        if ((uint)targetPc >= (uint)script.Bytecode.Length)
+        if ((uint)targetPc >= (uint)script.BytecodeArray.Length)
             ThrowTypeError(
                 "GENERATOR_SWITCH_TABLE_INVALID",
                 "Generator state table target is invalid"
@@ -3264,7 +3263,7 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void HandleSwitchOnSmi(JsScript script, ref int pc, in JsValue acc)
     {
-        var bytecode = script.Bytecode;
+        var bytecode = script.BytecodeArray;
         int tableStart = bytecode[pc++];
         int tableLength = bytecode[pc++];
         if (!acc.IsInt32)
@@ -3282,7 +3281,7 @@ public sealed partial class JsRealm
             ThrowTypeError("SWITCH_ON_SMI_TABLE_OOB", "SwitchOnSmi table index out of bounds");
 
         var targetPc = targets[idx];
-        if ((uint)targetPc >= (uint)script.Bytecode.Length)
+        if ((uint)targetPc >= (uint)script.BytecodeArray.Length)
             ThrowTypeError("SWITCH_ON_SMI_TABLE_INVALID", "SwitchOnSmi target is invalid");
         pc = targetPc;
     }
@@ -3997,10 +3996,10 @@ public sealed partial class JsRealm
         return false;
     }
 
-    private JsBytecodeFunction BindClosureIfNeeded(JsBytecodeFunction template)
+    private JsBytecodeFunction BindClosureIfNeeded(JsScript template)
     {
         var currentContext = GetCurrentContext();
-        var closure = template.CloneForClosure(this);
+        var closure = new JsBytecodeFunction(template);
         closure.BoundParentContext = currentContext;
         JsBytecodeFunction.DerivedSuperCallState? derivedSuperCallState = null;
         if (CurrentCallFrame.Function is JsBytecodeFunction currentBytecodeFunction)
@@ -4035,9 +4034,9 @@ public sealed partial class JsRealm
             }
         }
 
-        if (template.IsArrow)
+        if (closure.IsArrow)
         {
-            if (template.LexicalThisContextSlot < 0)
+            if (closure.LexicalThisContextSlot < 0)
                 closure.BoundThisValue = CurrentCallFrame.ThisValue;
 
             if (CurrentCallFrame.Function is JsBytecodeFunction currentBytecodeArrowSource)
@@ -5099,7 +5098,9 @@ public sealed partial class JsRealm
                 is JsBytecodeFunction currentFunc
         )
         {
-            ref var bytecode = ref MemoryMarshal.GetArrayDataReference(currentFunc.Script.Bytecode);
+            ref var bytecode = ref MemoryMarshal.GetArrayDataReference(
+                currentFunc.Script.BytecodeArray
+            );
             ref var checkpointPc = ref Unsafe.Add(ref bytecode, throwPc);
             EmitExecutionBoundaryCheckpoint(
                 fullStack,
@@ -5398,6 +5399,26 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void HandleRuntimeDeleteGlobalBinding(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        var name = Unsafe.Add(ref registers, argRegStart).AsString();
+        var atom = realm.Atoms.InternNoCheck(name);
+        acc =
+            !realm.HasGlobalLexicalBindingAtom(atom)
+            && realm.GlobalObject.DeletePropertyAtom(realm, atom)
+                ? JsValue.True
+                : JsValue.False;
+    }
+
     private static void HandleRuntimeDeleteKeyedProperty(
         JsRealm realm,
         JsScript script,
@@ -5663,11 +5684,11 @@ public sealed partial class JsRealm
         if ((uint)siteIndex >= (uint)script.ObjectConstants.Length)
             ThrowTypeError("TEMPLATE_OBJECT_SITE_INDEX", "Invalid template site index");
         var siteObject = script.ObjectConstants[siteIndex];
-        if (siteObject is not JsTemplateSiteDescriptor)
+        if (siteObject is not JsTemplateSite)
             ThrowTypeError("TEMPLATE_OBJECT_SITE_INDEX", "Invalid template site index");
-        var site = (JsTemplateSiteDescriptor)siteObject;
+        var site = (JsTemplateSite)siteObject;
 
-        acc = site.GetOrCreate(realm);
+        acc = site.GetOrCreate();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

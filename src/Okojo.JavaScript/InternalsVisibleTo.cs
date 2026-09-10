@@ -12,8 +12,10 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Okojo.Diagnostics")]
 [assembly: InternalsVisibleTo("Okojo.Hosting")] // Host-owned worker/message adapters use engine internals.
 [assembly: InternalsVisibleTo("OkojoBytecodeTool")]
+[assembly: InternalsVisibleTo("V8BytecodeTool")] // Lockstep bytecode inspection.
 [assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
 [assembly: InternalsVisibleTo("Test262Runner")]
 [assembly: InternalsVisibleTo("Test262OpcodeHistogram")]
 [assembly: InternalsVisibleTo("Okojo.Repl")]
 [assembly: InternalsVisibleTo("OkojoRepl")]
+[assembly: InternalsVisibleTo("OkojoInkProbe")] // Sandbox debug probe uses internal source-map tables.

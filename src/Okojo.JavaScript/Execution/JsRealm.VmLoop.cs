@@ -836,7 +836,7 @@ public sealed partial class JsRealm
 
         // A10: constant pool slot typed by the compiler as function constant -
         // cast is compiler-guaranteed, skip the runtime type test.
-        acc = BindClosureIfNeeded(Unsafe.As<JsBytecodeFunction>(objectPool[idx]));
+        acc = BindClosureIfNeeded(Unsafe.As<JsScript>(objectPool[idx]));
         return pcOffset - startOffset;
     }
 
@@ -1149,6 +1149,7 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
         Exception e,
+        ref byte bytecode,
         ref byte pc,
         int stopAtCallerFp,
         ref int startPc,
@@ -1165,7 +1166,7 @@ public sealed partial class JsRealm
             return false;
         }
 
-        var opcodePcOffset = GetPcOffset(ref currentFunc.Script.Bytecode[0], ref pc);
+        var opcodePcOffset = GetPcOffset(ref bytecode, ref pc);
         CaptureExceptionStackIfMissing(ex, Stack, fp, opcodePcOffset);
         ResolveLazyRuntimeExceptionMessage(ex, currentFunc.Script, opcodePcOffset);
         if (ex is JsFatalRuntimeException)
@@ -1187,6 +1188,7 @@ public sealed partial class JsRealm
     private void Run(int stopAtCallerFp = -1, int startPc = 0)
     {
         managedRunDepth++;
+        var observedCodeGeneration = Agent.EnterVmExecution();
         var acc = this.acc;
 #if OKOJO_VM_PROFILE
         s_vmProfileRunEntries++;
@@ -1208,7 +1210,9 @@ public sealed partial class JsRealm
             var currentFunc = Unsafe.As<JsBytecodeFunction>(
                 Unsafe.As<JsValue, CallFrame>(ref fullStack[fp]).Function
             );
-            ref var bytecode = ref MemoryMarshal.GetArrayDataReference(currentFunc.Script.Bytecode);
+            ref var bytecode = ref MemoryMarshal.GetArrayDataReference(
+                currentFunc.Script.ExecutionBytecode
+            );
             pc = ref Unsafe.Add(ref bytecode, startPc);
             opcodePc = ref pc;
             startPc = 0;
@@ -1218,6 +1222,7 @@ public sealed partial class JsRealm
 #endif
             ref var nextCheck = ref Agent.ExecutionCheckCountdown;
             var objectPool = currentFunc.Script.ObjectConstants;
+            var numericConstants = currentFunc.Script.NumericConstants;
             var atomizedStringConstants = currentFunc.Script.AtomizedStringConstants;
             ref var registerRef = ref fullStack[fp + HeaderSize];
             var namedPropertyIcEntries = currentFunc.Script.NamedPropertyIcEntries;
@@ -1250,14 +1255,29 @@ public sealed partial class JsRealm
                     if (--nextCheck == 0)
                     {
                         this.acc = acc;
-                        CheckExecutionSlowPath(
-                            fullStack,
-                            fp,
-                            ref bytecode,
-                            ref opcodePc,
-                            op,
-                            ref nextCheck
+                        var instructionOffset = GetPcOffset(ref bytecode, ref opcodePc);
+                        try
+                        {
+                            if (Agent.BeginExecutionCodeCheck(ref observedCodeGeneration))
+                                CheckExecutionSlowPath(
+                                    fullStack,
+                                    fp,
+                                    ref bytecode,
+                                    ref opcodePc,
+                                    op,
+                                    ref nextCheck
+                                );
+                        }
+                        finally
+                        {
+                            Agent.EndExecutionCodeCheck();
+                        }
+                        bytecode = ref MemoryMarshal.GetArrayDataReference(
+                            currentFunc.Script.ExecutionBytecode
                         );
+                        opcodePc = ref Unsafe.Add(ref bytecode, instructionOffset);
+                        pc = ref Unsafe.Add(ref opcodePc, 1);
+                        op = (JsOpCode)opcodePc;
                     }
 #if OKOJO_VM_PROFILE
                     var opcodeValue = (byte)op;
@@ -1299,7 +1319,7 @@ public sealed partial class JsRealm
                                 // builder canonicalized NaN at emission, so no
                                 // per-execution NaN check is needed.
                                 ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
-                                accBits = currentFunc.Script.NumericConstants[pc];
+                                accBits = numericConstants[pc];
                                 Unsafe.Add(ref accBits, 1) = 0;
                                 pc = ref Unsafe.Add(ref pc, 1);
                             }
@@ -1307,9 +1327,7 @@ public sealed partial class JsRealm
                         case JsOpCode.LdaNumericConstantWide:
                             {
                                 ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
-                                accBits = currentFunc.Script.NumericConstants[
-                                    Unsafe.ReadUnaligned<ushort>(ref pc)
-                                ];
+                                accBits = numericConstants[Unsafe.ReadUnaligned<ushort>(ref pc)];
                                 Unsafe.Add(ref accBits, 1) = 0;
                                 pc = ref Unsafe.Add(ref pc, 2);
                             }
@@ -3137,17 +3155,18 @@ public sealed partial class JsRealm
                         case JsOpCode.Debugger:
                         {
                             this.acc = acc;
-                            if (
-                                (
-                                    Agent.ExecutionCheckpointHookBits
-                                    & (
-                                        (int)ExecutionCheckpointHooks.DebuggerStatement
-                                        | (int)ExecutionCheckpointHooks.Breakpoint
-                                    )
-                                ) != 0
-                                && HandleDebuggerOpcode(fullStack, fp, ref bytecode, ref opcodePc)
-                            )
-                                pc = ref opcodePc;
+                            var instructionOffset = GetPcOffset(ref bytecode, ref opcodePc);
+                            var retryInstruction = HandleDebuggerOpcode(
+                                fullStack,
+                                fp,
+                                ref bytecode,
+                                ref opcodePc
+                            );
+                            bytecode = ref MemoryMarshal.GetArrayDataReference(
+                                currentFunc.Script.ExecutionBytecode
+                            );
+                            opcodePc = ref Unsafe.Add(ref bytecode, instructionOffset);
+                            pc = ref Unsafe.Add(ref opcodePc, retryInstruction ? 0 : 1);
                             break;
                         }
                         default:
@@ -3169,6 +3188,7 @@ public sealed partial class JsRealm
                     if (
                         TryCatchRunCoreException(
                             e,
+                            ref bytecode,
                             ref opcodePc,
                             stopAtCallerFp,
                             ref startPc,
@@ -3187,6 +3207,7 @@ public sealed partial class JsRealm
         finally
         {
             this.acc = acc;
+            Agent.ExitVmExecution(observedCodeGeneration);
             managedRunDepth--;
         }
     }

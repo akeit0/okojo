@@ -275,7 +275,7 @@ static void AddScriptTree(
         return;
 
     payload.ScriptUnits++;
-    payload.BytecodeBytes += script.Bytecode.Length;
+    payload.BytecodeBytes += script.BytecodeArray.Length;
     payload.ConstantBytes +=
         script.NumericConstants.Length * sizeof(ulong)
         + script.ObjectConstants.Length * IntPtr.Size
@@ -310,8 +310,8 @@ static void AddScriptTree(
         + (script.TopLevelLexicalConstFlags?.Length ?? 0) * sizeof(bool);
 
     for (var i = 0; i < script.ObjectConstants.Length; i++)
-        if (script.ObjectConstants[i] is JsBytecodeFunction function)
-            AddScriptTree(function.Script, scripts, ref payload);
+        if (script.ObjectConstants[i] is JsScript function)
+            AddScriptTree(function, scripts, ref payload);
 }
 
 readonly record struct CompileMeasurement(

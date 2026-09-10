@@ -10,15 +10,17 @@ public class JsScriptDebugInfoTests
     {
         // Source "aa\nbb\ncc" (line starts 0, 3, 6); debug entries map
         // pc 10 -> offset 5 (line 2) and pc 20 -> offset 15 (line 3).
-        return new JsScript(
+        var code = new JsFunctionCode(
             [(byte)JsOpCode.Return],
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>(),
-            DebugPcOffsets: [10, 20],
-            DebugSourceOffsets: [5, 15],
-            SourceCode: new SourceCode("aa\nbb\ncc", null)
+            [],
+            sourceCode: new SourceCode("aa\nbb\ncc", null),
+            debugInfo: new JsFunctionDebugInfo { PcOffsets = [10, 20], SourceOffsets = [5, 15] }
+        );
+        return new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
     }
 
@@ -62,12 +64,15 @@ public class JsScriptDebugInfoTests
     [Test]
     public void SourceLocation_Without_Tables_Fails()
     {
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [(byte)JsOpCode.Return],
             Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         Assert.That(JsScriptDebugInfo.TryGetSourceLocation(script, 0, out _, out _), Is.False);

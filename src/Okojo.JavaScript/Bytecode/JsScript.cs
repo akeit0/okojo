@@ -3,195 +3,158 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Bytecode;
 
-public sealed record JsScript
+/// <summary>
+/// A realm-local executable instance. Code is shared; atoms, linked constants,
+/// feedback, and the optional breakpoint execution view are never shared across realms.
+/// </summary>
+public sealed class JsScript
 {
-    internal JsScript(
-        byte[] Bytecode,
-        ulong[] NumericConstants,
-        object[] ObjectConstants,
-        int RegisterCount,
-        int[] AtomizedStringConstants,
-        bool StrictDeclared = false,
-        string[]? DebugNames = null,
-        int[]? CallSiteDebugPcs = null,
-        int[]? CallSiteDebugNameIndices = null,
-        int[]? RuntimeCallDebugPcs = null,
-        int[]? RuntimeCallDebugNameIndices = null,
-        int[]? TdzReadDebugPcs = null,
-        int[]? TdzReadDebugNameIndices = null,
-        OkojoNamedPropertyIcEntry[]? NamedPropertyIcEntries = null,
-        GlobalBindingIcEntry[]? GlobalBindingIcEntries = null,
-        int[]? DebugPcOffsets = null,
-        int[]? DebugSourceOffsets = null,
-        string? SourceText = null,
-        string? SourcePath = null,
-        FunctionSourceTextSegment FunctionSourceText = default,
-        int[]? GeneratorSwitchTargets = null,
-        int[]? SwitchOnSmiTargets = null,
-        int[]? TopLevelLexicalAtoms = null,
-        int[]? TopLevelLexicalSlots = null,
-        bool[]? TopLevelLexicalConstFlags = null,
-        long[]? PrivateFieldDebugKeys = null,
-        int[]? PrivateFieldDebugNameIndices = null,
-        JsLocalDebugInfo[]? LocalDebugInfos = null,
-        OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries = null,
-        SourceCode? SourceCode = null,
-        bool SuppressTopLevelLexicalRegistration = false
-    )
-    {
-        this.Bytecode = Bytecode;
-        this.NumericConstants = NumericConstants;
-        this.ObjectConstants = ObjectConstants;
-        this.RegisterCount = RegisterCount;
-        this.AtomizedStringConstants = AtomizedStringConstants;
-        this.StrictDeclared = StrictDeclared;
-        this.DebugNames = DebugNames;
-        this.CallSiteDebugPcs = CallSiteDebugPcs;
-        this.CallSiteDebugNameIndices = CallSiteDebugNameIndices;
-        this.RuntimeCallDebugPcs = RuntimeCallDebugPcs;
-        this.RuntimeCallDebugNameIndices = RuntimeCallDebugNameIndices;
-        this.TdzReadDebugPcs = TdzReadDebugPcs;
-        this.TdzReadDebugNameIndices = TdzReadDebugNameIndices;
-        this.NamedPropertyIcEntries = NamedPropertyIcEntries;
-        this.GlobalBindingIcEntries = GlobalBindingIcEntries;
-        this.DebugPcOffsets = DebugPcOffsets;
-        this.DebugSourceOffsets = DebugSourceOffsets;
-        this.SourceCode =
-            SourceCode
-            ?? (
-                SourceText is null && SourcePath is null
-                    ? null
-                    : new SourceCode(SourceText, SourcePath)
-            );
-        functionSourceText = FunctionSourceText;
-        this.GeneratorSwitchTargets = GeneratorSwitchTargets;
-        this.SwitchOnSmiTargets = SwitchOnSmiTargets;
-        this.TopLevelLexicalAtoms = TopLevelLexicalAtoms;
-        this.TopLevelLexicalSlots = TopLevelLexicalSlots;
-        this.TopLevelLexicalConstFlags = TopLevelLexicalConstFlags;
-        this.PrivateFieldDebugKeys = PrivateFieldDebugKeys;
-        this.PrivateFieldDebugNameIndices = PrivateFieldDebugNameIndices;
-        this.LocalDebugInfos = LocalDebugInfos;
-        this.PrototypeNamedPropertyIcEntries = PrototypeNamedPropertyIcEntries;
-        this.SuppressTopLevelLexicalRegistration = SuppressTopLevelLexicalRegistration;
-    }
-
-    public byte[] Bytecode { get; init; }
-
-    /// <summary>
-    ///     Numeric constants as raw <see cref="JsValue.U" /> bit patterns
-    ///     (NaN canonicalized to <see cref="JsValue.JsNan" /> by the builder so
-    ///     the VM can load them into a <see cref="JsValue" /> without a check).
-    /// </summary>
-    public ulong[] NumericConstants { get; init; }
-    public object[] ObjectConstants { get; init; }
-    public int RegisterCount { get; init; }
-    public int[] AtomizedStringConstants { get; init; }
-    public bool StrictDeclared { get; init; }
-    internal string[]? DebugNames { get; init; }
-    internal int[]? CallSiteDebugPcs { get; init; }
-    internal int[]? CallSiteDebugNameIndices { get; init; }
-    internal int[]? RuntimeCallDebugPcs { get; init; }
-    internal int[]? RuntimeCallDebugNameIndices { get; init; }
-    internal int[]? TdzReadDebugPcs { get; init; }
-    internal int[]? TdzReadDebugNameIndices { get; init; }
-    internal OkojoNamedPropertyIcEntry[]? NamedPropertyIcEntries { get; init; }
+    private byte[] executionBytecode;
     private OkojoPrototypeNamedPropertyIcEntry[]? prototypeNamedPropertyIcEntries;
+    private string? materializedFunctionSourceText;
+    private readonly int[]? globalDeclarationAtoms;
+    private bool executionValidated;
 
-    internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries
+    internal JsScript(JsRealm realm, JsFunctionDescriptor function)
     {
-        get => Volatile.Read(ref prototypeNamedPropertyIcEntries);
-        init => prototypeNamedPropertyIcEntries = value;
+        Realm = realm;
+        Function = function;
+        RegisterCount = function.Code.RegisterCount;
+        executionBytecode = Code.BytecodeArray;
+        globalDeclarationAtoms = Code.Declarations?.LinkAtoms(realm);
+        AtomizedStringConstants = InternNames(realm, Code.NameArray);
+        var descriptors = Code.ConstantDescriptors;
+        ObjectConstants = descriptors.Length == 0 ? [] : new object[descriptors.Length];
+        for (var i = 0; i < descriptors.Length; i++)
+            ObjectConstants[i] = descriptors[i] switch
+            {
+                JsFunctionDescriptor child => realm.GetOrCreateFunctionInstance(child),
+                JsObjectLiteralLayout layout => layout.Link(realm),
+                JsTemplateSiteDescriptor site => new JsTemplateSite(realm, site),
+                _ => descriptors[i],
+            };
+        NamedPropertyIcEntries =
+            Code.NamedPropertySlotCount == 0
+                ? null
+                : new OkojoNamedPropertyIcEntry[Code.NamedPropertySlotCount];
+        GlobalBindingIcEntries =
+            Code.GlobalBindingSlotCount == 0
+                ? null
+                : new GlobalBindingIcEntry[Code.GlobalBindingSlotCount];
+        TopLevelLexicalAtoms = Code.TopLevelLexicals is { } lexicals
+            ? InternNames(realm, lexicals.Names)
+            : null;
     }
+
+    public JsRealm Realm { get; }
+    public JsFunctionDescriptor Function { get; }
+    public JsFunctionCode Code => Function.Code;
+    public ReadOnlySpan<byte> Bytecode => Code.Bytecode;
+    public int RegisterCount { get; }
+    public bool StrictDeclared => Code.StrictDeclared;
+    public SourceCode? SourceCode => Code.SourceCode;
+    public string? SourceText => SourceCode?.Source;
+    public string? SourcePath => SourceCode?.Path;
+    public FunctionSourceTextSegment FunctionSourceText => Code.FunctionSourceText;
+    public bool HasFunctionSourceText => !Code.FunctionSourceText.IsEmpty;
+
+    public string? GetFunctionSourceTextString()
+    {
+        if (!HasFunctionSourceText)
+            return null;
+        return materializedFunctionSourceText ??= Code.FunctionSourceText.ToString();
+    }
+
+    /// <summary>Creates a fresh function identity without duplicating linked state.</summary>
+    public JsBytecodeFunction CreateClosure() => new(this);
+
+    internal byte[] BytecodeArray => Code.BytecodeArray;
+    internal byte[] ExecutionBytecode => Volatile.Read(ref executionBytecode);
+    internal ulong[] NumericConstants => Code.NumericConstantArray;
+    internal object[] ObjectConstants { get; }
+    internal int[] AtomizedStringConstants { get; }
+    internal OkojoNamedPropertyIcEntry[]? NamedPropertyIcEntries { get; }
+    internal GlobalBindingIcEntry[]? GlobalBindingIcEntries { get; }
+    internal JsAgent Agent => Realm.Agent;
+    internal int[]? GeneratorSwitchTargets => Code.GeneratorSwitchTargets;
+    internal int[]? SwitchOnSmiTargets => Code.SwitchOnSmiTargets;
+    internal int[]? TopLevelLexicalAtoms { get; }
+    internal int[]? TopLevelLexicalSlots => Code.TopLevelLexicals?.Slots;
+    internal bool[]? TopLevelLexicalConstFlags => Code.TopLevelLexicals?.ConstFlags;
+    internal bool SuppressTopLevelLexicalRegistration => Code.SuppressTopLevelLexicalRegistration;
+    internal string[]? DebugNames => Code.DebugInfo?.Names;
+    internal int[]? CallSiteDebugPcs => Code.DebugInfo?.CallSitePcs;
+    internal int[]? CallSiteDebugNameIndices => Code.DebugInfo?.CallSiteNameIndices;
+    internal int[]? RuntimeCallDebugPcs => Code.DebugInfo?.RuntimeCallPcs;
+    internal int[]? RuntimeCallDebugNameIndices => Code.DebugInfo?.RuntimeCallNameIndices;
+    internal int[]? TdzReadDebugPcs => Code.DebugInfo?.TdzReadPcs;
+    internal int[]? TdzReadDebugNameIndices => Code.DebugInfo?.TdzReadNameIndices;
+    internal int[]? DebugPcOffsets => Code.DebugInfo?.PcOffsets;
+    internal int[]? DebugSourceOffsets => Code.DebugInfo?.SourceOffsets;
+    internal long[]? PrivateFieldDebugKeys => Code.DebugInfo?.PrivateFieldKeys;
+    internal int[]? PrivateFieldDebugNameIndices => Code.DebugInfo?.PrivateFieldNameIndices;
+    internal JsLocalDebugInfo[]? LocalDebugInfos => Code.DebugInfo?.Locals;
+
+    internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries =>
+        Volatile.Read(ref prototypeNamedPropertyIcEntries);
 
     internal OkojoPrototypeNamedPropertyIcEntry[] GetOrCreatePrototypeNamedPropertyIcEntries()
     {
         var entries = Volatile.Read(ref prototypeNamedPropertyIcEntries);
         if (entries is not null)
             return entries;
-
-        var slotCount = NamedPropertyIcEntries?.Length ?? 0;
-        var created = new OkojoPrototypeNamedPropertyIcEntry[slotCount];
-        return Interlocked.CompareExchange(
-                ref prototypeNamedPropertyIcEntries,
-                created,
-                comparand: null
-            ) ?? created;
+        var created = new OkojoPrototypeNamedPropertyIcEntry[Code.NamedPropertySlotCount];
+        return Interlocked.CompareExchange(ref prototypeNamedPropertyIcEntries, created, null)
+            ?? created;
     }
 
-    internal GlobalBindingIcEntry[]? GlobalBindingIcEntries { get; init; }
-    public int[]? DebugPcOffsets { get; init; }
-    public int[]? DebugSourceOffsets { get; init; }
-
-    public SourceCode? SourceCode { get; init; }
-
-    public string? SourceText
+    internal byte[] GetOrCreateDebugBytecode()
     {
-        get => SourceCode?.Source;
-        init =>
-            SourceCode =
-                value is null && SourceCode?.Path is null
-                    ? null
-                    : new SourceCode(value, SourceCode?.Path);
+        var current = ExecutionBytecode;
+        if (!ReferenceEquals(current, Code.BytecodeArray))
+            return current;
+        var copy = (byte[])current.Clone();
+        var previous = Interlocked.CompareExchange(ref executionBytecode, copy, current);
+        if (!ReferenceEquals(previous, current))
+            return previous;
+        // Rebase active VM cursors on their existing slow-check path, including
+        // when the first breakpoint was installed inside a host callback.
+        Agent.RequestExecutionCodeReload();
+        return copy;
     }
 
-    public string? SourcePath
+    internal void ArmBreakpoints() => Agent.ArmBreakpoints(this);
+
+    internal JsScript PrepareForExecution(JsRealm realm)
     {
-        get => SourceCode?.Path;
-        init =>
-            SourceCode =
-                value is null && SourceCode?.Source is null
-                    ? null
-                    : new SourceCode(SourceCode?.Source, value);
+        var instance = ReferenceEquals(Realm, realm) ? this : realm.LinkFunction(Function);
+        instance.ValidateDeclarationsForExecution();
+        instance.ArmBreakpoints();
+        return instance;
     }
 
-    private FunctionSourceTextSegment functionSourceText;
+    internal void ValidateDeclarations() =>
+        Code.Declarations?.Validate(Realm, globalDeclarationAtoms!);
 
-    public FunctionSourceTextSegment FunctionSourceText
+    // The first execution validates because globals can change between link and
+    // execution. Re-execution skips validation: the instance's own bindings from
+    // its previous run must not read as conflicts (pre-split re-execution behavior).
+    internal void ValidateDeclarationsForExecution()
     {
-        get => functionSourceText;
-        init => functionSourceText = value;
-    }
-
-    public bool HasFunctionSourceText => !functionSourceText.IsEmpty;
-
-    public string? GetFunctionSourceTextString()
-    {
-        if (functionSourceText.IsEmpty)
-            return null;
-
-        return functionSourceText.ToString();
-    }
-
-    public int[]? GeneratorSwitchTargets { get; init; }
-    public int[]? SwitchOnSmiTargets { get; init; }
-    public int[]? TopLevelLexicalAtoms { get; init; }
-    public int[]? TopLevelLexicalSlots { get; init; }
-    public bool[]? TopLevelLexicalConstFlags { get; init; }
-
-    /// <summary>
-    ///     Eval scripts declare lexicals in their own ephemeral environment, so the
-    ///     VM must not register them as persistent global lexical bindings.
-    /// </summary>
-    internal bool SuppressTopLevelLexicalRegistration { get; init; }
-    public long[]? PrivateFieldDebugKeys { get; init; }
-    public int[]? PrivateFieldDebugNameIndices { get; init; }
-    public JsLocalDebugInfo[]? LocalDebugInfos { get; init; }
-
-    internal JsAgent? Agent { get; set; }
-
-    internal void BindAgent(JsAgent agent)
-    {
-        if (ReferenceEquals(Agent, agent))
+        if (executionValidated)
             return;
-
-        Agent = agent;
-        agent.RegisterScript(this);
+        ValidateDeclarations();
+        executionValidated = true;
     }
 
-    internal void ArmBreakpoints()
+    private static int[] InternNames(JsRealm realm, string[] names)
     {
-        Agent?.ArmBreakpoints(this);
+        if (names.Length == 0)
+            return [];
+        var atoms = new int[names.Length];
+        for (var i = 0; i < atoms.Length; i++)
+            atoms[i] = realm.Atoms.InternNoCheck(names[i]);
+        return atoms;
     }
 
     public bool TryGetSourceLocationAtPc(int opcodePc, out int line, out int column)

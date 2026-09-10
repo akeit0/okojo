@@ -344,8 +344,11 @@ public class GeneratorCompilerTests
             )
         );
 
-        var g = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "g");
-        var code = g.Script.Bytecode;
+        var g = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "g");
+        var code = g.Script.BytecodeArray;
         var suspendPc = Array.IndexOf(code, (byte)JsOpCode.SuspendGenerator);
         Assert.That(suspendPc, Is.GreaterThanOrEqualTo(0));
 
@@ -374,8 +377,11 @@ public class GeneratorCompilerTests
             )
         );
 
-        var g = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "g");
-        var code = g.Script.Bytecode;
+        var g = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "g");
+        var code = g.Script.BytecodeArray;
         Assert.That(code.Length, Is.GreaterThanOrEqualTo(4));
         Assert.That((JsOpCode)code[0], Is.EqualTo(JsOpCode.SwitchOnGeneratorState));
         var generatorStateReg = code[1];

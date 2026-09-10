@@ -275,7 +275,7 @@ public class JsFunctionCompilerTests
             """
         );
 
-        Assert.That(compiled.Script.Bytecode.Length, Is.GreaterThan(0));
+        Assert.That(compiled.Script.BytecodeArray.Length, Is.GreaterThan(0));
         Assert.That(compiled.Script.RegisterCount, Is.GreaterThanOrEqualTo(2));
         Assert.That(compiled.Name, Is.EqualTo("sum"));
         Assert.That(
@@ -309,16 +309,16 @@ public class JsFunctionCompilerTests
         );
 
         Assert.That(
-            compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThan)
-                || compiled.Script.Bytecode.Contains((byte)JsOpCode.TestLessThanSmi),
+            compiled.Script.BytecodeArray.Contains((byte)JsOpCode.TestLessThan)
+                || compiled.Script.BytecodeArray.Contains((byte)JsOpCode.TestLessThanSmi),
             Is.True
         );
         Assert.That(
-            compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfFalse)
-                || compiled.Script.Bytecode.Contains((byte)JsOpCode.JumpIfToBooleanFalse),
+            compiled.Script.BytecodeArray.Contains((byte)JsOpCode.JumpIfFalse)
+                || compiled.Script.BytecodeArray.Contains((byte)JsOpCode.JumpIfToBooleanFalse),
             Is.True
         );
-        Assert.That(compiled.Script.Bytecode.Contains((byte)JsOpCode.Return), Is.True);
+        Assert.That(compiled.Script.BytecodeArray.Contains((byte)JsOpCode.Return), Is.True);
         Assert.That(
             realm.InvokeFunction(compiled, JsValue.Undefined, [JsValue.FromInt32(1)]).Int32Value,
             Is.EqualTo(41)
@@ -431,10 +431,8 @@ public class JsFunctionCompilerTests
             throw new InvalidOperationException("Expected one function declaration.");
 
         ref readonly var declaration = ref ast[statements[0]];
-        return new JsFunctionCompiler(realm).CompileFunction(
-            ast,
-            ast.GetFunction(declaration.Arg0),
-            declaration.Arg1
-        );
+        return new JsFunctionCompiler(realm)
+            .CompileFunction(ast, ast.GetFunction(declaration.Arg0), declaration.Arg1)
+            .CreateClosure(realm);
     }
 }

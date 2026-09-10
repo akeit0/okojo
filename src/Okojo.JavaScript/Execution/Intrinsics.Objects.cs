@@ -457,7 +457,7 @@ public partial class Intrinsics
             );
         }
 
-        var root = new JsBytecodeFunction(functionRealm, script, "__function_ctor__");
+        var root = new JsBytecodeFunction(script.PrepareForExecution(functionRealm));
         JsValue result;
         try
         {
@@ -482,10 +482,7 @@ public partial class Intrinsics
 
         if (result.TryGetObject(out var resultObj) && resultObj is JsBytecodeFunction fn)
         {
-            fn.Script = fn.Script with
-            {
-                FunctionSourceText = FunctionSourceTextSegment.FromWholeString(sourceText),
-            };
+            fn.SetFunctionSourceText(FunctionSourceTextSegment.FromWholeString(sourceText));
             fn.Prototype = GetPrototypeFromConstructorOrIntrinsic(
                 newTarget,
                 callee,

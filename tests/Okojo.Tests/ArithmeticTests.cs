@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Okojo.Diagnostics;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -59,7 +60,10 @@ public class ArithmeticTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(
@@ -86,7 +90,10 @@ public class ArithmeticTests
             )
         );
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
 
         Assert.That(disasm, Does.Contain("AddSmi imm:2"));
@@ -109,7 +116,10 @@ public class ArithmeticTests
         realm.Execute(script);
         Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(299d));
 
-        var t = script.ObjectConstants.OfType<JsBytecodeFunction>().Single(f => f.Name == "t");
+        var t = script
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
+            .Single(f => f.Name == "t");
         var disasm = Disassembler.Dump(t.Script, new() { UnitKind = "function", UnitName = "t" });
         Assert.That(disasm, Does.Not.Contain("<truncated>"));
     }

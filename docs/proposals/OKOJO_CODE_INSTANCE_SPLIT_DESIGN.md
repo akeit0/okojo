@@ -1,6 +1,10 @@
 # Code/instance split: design inventory and migration order
 
-Status: proposed (design — no code yet).
+Status: core steps 1–6 implemented in the accompanying code; conformance gates green
+(2026-09-10: full .NET suites, Test262 42618 passed / zero non-staging failures).
+Step 7 (lazy nested compilation) remains deferred.
+See [implementation and review notes](../implementation/CODE_INSTANCE_SPLIT_IMPLEMENTATION.md).
+The inventory below describes the pre-change baseline, not the new ownership model.
 Replaces: the `JsScript` responsibility bundle; realm-bound
 `JsFunctionCompiler` product; `MemberwiseClone` closure construction.
 Implements: `proposals/code-instance-split.md` (which states the why; this

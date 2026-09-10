@@ -610,7 +610,7 @@ public class ClassTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         for (var i = 0; i < ushort.MaxValue; i++)
-            realm.Agent.AllocatePrivateBrandId();
+            PrivateNameIdAllocator.Allocate();
 
         var script = realm.CompileScript(
             """
@@ -2917,7 +2917,11 @@ public class ClassTests
 
         IEnumerable<JsBytecodeFunction> EnumerateFunctions(JsScript root)
         {
-            foreach (var function in root.ObjectConstants.OfType<JsBytecodeFunction>())
+            foreach (
+                var function in root
+                    .ObjectConstants.OfType<JsScript>()
+                    .Select(static instance => instance.CreateClosure())
+            )
             {
                 yield return function;
                 foreach (var nested in EnumerateFunctions(function.Script))

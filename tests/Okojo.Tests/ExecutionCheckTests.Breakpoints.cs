@@ -68,7 +68,8 @@ public partial class ExecutionCheckTests
 
         realm.Execute(script);
         var addFunction = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(function => function.Name == "add");
         Assert.That(runtime.MainAgent.IsRegisteredScript(addFunction.Script), Is.True);
         Assert.That(runtime.MainAgent.GetRegisteredScripts("breakpoint.js"), Does.Contain(script));
@@ -129,7 +130,8 @@ public partial class ExecutionCheckTests
         );
         var script = JsCompiler.Compile(realm, program);
         var addFunction = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(function => function.Name == "add");
 
         using var breakpoint = runtime.MainAgent.AddBreakpoint(addFunction.Script, 2);
@@ -172,7 +174,8 @@ public partial class ExecutionCheckTests
         );
         var script = JsCompiler.Compile(realm, program);
         var addFunction = script
-            .ObjectConstants.OfType<JsBytecodeFunction>()
+            .ObjectConstants.OfType<JsScript>()
+            .Select(static instance => instance.CreateClosure())
             .Single(function => function.Name == "add");
         var debugRegistry = runtime.MainAgent.ScriptDebugRegistry;
         Assert.That(debugRegistry.IsRegisteredScript(script), Is.True);
