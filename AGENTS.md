@@ -6,7 +6,7 @@ This file defines contributor and agent operating rules for **Okojo** work insid
 
 This `AGENTS.md` applies to:
 
-- `src/Okojo`
+- `src/Okojo.JavaScript`, `src/Okojo.JavaScript.Embedding`
 - `tests/Okojo.Tests`
 - `docs/` (Okojo design/workflow docs)
 - Okojo tooling (`tools/OkojoBytecodeTool`, `tools/V8BytecodeTool`, `tools/Test262Runner`)
@@ -78,7 +78,7 @@ Avoid making runtime object internals, parser AST internals, or VM helper types 
 1. refine the stable embedding and host API boundaries
 2. reduce runtime allocation/branch overhead on hot property paths
 3. keep module/runtime simplification moving without reintroducing wrapper-heavy paths
-4. extend and optimize the canonical flat compiler in real execution paths
+4. extend and optimize the canonical compiler in real execution paths
 5. add selected staging ECMA-262 support where it is worth carrying, starting with candidates such as `Temporal`
 6. improve `Okojo.Node` compatibility against real Node-facing workloads
 7. attempt real HTML/CSS renderer integration to exercise DOM-manipulation browser compatibility
@@ -256,4 +256,4 @@ Fix order:
 - Do not revert user refactors unless explicitly requested.
 - Prefer minimal/local fixes with nearby regression tests.
 - For generated sources, do not reintroduce monolithic generated files (keep split workflow).
-- When changing public API in `src/Okojo`, document the intended stable layer and the internal layer boundary.
+- When changing public API in `src/Okojo.JavaScript` or `src/Okojo.JavaScript.Embedding`, document the intended stable layer and the internal layer boundary.

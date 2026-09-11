@@ -2,64 +2,51 @@
 
 ## Okojo Priority Queue
 
-### Current highest-priority architecture work
+### Architecture
 
-- [ ] finalize stable embedding API boundaries for `src/Okojo`
+- [ ] finalize stable embedding API boundaries for `src/Okojo.JavaScript` and `src/Okojo.JavaScript.Embedding`
 - [ ] split host-facing APIs from core ECMA-262 engine APIs
 - [ ] redesign task queue ownership so ECMAScript jobs stay in core engine and host tasks stay host-driven
-  - [x] explicit host-pump top-level-await bridge keeps web tasks in the embedder and PromiseJobs in Okojo
-  - [x] browser await integration uses host job notification/event-loop turns, without embedding wait handles
 - [ ] reduce direct scheduling policy living inside `JsAgent`
 - [ ] tighten the remaining intended first-class `JsRuntime` / `JsRealm` API surface against the clean API plan
 - [ ] clarify `Okojo.Hosting` presets and keep environment globals separate from embedder control APIs
-- [x] adopt the canonical parser/compiler in all production, module, wrapper, REPL, tool, and benchmark entry points
-  - Legacy `JsCompiler` partials, compiler context, experimental namespace, and planned/legacy switches are deleted; `JsCompiler` is now the canonical public facade over the compiler.
-  - CommonJS/module wrappers, top-level await interop, Test262Runner, bytecode tools, and compiler tests use the canonical path.
-  - Gates: solution build is warning-free; Okojo, compiler, Node, REPL, module, and auxiliary test suites pass.
+- [ ] define and implement `JsRealm` structural split:
+  `JsRealm` as coordinator/root, with internal `RealmIntrinsics` and `RealmShapes`
+- [ ] continue module/runtime simplification without reintroducing wrapper-heavy paths
+
+### Performance
+
 - [ ] improve hot-path runtime allocation and branch behavior
+- [ ] keep shape/dictionary rollout aligned with hot-path simplicity
+- [ ] RegExp: lead-literal scan-ahead for sticky split steps, and interpreter hot-loop tuning vs Jint 4.16.1 (ShortRun 2026-09-11 has Okojo execute ahead on dromaeo-object-regexp, 0.83x, but parse+compile behind at 2.01x; see `benchmarks/README.md` and `docs/performance/reports/OKOJO_REGEXP_SPLIT_PERF_NOTE.md`)
+- [ ] RegExp: general "matches empty at every position" pattern recognition beyond `(?:)` / empty source
+- [ ] RegExp: reduce `RegExpEngine.Exec` per-call allocations (`CaptureRange[]` + capture substrings) for match-all loops
+
+### Compatibility and integration
+
+- [ ] keep the non-legacy, non-staging Test262 passing baseline stable during API/compiler/runtime work
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing
 - [ ] add selected staging ECMA-262 support where justified, starting with candidates such as `Temporal`
-- [ ] define and implement `JsRealm` structural split:
-  `JsRealm` as coordinator/root, with internal `RealmIntrinsics` and `RealmShapes`
+- [ ] explicit-resource-management: give top-level-module `await using` async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow (current compiler/runtime seam is awkward)
+- [ ] explicit-resource-management: give disposal promise completion a JS-value-preserving path so non-`Error` thrown values survive the host async bridge in the remaining staging `await using` rejection case
 
-### Active supporting work
-
-- [ ] continue module/runtime simplification without reintroducing wrapper-heavy paths
-- [x] canonical compiler coverage baseline: language, built-ins, and intl402 non-annexB sweeps passed in the pre-cutover gates; keep those caches stable while optimizing.
-- [x] Test262Runner uses one canonical compiler path; the obsolete compiler switch and split pass caches are removed.
-- [x] dromaeo-object-regexp split fast paths: raw-step RegExp[Symbol.split] loop, trivially-empty-pattern shortcut, single-character string cache, builtin `test` without result construction (5.8x on the benchmark workload; see docs/performance/reports/OKOJO_REGEXP_SPLIT_PERF_NOTE.md)
-  - [ ] regexp VM per-op cost: lead-literal scan-ahead for sticky split steps, and interpreter hot-loop tuning vs Jint 4.16.1's QuickJS-libregexp port (Okojo ~4x behind on dromaeo-object-regexp Execute)
-  - [x] allocation reduction on hot Execute lanes vs Jint 4.16.1 (regexp target probe 186.6MB -> 68.6MB; reported Jint benchmark 79.94MB)
-  - [ ] general "matches empty at every position" pattern recognition beyond `(?:)` / empty source
-  - [ ] reduce RegExpEngine.Exec per-call allocations (CaptureRange[] + capture substrings) for match-all loops
-- [ ] explicit-resource-management: the current compiler/runtime seam for top-level-module `await using` is still awkward; give module async cleanup a dedicated lowering path instead of leaning on normal async-function suspension flow
-- [ ] explicit-resource-management: async disposal still loses non-`Error` thrown values through the host async bridge in the remaining staging `await using` rejection case; give disposal promise completion a JS-value-preserving path instead of relying on generic task fault wrapping
-- [x] direct flip soak blocker FIXED: HandleCurrentContextSlotOp IndexOutOfRangeException. Root cause: CreateFunctionContext(WithCells) shared the active module's TopLevelContext for ANY parent-null frame during module evaluation; Okojo.Node's production-compiled CJS wrapper (FunctionFrame, null parent, called from host mid-evaluation) received the module's small context and wrote out of bounds. Under production modules this silently corrupted module slots (shims have ~44 export slots so wrapper writes at 5/6 fit); under planned shims (~2 slots) it crashed. Fix: restrict sharing to ScriptFrame and GeneratorFrame (TLA async roots resume as GeneratorFrame with null parent and legitimately rely on sharing; user closures always carry BoundParentContext). Regression tests: ModuleHostReentryTests (planned + production re-entry through a JsHostFunction calling CompileHoistedFunctionTemplate product). Post-fix sweeps: planned language 22203/0, planned built-ins 18067/0, prod language 22255/4 unchanged
-- [x] direct flip soak blocker #2 FIXED: ink's output.js broke under planned modules - `export default class Output` with instance field `caches = new OutputCaches()` threw ReferenceError 'OutputCaches is not defined'. Root cause: CompilerStoragePlanner classified module-root bindings by script Program-scope rules only when the root scope kind is Program, but the module collector emits kind=Module, so ClassifyStorage fell through to local classification: non-exported module top-levels got LexicalRegister/LocalRegister/GlobalBinding instead of ContextSlot/ModuleBinding. Register storages cannot cross function boundaries and BuildChildCaptureBindings only captures ContextSlot/ModuleBinding, so nested functions (including synthetic field initializers inlined into constructors) fell back to LdaGlobal at runtime. Fix: module-root bindings without an import/export cell are forced to ContextSlot in Plan(); exported names keep their cells. Regression tests: CompileModule_ClassFieldInitializerSeesSiblingTopLevelClass, CompileModule_DefaultClassFieldInitializerSeesSiblingTopLevelClass, CompileModule_NonExportedFunctionDeclarationStaysModuleScoped (+ planner expectation updated). Post-fix: planned language 22203/0, planned built-ins 18067/0, OkojoInkProbe renders the full Ink app identically to production modules
-- [ ] keep shape/dictionary rollout aligned with hot-path simplicity
-- [x] private-brand IDs: widened the brand-id operand to 32 bits across private initialization/access opcodes; `PrivateNameIdAllocator` is process-wide and monotonic for portable in-memory units; IDs are never recycled.
-- [ ] keep the non-legacy, non-staging Test262 passing baseline stable during API/compiler/runtime work
-- [ ] extend locals-by-name snapshots with outer-scope/context-chain value lookup helpers for paused debugger inspection
-- [ ] add a compact local-name table to `JsScript` so paused frames can resolve visible locals without guessing from runtime slots
-
-## Code/instance split follow-through
+### Code/instance split follow-through
 
 Core steps 1–6 are implemented and their conformance gates are green (see
 `docs/implementation/CODE_INSTANCE_SPLIT_IMPLEMENTATION.md`).
 
-- [x] Changed-file CSharpier, warning-free solution build, focused split tests, full core/compiler/Node/debugger and remaining test projects green (2026-09-10).
-- [x] Full Test262 without reusing the baseline pass cache: 42618 passed, zero non-staging failures; Okojo bytecode snapshots verified byte-identical over overlapping cases.
 - [ ] Measure compile/cold-link/cached-link/closure/steady-state and retained memory against the uploaded baseline; inspect first-copy debugger/reentry overhead separately.
 - [ ] Implement true lazy nested bodies with owned binding summaries and a thread-safe compilation/error publication policy (proposal step 7).
 - [ ] Make module import/export binding plans portable before advertising compilation units as complete reusable modules. Current portable module units contain executable bodies only.
 - [ ] Define versioned bytecode serialization and private-name ID relocation before adding persistent caches.
 
-## DAP debugger follow-up
+### DAP debugger follow-up
 
-- [x] Run the .NET build, focused/full tests, and CSharpier validation for the DAP implementation (done on Windows; see `docs/dap-debugger/`).
 - [ ] Run real-engine DAP tests on Linux and VS Code installation/F5/source-map acceptance checks.
 - [ ] Add named outer lexical-scope/receiver metadata rather than exposing caller frames as captured scopes.
 - [ ] Extend exception inspection with thrown values and uncaught-only classification.
 - [ ] Consider conditional/log/hit breakpoints, controlled expression execution, mutation, and attach as separate capabilities with explicit safety/lifecycle policies.
 - [ ] Profile large/sparse-object inspection and generator/async stepping; the delivered adapter preserves the existing VM/source-map integration without claiming those acceptance gates passed.
+- [ ] Extend locals-by-name snapshots with outer-scope/context-chain value lookup helpers for paused debugger inspection.
+- [ ] Add a compact local-name table to `JsScript` so paused frames can resolve visible locals without guessing from runtime slots.

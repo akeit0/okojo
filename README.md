@@ -25,42 +25,16 @@ The project is still **prerelease**. Public APIs and package boundaries are bein
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
 - deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
 - Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262)
-- Unlike jint, its RegExp implementation is ECMAScript 262 compliant, although its performance is not very good.
+- RegExp runs on Okojo's own spec-compatible backtracking engine (`src/Okojo.Text.RegularExpressions`). Engine comparisons pin Jint 4.16.1; see [benchmarks/README.md](benchmarks/README.md).
 - runtime support is currently **.NET 10+**
 - core runtime packages are intended to stay **NativeAOT-friendly by default**
 - browser-facing and Node-facing integration work is active, but not every `src/` project is part of the first public wave
 
 ## Performance
 
-Although it is not as fast as other implementations that are famous for being more than just an interpreter, it is more than **3** times faster than [jint](https://github.com/sebastienros/jint). 
-
-It is expected to become about **1.5** times faster through performance tuning.
-I'd like to emphasize the **low allocation**.
-
-[for-loop-sum.js](benchmarks/Okojo.Benchmarks/scripts/for-loop-sum.js)
-[many-object.js](benchmarks/Okojo.Benchmarks/scripts/many-object.js)
-[pure-function-call.js](benchmarks/Okojo.Benchmarks/scripts/pure-function-call.js)
-![img](./docs/assets/benchmark.png)
-https://chartbenchmark.net/
-
-| Method | Scenario           | Mean       | Error     | StdDev   | Ratio | Gen0     | Allocated | Alloc Ratio |
-|------- |------------------- |-----------:|----------:|---------:|------:|---------:|----------:|------------:|
-| Jint   | for-loop-sum       | 1,503.6 us | 245.87 us | 13.48 us |  1.00 | 142.5781 | 2236280 B |       1.000 |
-| Okojo  | for-loop-sum       |   471.0 us |  37.55 us |  2.06 us |  0.31 |        - |      88 B |       0.000 |
-|        |                    |            |           |          |       |          |           |             |
-| Jint   | many-object        | 1,506.1 us |  68.16 us |  3.74 us |  1.00 | 109.3750 | 1743560 B |        1.00 |
-| Okojo  | many-object        |   452.2 us |  14.31 us |  0.78 us |  0.30 |  27.3438 |  432000 B |        0.25 |
-|        |                    |            |           |          |       |          |           |             |
-| Jint   | pure-function-call | 1,620.5 us | 293.68 us | 16.10 us |  1.00 | 162.1094 | 2561672 B |       1.000 |
-| Okojo  | pure-function-call |   464.0 us |  19.73 us |  1.08 us |  0.29 |        - |     280 B |       0.000 |
-
-Benchmark project:
-
-```powershell
-dotnet run --project benchmarks/Okojo.Benchmarks/Okojo.Benchmarks.csproj -c Release
-```
-
-The benchmark suite uses BenchmarkDotNet and includes compile, promise, async, property-path, global-binding, and Jint comparison scenarios under `benchmarks/Okojo.Benchmarks`.
+Okojo targets low-allocation execution on a register VM. All benchmark detail —
+suites, pinned comparison baseline (currently Jint 4.16.1), how to re-run, and
+the latest measured numbers — lives in [benchmarks/README.md](benchmarks/README.md).
 
 
 ## Public package wave
@@ -69,9 +43,15 @@ These are the `src/` packages currently marked `IsPackable=true` and intended as
 
 | Package | NuGet | Role |
 | --- | --- | --- |
-| `Okojo` | [nuget.org/packages/Okojo](https://www.nuget.org/packages/Okojo) | Core engine, runtime, modules, compiler, embedding API |
+| `Okojo.JavaScript` | [nuget.org/packages/Okojo.JavaScript](https://www.nuget.org/packages/Okojo.JavaScript) | Core engine: parser, compiler, VM, realms, intrinsics |
+| `Okojo.JavaScript.Embedding` | [nuget.org/packages/Okojo.JavaScript.Embedding](https://www.nuget.org/packages/Okojo.JavaScript.Embedding) | Builder-first embedding and host composition API |
 | `Okojo.Hosting` | [nuget.org/packages/Okojo.Hosting](https://www.nuget.org/packages/Okojo.Hosting) | Host queues, schedulers, workers, and runtime helpers |
 | `Okojo.Diagnostics` | [nuget.org/packages/Okojo.Diagnostics](https://www.nuget.org/packages/Okojo.Diagnostics) | Formatting, inspection, and disassembly helpers |
+| `Okojo.Text.RegularExpressions` | [nuget.org/packages/Okojo.Text.RegularExpressions](https://www.nuget.org/packages/Okojo.Text.RegularExpressions) | Engine-independent ECMAScript-compatible RegExp |
+| `Okojo.Text.Unicode` | [nuget.org/packages/Okojo.Text.Unicode](https://www.nuget.org/packages/Okojo.Text.Unicode) | Engine-independent ECMAScript-compatible Unicode utilities |
+| `Okojo.Numerics` | [nuget.org/packages/Okojo.Numerics](https://www.nuget.org/packages/Okojo.Numerics) | Engine-independent ECMAScript-compatible numerics (BigInt, decimal, conversions) |
+| `Okojo.Globalization` | [nuget.org/packages/Okojo.Globalization](https://www.nuget.org/packages/Okojo.Globalization) | Engine-independent ECMAScript-compatible globalization and Intl cores |
+| `Okojo.DotNet.Modules` | [nuget.org/packages/Okojo.DotNet.Modules](https://www.nuget.org/packages/Okojo.DotNet.Modules) | .NET ecosystem module-resolution and cache primitives |
 | `Okojo.Reflection` | [nuget.org/packages/Okojo.Reflection](https://www.nuget.org/packages/Okojo.Reflection) | Reflection-based CLR interop extensions |
 | `Okojo.WebPlatform` | [nuget.org/packages/Okojo.WebPlatform](https://www.nuget.org/packages/Okojo.WebPlatform) | `fetch`, timers, workers, and web host APIs |
 | `Okojo.WebAssembly` | [nuget.org/packages/Okojo.WebAssembly](https://www.nuget.org/packages/Okojo.WebAssembly) | Backend-agnostic WebAssembly integration |
@@ -593,9 +573,15 @@ If you want concrete code before reading internals, start here:
 
 | Project | Role | Publication status |
 | --- | --- | --- |
-| `Okojo` | Core engine, runtime, compiler, modules, embedding API | Public package wave |
+| `Okojo.JavaScript` | Core engine: parser, compiler, VM, realms, intrinsics | Public package wave |
+| `Okojo.JavaScript.Embedding` | Builder-first embedding and host composition API | Public package wave |
 | `Okojo.Hosting` | Host queues, scheduling, worker helpers | Public package wave |
 | `Okojo.Diagnostics` | Formatting, inspection, disassembly helpers | Public package wave |
+| `Okojo.Text.RegularExpressions` | Engine-independent ECMAScript-compatible RegExp | Public package wave |
+| `Okojo.Text.Unicode` | Engine-independent ECMAScript-compatible Unicode utilities | Public package wave |
+| `Okojo.Numerics` | Engine-independent ECMAScript-compatible numerics | Public package wave |
+| `Okojo.Globalization` | Engine-independent ECMAScript-compatible globalization and Intl cores | Public package wave |
+| `Okojo.DotNet.Modules` | .NET ecosystem module-resolution and cache primitives | Public package wave |
 | `Okojo.Reflection` | Reflection-backed CLR interop extensions | Public package wave |
 | `Okojo.WebPlatform` | Host-installed web APIs such as fetch, timers, workers | Public package wave |
 | `Okojo.WebAssembly` | Backend-agnostic WebAssembly integration surface | Public package wave |
