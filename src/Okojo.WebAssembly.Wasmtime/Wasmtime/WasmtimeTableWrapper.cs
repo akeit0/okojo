@@ -33,7 +33,10 @@ internal sealed class WasmtimeTableWrapper(Table table, WasmTableType type) : IW
 
     public uint Grow(uint delta, object? initialValue)
     {
-        if (Type.ElementKind == WasmValueKind.FuncRef && initialValue is WasmtimeFunctionWrapper function)
+        if (
+            Type.ElementKind == WasmValueKind.FuncRef
+            && initialValue is WasmtimeFunctionWrapper function
+        )
             return checked((uint)Table.Grow(delta, function.Function));
 
         return checked((uint)Table.Grow(delta, initialValue));

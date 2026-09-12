@@ -7,7 +7,7 @@ Use this package only when the embedder wants CLR namespace/type access or refle
 ## Opt in
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.Reflection;
 
 using var runtime = JsRuntime.CreateBuilder()

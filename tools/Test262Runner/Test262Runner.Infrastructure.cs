@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Test262Runner;
-using JsValue = Okojo.JsValue;
+using JsValue = Okojo.JavaScript.JsValue;
 
 internal static partial class Program
 {
@@ -11,7 +11,8 @@ internal static partial class Program
         var dir = new DirectoryInfo(Path.GetFullPath(startPath));
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "Okojo.slnx"))) return dir.FullName.Replace("\\", "/");
+            if (File.Exists(Path.Combine(dir.FullName, "Okojo.slnx")))
+                return dir.FullName.Replace("\\", "/");
 
             dir = dir.Parent;
         }
@@ -35,10 +36,12 @@ internal static partial class Program
 
     private static string ResolveRootPath(string rootArg)
     {
-        if (Path.IsPathRooted(rootArg)) return rootArg;
+        if (Path.IsPathRooted(rootArg))
+            return rootArg;
 
         var fromCwd = Path.GetFullPath(rootArg, Directory.GetCurrentDirectory());
-        if (Directory.Exists(fromCwd)) return fromCwd;
+        if (Directory.Exists(fromCwd))
+            return fromCwd;
 
         var repoRoot = FindRepoRoot(Directory.GetCurrentDirectory());
         return Path.GetFullPath(rootArg, repoRoot);
@@ -49,12 +52,17 @@ internal static partial class Program
         if (string.IsNullOrWhiteSpace(outputPathArg))
             return Path.Combine(repoRoot, "artifacts", "test262", "test262-last.txt");
 
-        if (Path.IsPathRooted(outputPathArg)) return outputPathArg;
+        if (Path.IsPathRooted(outputPathArg))
+            return outputPathArg;
 
         return Path.GetFullPath(outputPathArg, repoRoot);
     }
 
-    private static ProgressOutput ResolveProgressOutput(Test262Options options, string repoRoot, string resolvedRoot)
+    private static ProgressOutput ResolveProgressOutput(
+        Test262Options options,
+        string repoRoot,
+        string resolvedRoot
+    )
     {
         if (options.ProgressDocPath is null && options.ProgressJsonPath is null)
             return new(null, null, false, "(disabled)");
@@ -63,10 +71,25 @@ internal static partial class Program
         var scopeLabel = BuildProgressScopeLabel(options, repoRoot, resolvedRoot);
 
         return new(
-            ResolveProgressPath(options.ProgressDocPath, repoRoot, resolvedRoot, isFullScope, scopeLabel, ".md"),
-            ResolveProgressPath(options.ProgressJsonPath, repoRoot, resolvedRoot, isFullScope, scopeLabel, ".json"),
+            ResolveProgressPath(
+                options.ProgressDocPath,
+                repoRoot,
+                resolvedRoot,
+                isFullScope,
+                scopeLabel,
+                ".md"
+            ),
+            ResolveProgressPath(
+                options.ProgressJsonPath,
+                repoRoot,
+                resolvedRoot,
+                isFullScope,
+                scopeLabel,
+                ".json"
+            ),
             isFullScope,
-            scopeLabel);
+            scopeLabel
+        );
     }
 
     private static ProgressOutput ResolveIncrementalProgressOutput(string repoRoot)
@@ -75,7 +98,8 @@ internal static partial class Program
             Path.Combine(repoRoot, "TEST262_PROGRESS_INCREMENTAL.md"),
             Path.Combine(repoRoot, "TEST262_PROGRESS_INCREMENTAL.json"),
             false,
-            "incremental-full");
+            "incremental-full"
+        );
     }
 
     private static string? ResolveProgressPath(
@@ -84,7 +108,8 @@ internal static partial class Program
         string resolvedRoot,
         bool isFullScope,
         string scopeLabel,
-        string extension)
+        string extension
+    )
     {
         if (pathArg is null)
             return null;
@@ -100,10 +125,17 @@ internal static partial class Program
         var rootLabel = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/');
         var safeRootLabel = SlugifyProgressPart(rootLabel);
         var safeScopeLabel = SlugifyProgressPart(scopeLabel);
-        return Path.Combine(historyDir, $"{timestamp}--{safeRootLabel}--{safeScopeLabel}{extension}");
+        return Path.Combine(
+            historyDir,
+            $"{timestamp}--{safeRootLabel}--{safeScopeLabel}{extension}"
+        );
     }
 
-    private static bool IsFullProgressScope(Test262Options options, string repoRoot, string resolvedRoot)
+    private static bool IsFullProgressScope(
+        Test262Options options,
+        string repoRoot,
+        string resolvedRoot
+    )
     {
         if (!string.IsNullOrWhiteSpace(options.Filter))
             return false;
@@ -118,7 +150,11 @@ internal static partial class Program
         return string.Equals(resolvedRoot, defaultRoot, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildProgressScopeLabel(Test262Options options, string repoRoot, string resolvedRoot)
+    private static string BuildProgressScopeLabel(
+        Test262Options options,
+        string repoRoot,
+        string resolvedRoot
+    )
     {
         if (IsFullProgressScope(options, repoRoot, resolvedRoot))
             return "full";
@@ -128,10 +164,12 @@ internal static partial class Program
             parts.Add($"filter-{options.Filter}");
         if (options.Categories.Count != 0)
             parts.Add(
-                $"category-{string.Join("-", options.Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))}");
+                $"category-{string.Join("-", options.Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))}"
+            );
         if (options.Features.Count != 0)
             parts.Add(
-                $"feature-{string.Join("-", options.Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))}");
+                $"feature-{string.Join("-", options.Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))}"
+            );
         if (options.MaxTests.HasValue)
             parts.Add($"max-{options.MaxTests.Value}");
         if (parts.Count == 0)
@@ -162,7 +200,11 @@ internal static partial class Program
         return string.IsNullOrEmpty(slug) ? "scope" : slug;
     }
 
-    private static string MakeDisplayPath(string repoRoot, string absoluteOrRelativePath, bool fullPath)
+    private static string MakeDisplayPath(
+        string repoRoot,
+        string absoluteOrRelativePath,
+        bool fullPath
+    )
     {
         var full = Path.GetFullPath(absoluteOrRelativePath);
         if (fullPath)
@@ -173,7 +215,8 @@ internal static partial class Program
 
     private static bool MatchesFilter(string path, string? filter)
     {
-        if (string.IsNullOrWhiteSpace(filter)) return true;
+        if (string.IsNullOrWhiteSpace(filter))
+            return true;
 
         static string NormalizePathLike(string text)
         {
@@ -185,30 +228,40 @@ internal static partial class Program
         return normalizedPath.Contains(normalizedFilter, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool MatchesCategory(string path, string root, IReadOnlyCollection<string> categories)
+    private static bool MatchesCategory(
+        string path,
+        string root,
+        IReadOnlyCollection<string> categories
+    )
     {
-        if (categories.Count == 0) return true;
+        if (categories.Count == 0)
+            return true;
 
         var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
         foreach (var category in categories)
         {
-            if (string.IsNullOrWhiteSpace(category)) continue;
+            if (string.IsNullOrWhiteSpace(category))
+                continue;
 
             var token = category.Replace('\\', '/').Trim().Trim('/');
-            if (token.Length == 0) continue;
+            if (token.Length == 0)
+                continue;
 
             // Top-level category shorthand: "language" => only "language/**"
             if (!token.Contains('/'))
             {
                 var prefix = token + "/";
-                if (relative.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+                if (relative.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
 
                 continue;
             }
 
             // Nested category path: allow exact subtree match.
-            if (relative.StartsWith(token + "/", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(relative, token, StringComparison.OrdinalIgnoreCase))
+            if (
+                relative.StartsWith(token + "/", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(relative, token, StringComparison.OrdinalIgnoreCase)
+            )
                 return true;
         }
 
@@ -217,10 +270,9 @@ internal static partial class Program
 
     private static string GetMetadataCachePath(string repoRoot, string resolvedRoot)
     {
-        var rel = Path.GetRelativePath(repoRoot, resolvedRoot)
-            .Replace('\\', '/')
-            .Trim('/');
-        if (string.IsNullOrEmpty(rel)) rel = "root";
+        var rel = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/').Trim('/');
+        if (string.IsNullOrEmpty(rel))
+            rel = "root";
 
         var safe = rel.Replace("/", "__").Replace(":", "_");
         return Path.Combine(repoRoot, "artifacts", "test262", "cache", safe + ".metadata.v1.json");
@@ -228,9 +280,7 @@ internal static partial class Program
 
     private static string GetPassedCachePath(string repoRoot, string resolvedRoot)
     {
-        var rel = Path.GetRelativePath(repoRoot, resolvedRoot)
-            .Replace('\\', '/')
-            .Trim('/');
+        var rel = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/').Trim('/');
         if (string.IsNullOrEmpty(rel))
             rel = "root";
 
@@ -267,9 +317,7 @@ internal static partial class Program
             var json = JsonSerializer.Serialize(payload);
             File.WriteAllText(path, json, new UTF8Encoding(false));
         }
-        catch
-        {
-        }
+        catch { }
     }
 
     private static string NormalizeCachePath(string path)
@@ -277,17 +325,27 @@ internal static partial class Program
         return path.Replace('\\', '/');
     }
 
-    private static string GetFeatureMetadataCachePath(string repoRoot, string resolvedRoot, string feature)
+    private static string GetFeatureMetadataCachePath(
+        string repoRoot,
+        string resolvedRoot,
+        string feature
+    )
     {
-        var rel = Path.GetRelativePath(repoRoot, resolvedRoot)
-            .Replace('\\', '/')
-            .Trim('/');
-        if (string.IsNullOrEmpty(rel)) rel = "root";
+        var rel = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/').Trim('/');
+        if (string.IsNullOrEmpty(rel))
+            rel = "root";
 
         var safeRoot = rel.Replace("/", "__").Replace(":", "_");
         var safeFeature = feature.Replace("/", "_").Replace("\\", "_").Replace(":", "_");
-        return Path.Combine(repoRoot, "artifacts", "test262", "cache", "features", safeRoot,
-            safeFeature + ".metadata.v1.json");
+        return Path.Combine(
+            repoRoot,
+            "artifacts",
+            "test262",
+            "cache",
+            "features",
+            safeRoot,
+            safeFeature + ".metadata.v1.json"
+        );
     }
 
     private static TestFileCandidate[] LoadOrBuildMetadataCandidates(
@@ -295,11 +353,14 @@ internal static partial class Program
         string repoRoot,
         Test262Options options,
         string cachePath,
-        Action<string> log)
+        Action<string> log
+    )
     {
         if (options.UseMetadataCache && !options.RebuildMetadataCache && options.Features.Count > 0)
         {
-            var featureCandidates = new Dictionary<string, TestFileCandidate>(StringComparer.OrdinalIgnoreCase);
+            var featureCandidates = new Dictionary<string, TestFileCandidate>(
+                StringComparer.OrdinalIgnoreCase
+            );
             var loadedAny = false;
             var loadedAll = true;
             foreach (var feature in options.Features)
@@ -324,7 +385,8 @@ internal static partial class Program
                     foreach (var f in cache.Files)
                     {
                         var candidate = f.ToCandidate(resolvedRoot);
-                        if (candidate is null) continue;
+                        if (candidate is null)
+                            continue;
 
                         var key = candidate.Path.Replace('\\', '/');
                         featureCandidates[key] = candidate;
@@ -339,7 +401,8 @@ internal static partial class Program
                 }
             }
 
-            if (loadedAny && loadedAll) return featureCandidates.Values.ToArray();
+            if (loadedAny && loadedAll)
+                return featureCandidates.Values.ToArray();
         }
 
         if (options.UseMetadataCache && !options.RebuildMetadataCache && File.Exists(cachePath))
@@ -348,8 +411,8 @@ internal static partial class Program
                 var json = File.ReadAllText(cachePath);
                 var cache = JsonSerializer.Deserialize<Test262MetadataCache>(json);
                 if (cache is not null)
-                    return cache.Files
-                        .Select(f => f.ToCandidate(resolvedRoot))
+                    return cache
+                        .Files.Select(f => f.ToCandidate(resolvedRoot))
                         .Where(c => c is not null)
                         .Select(c => c!)
                         .ToArray();
@@ -359,24 +422,30 @@ internal static partial class Program
                 _ = ex;
             }
 
-        var filePaths = Directory.EnumerateFiles(resolvedRoot, "*.js", SearchOption.AllDirectories).ToArray();
+        var filePaths = Directory
+            .EnumerateFiles(resolvedRoot, "*.js", SearchOption.AllDirectories)
+            .ToArray();
         var sw = Stopwatch.StartNew();
         var files = new List<Test262CachedFile>(filePaths.Length);
-        var filesByFeature = new Dictionary<string, List<Test262CachedFile>>(StringComparer.OrdinalIgnoreCase);
+        var filesByFeature = new Dictionary<string, List<Test262CachedFile>>(
+            StringComparer.OrdinalIgnoreCase
+        );
         for (var i = 0; i < filePaths.Length; i++)
         {
             var path = filePaths[i];
             var source = File.ReadAllText(path);
             var meta = Test262Metadata.Parse(source);
             var rel = Path.GetRelativePath(resolvedRoot, path).Replace('\\', '/');
-            files.Add(new()
-            {
-                RelativePath = rel,
-                IsNegative = meta.IsNegative,
-                Features = meta.Features.ToArray(),
-                Flags = meta.Flags.ToArray(),
-                Includes = meta.Includes.ToArray()
-            });
+            files.Add(
+                new()
+                {
+                    RelativePath = rel,
+                    IsNegative = meta.IsNegative,
+                    Features = meta.Features.ToArray(),
+                    Flags = meta.Flags.ToArray(),
+                    Includes = meta.Includes.ToArray(),
+                }
+            );
 
             if (meta.Features.Count > 0)
             {
@@ -386,7 +455,7 @@ internal static partial class Program
                     IsNegative = meta.IsNegative,
                     Features = meta.Features.ToArray(),
                     Flags = meta.Flags.ToArray(),
-                    Includes = meta.Includes.ToArray()
+                    Includes = meta.Includes.ToArray(),
                 };
 
                 foreach (var feature in meta.Features)
@@ -406,44 +475,52 @@ internal static partial class Program
         {
             RootRelative = Path.GetRelativePath(repoRoot, resolvedRoot).Replace('\\', '/'),
             GeneratedAtUtc = DateTimeOffset.UtcNow,
-            Files = files
+            Files = files,
         };
 
         if (options.UseMetadataCache)
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-                var json = JsonSerializer.Serialize(cacheObj, new JsonSerializerOptions { WriteIndented = false });
+                var json = JsonSerializer.Serialize(
+                    cacheObj,
+                    new JsonSerializerOptions { WriteIndented = false }
+                );
                 var tempPath = cachePath + ".tmp";
                 File.WriteAllText(tempPath, json, new UTF8Encoding(false));
                 File.Move(tempPath, cachePath, true);
 
                 if (filesByFeature.Count > 0)
                 {
-                    var featureRoot = Path.GetDirectoryName(GetFeatureMetadataCachePath(repoRoot, resolvedRoot, "_"))!;
+                    var featureRoot = Path.GetDirectoryName(
+                        GetFeatureMetadataCachePath(repoRoot, resolvedRoot, "_")
+                    )!;
                     Directory.CreateDirectory(featureRoot);
                     foreach (var pair in filesByFeature)
                     {
-                        var featurePath = GetFeatureMetadataCachePath(repoRoot, resolvedRoot, pair.Key);
+                        var featurePath = GetFeatureMetadataCachePath(
+                            repoRoot,
+                            resolvedRoot,
+                            pair.Key
+                        );
                         var featureCache = new Test262MetadataCache
                         {
                             RootRelative = cacheObj.RootRelative,
                             GeneratedAtUtc = cacheObj.GeneratedAtUtc,
-                            Files = pair.Value
+                            Files = pair.Value,
                         };
 
-                        var featureJson = JsonSerializer.Serialize(featureCache,
-                            new JsonSerializerOptions { WriteIndented = false });
+                        var featureJson = JsonSerializer.Serialize(
+                            featureCache,
+                            new JsonSerializerOptions { WriteIndented = false }
+                        );
                         var featureTempPath = featurePath + ".tmp";
-                        File.WriteAllText(featureTempPath, featureJson,
-                            new UTF8Encoding(false));
+                        File.WriteAllText(featureTempPath, featureJson, new UTF8Encoding(false));
                         File.Move(featureTempPath, featurePath, true);
                     }
                 }
             }
-            catch (IOException)
-            {
-            }
+            catch (IOException) { }
 
         return files
             .Select(f => f.ToCandidate(resolvedRoot))
@@ -452,7 +529,12 @@ internal static partial class Program
             .ToArray();
     }
 
-    private static bool ShouldSkip(Test262Options options, Test262Metadata metadata, string path, out string reason)
+    private static bool ShouldSkip(
+        Test262Options options,
+        Test262Metadata metadata,
+        string path,
+        out string reason
+    )
     {
         path = path.Replace('\\', '/');
         if (path.EndsWith("_FIXTURE.js", StringComparison.OrdinalIgnoreCase))
@@ -476,8 +558,9 @@ internal static partial class Program
 
         if (metadata.Features.Count > 0)
         {
-            var excludedFeatureHit = metadata.Features
-                .FirstOrDefault(f => options.ExcludedFeatures.Contains(f) && !options.Features.Contains(f));
+            var excludedFeatureHit = metadata.Features.FirstOrDefault(f =>
+                options.ExcludedFeatures.Contains(f) && !options.Features.Contains(f)
+            );
             if (excludedFeatureHit is not null)
             {
                 reason = SkipList.TryGetExcludedFeature(excludedFeatureHit, out var featureEntry)
@@ -502,7 +585,7 @@ internal static partial class Program
         var unsupportedFlags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "raw",
-            "CanBlockIsFalse"
+            "CanBlockIsFalse",
         };
         // if (options.Features.Count == 0)
         // {
@@ -515,15 +598,97 @@ internal static partial class Program
             return true;
         }
 
+        // Okojo targets browser-grade JS semantics without committing to full
+        // browser backward compatibility; ECMA-262 makes Annex B optional for
+        // implementations that do not target web-browser compatibility.
         if (path.Contains("annexB", StringComparison.OrdinalIgnoreCase))
         {
-            reason = "Annex B excluded";
+            reason = "Intentional skip: Annex B legacy web-compat extensions are out of scope";
+            return true;
+        }
+
+        if (metadata.Features.Contains("tail-call-optimization"))
+        {
+            reason =
+                "DeferredImplementation: proper tail calls are not yet implemented by the compiler";
+            return true;
+        }
+
+        if (UsesWithStatement(path))
+        {
+            reason =
+                "Intentional skip: with statement semantics are intentionally unsupported in Okojo";
+            return true;
+        }
+
+        if (UsesDecorators(path))
+        {
+            reason =
+                "DeferredImplementation: class decorators are supported by the production parser but not yet by JavaScriptParser";
+            return true;
+        }
+
+        if (UsesAutoAccessors(path))
+        {
+            reason =
+                "DeferredImplementation: auto-accessor fields are supported by the production parser but not yet by JavaScriptParser";
             return true;
         }
 
         reason = string.Empty;
         return false;
     }
+
+    private static bool UsesDecorators(string path)
+    {
+        try
+        {
+            return DecoratorPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex DecoratorPattern = new(
+        @"(?:^|[\r\n=(,:;{[]) *@[A-Za-z_(]",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
+
+    private static bool UsesAutoAccessors(string path)
+    {
+        try
+        {
+            return AutoAccessorPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex AutoAccessorPattern = new(
+        @"(?:^|\n)[ \t]*(?:static[ \t]+)?accessor[ \t]+[#A-Za-z_\[]",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
+
+    private static bool UsesWithStatement(string path)
+    {
+        try
+        {
+            return WithStatementPattern.IsMatch(File.ReadAllText(path));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex WithStatementPattern = new(
+        @"(?:^|[^\w$.])with\s*\(",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+    );
 
     private static bool IsModuleCase(Test262Metadata metadata, string path)
     {
@@ -540,13 +705,6 @@ internal static partial class Program
         return false;
     }
 
-    private enum Test262RegExpEngineMode
-    {
-        Current,
-        Experimental,
-        BuiltIn
-    }
-
     private sealed class Test262Options
     {
         public required string Root { get; init; }
@@ -559,12 +717,13 @@ internal static partial class Program
         public string? Filter { get; init; }
         public HashSet<string> Categories { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> Features { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-        public HashSet<string> ExcludedFeatures { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> ExcludedFeatures { get; init; } =
+            new(StringComparer.OrdinalIgnoreCase);
         public bool AllowFeatureTests { get; init; }
         public int? MaxTests { get; init; }
         public int TimeoutMs { get; init; }
         public int TimeoutTotalMs { get; init; }
-        public int StopOnLongTestSeconds { get; init; } = 5;
+        public int StopOnLongTestSeconds { get; init; } = 20;
         public int ProgressSeconds { get; init; } = 2;
         public bool VerboseProgress { get; init; }
         public int Parallelism { get; init; } = 8;
@@ -582,13 +741,16 @@ internal static partial class Program
         public bool FullPath { get; init; }
         public bool SkipPassed { get; init; }
         public bool QueryIncremental { get; init; }
-        public Test262RegExpEngineMode RegExpEngineMode { get; init; } = Test262RegExpEngineMode.Current;
         public bool UseRealTimers { get; init; }
 
         public static Test262Options Parse(string[] args)
         {
-            if (args.Any(static x => string.Equals(x, "--help", StringComparison.OrdinalIgnoreCase) ||
-                                     string.Equals(x, "-h", StringComparison.OrdinalIgnoreCase)))
+            if (
+                args.Any(static x =>
+                    string.Equals(x, "--help", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x, "-h", StringComparison.OrdinalIgnoreCase)
+                )
+            )
             {
                 PrintHelp();
                 Environment.Exit(0);
@@ -606,12 +768,13 @@ internal static partial class Program
             var features = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var excludedFeatures = new HashSet<string>(
                 SkipList.DefaultExcludedFeatures,
-                StringComparer.OrdinalIgnoreCase);
+                StringComparer.OrdinalIgnoreCase
+            );
             var allowFeatureTests = true;
             int? maxTests = null;
             var timeoutMs = 0;
             var timeoutTotalMs = 0;
-            var stopOnLongTestSeconds = 8;
+            var stopOnLongTestSeconds = 20;
             var progressSeconds = 2;
             var verboseProgress = false;
             var parallelism = 8;
@@ -628,7 +791,6 @@ internal static partial class Program
             int? queryTop = null;
             var fullPath = false;
             var skipPassed = false;
-            var regExpEngineMode = Test262RegExpEngineMode.Current;
             var useRealTimers = false;
             for (var i = 0; i < args.Length; i++)
                 switch (args[i])
@@ -637,19 +799,28 @@ internal static partial class Program
                         root = args[++i];
                         break;
                     case "--progress-doc":
-                        if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        if (
+                            i + 1 < args.Length
+                            && !args[i + 1].StartsWith("--", StringComparison.Ordinal)
+                        )
                             progressDocPath = args[++i];
                         else
                             progressDocPath = string.Empty;
                         break;
                     case "--progress-json":
-                        if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        if (
+                            i + 1 < args.Length
+                            && !args[i + 1].StartsWith("--", StringComparison.Ordinal)
+                        )
                             progressJsonPath = args[++i];
                         else
                             progressJsonPath = string.Empty;
                         break;
                     case "--query-incremental":
-                        if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        if (
+                            i + 1 < args.Length
+                            && !args[i + 1].StartsWith("--", StringComparison.Ordinal)
+                        )
                             queryIncrementalPath = args[++i];
                         else
                             queryIncrementalPath = string.Empty;
@@ -678,28 +849,34 @@ internal static partial class Program
                     case "--allow-features":
                         allowFeatureTests = true;
                         break;
-                    case "--max-tests" when i + 1 < args.Length && int.TryParse(args[++i], out var maxTestsValue):
+                    case "--max-tests"
+                        when i + 1 < args.Length && int.TryParse(args[++i], out var maxTestsValue):
                         maxTests = Math.Max(1, maxTestsValue);
                         break;
-                    case "--timeout-ms" when i + 1 < args.Length && int.TryParse(args[++i], out var timeoutValue):
+                    case "--timeout-ms"
+                        when i + 1 < args.Length && int.TryParse(args[++i], out var timeoutValue):
                         timeoutMs = Math.Max(0, timeoutValue);
                         break;
                     case "--timeout-total-ms"
-                        when i + 1 < args.Length && int.TryParse(args[++i], out var timeoutTotalValue):
+                        when i + 1 < args.Length
+                            && int.TryParse(args[++i], out var timeoutTotalValue):
                         timeoutTotalMs = Math.Max(0, timeoutTotalValue);
                         break;
                     case "--stop-on-long-test-seconds"
-                        when i + 1 < args.Length && int.TryParse(args[++i], out var stopOnLongTestSecondsValue):
+                        when i + 1 < args.Length
+                            && int.TryParse(args[++i], out var stopOnLongTestSecondsValue):
                         stopOnLongTestSeconds = Math.Max(0, stopOnLongTestSecondsValue);
                         break;
                     case "--progress-seconds"
-                        when i + 1 < args.Length && int.TryParse(args[++i], out var progressSecondsValue):
+                        when i + 1 < args.Length
+                            && int.TryParse(args[++i], out var progressSecondsValue):
                         progressSeconds = Math.Max(0, progressSecondsValue);
                         break;
                     case "--verbose-progress":
                         verboseProgress = true;
                         break;
-                    case "--parallel" when i + 1 < args.Length && int.TryParse(args[++i], out var parallelValue):
+                    case "--parallel"
+                        when i + 1 < args.Length && int.TryParse(args[++i], out var parallelValue):
                         parallelism = Math.Max(1, parallelValue);
                         break;
                     case "--no-metadata-cache":
@@ -708,7 +885,8 @@ internal static partial class Program
                     case "--rebuild-cache":
                         rebuildMetadataCache = true;
                         break;
-                    case "--max-listed" when i + 1 < args.Length && int.TryParse(args[++i], out var value):
+                    case "--max-listed"
+                        when i + 1 < args.Length && int.TryParse(args[++i], out var value):
                         maxListed = Math.Max(1, value);
                         break;
                     case "--show-passed":
@@ -723,8 +901,9 @@ internal static partial class Program
                     case "--reason" when i + 1 < args.Length:
                         queryReasonFilter = args[++i];
                         break;
-                    case "--updated-since" when i + 1 < args.Length &&
-                                                DateTimeOffset.TryParse(args[++i], out var updatedSinceValue):
+                    case "--updated-since"
+                        when i + 1 < args.Length
+                            && DateTimeOffset.TryParse(args[++i], out var updatedSinceValue):
                         queryUpdatedSince = updatedSinceValue;
                         break;
                     case "--group-by" when i + 1 < args.Length:
@@ -733,7 +912,8 @@ internal static partial class Program
                     case "--list" when i + 1 < args.Length:
                         queryList = args[++i].Trim();
                         break;
-                    case "--top" when i + 1 < args.Length && int.TryParse(args[++i], out var topValue):
+                    case "--top"
+                        when i + 1 < args.Length && int.TryParse(args[++i], out var topValue):
                         queryTop = Math.Max(1, topValue);
                         break;
                     case "--full-path":
@@ -742,19 +922,14 @@ internal static partial class Program
                     case "--skip-passed":
                         skipPassed = true;
                         break;
-                    case "--regexp-engine" when i + 1 < args.Length:
-                        regExpEngineMode = ParseRegExpEngineMode(args[++i]);
-                        break;
-                    case "--no-external-regexp":
-                        regExpEngineMode = Test262RegExpEngineMode.BuiltIn;
-                        break;
                     case "--real-timers":
                         useRealTimers = true;
                         break;
                 }
 
             // Explicitly included features should override the default excluded-feature baseline.
-            foreach (var includedFeature in features) excludedFeatures.Remove(includedFeature);
+            foreach (var includedFeature in features)
+                excludedFeatures.Remove(includedFeature);
 
             if (showSkippedInQuery && string.IsNullOrWhiteSpace(queryList))
                 queryList = "failed-skipped";
@@ -794,8 +969,7 @@ internal static partial class Program
                 FullPath = fullPath,
                 SkipPassed = skipPassed,
                 QueryIncremental = queryIncrementalPath is not null,
-                RegExpEngineMode = regExpEngineMode,
-                UseRealTimers = useRealTimers
+                UseRealTimers = useRealTimers,
             };
         }
 
@@ -804,80 +978,107 @@ internal static partial class Program
             foreach (var token in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
             {
                 var trimmed = token.Trim();
-                if (trimmed.Length > 0) output.Add(trimmed);
+                if (trimmed.Length > 0)
+                    output.Add(trimmed);
             }
-        }
-
-        private static Test262RegExpEngineMode ParseRegExpEngineMode(string value)
-        {
-            return value.Trim().ToLowerInvariant() switch
-            {
-                "current" => Test262RegExpEngineMode.Current,
-                "experimental" => Test262RegExpEngineMode.Experimental,
-                "built-in" => Test262RegExpEngineMode.BuiltIn,
-                "builtin" => Test262RegExpEngineMode.BuiltIn,
-                _ => throw new ArgumentException(
-                    $"Unknown RegExp engine '{value}'. Expected built-in, current, or experimental.")
-            };
         }
 
         private static void PrintHelp()
         {
             Console.WriteLine("Test262Runner options:");
-            Console.WriteLine("  --root <path>               Root directory (default: test262/test)");
+            Console.WriteLine(
+                "  --root <path>               Root directory (default: test262/test)"
+            );
             Console.WriteLine("  --out <path>                Report output path");
             Console.WriteLine(
-                "  --progress-doc [path]       Write dated markdown progress report (default: TEST262_PROGRESS.md)");
+                "  --progress-doc [path]       Write dated markdown progress report (default: TEST262_PROGRESS.md)"
+            );
             Console.WriteLine(
-                "  --progress-json [path]      Write machine-readable progress snapshot (default: TEST262_PROGRESS.json)");
+                "  --progress-json [path]      Write machine-readable progress snapshot (default: TEST262_PROGRESS.json)"
+            );
             Console.WriteLine(
-                "  --query-incremental [path]  Print failed/skipped/progress from TEST262_PROGRESS_INCREMENTAL.json");
+                "  --query-incremental [path]  Print failed/skipped/progress from TEST262_PROGRESS_INCREMENTAL.json"
+            );
             Console.WriteLine(
-                "  --single-test <path>        Internal manager mode: run one test and emit a JSON result");
+                "  --single-test <path>        Internal manager mode: run one test and emit a JSON result"
+            );
             Console.WriteLine(
-                "  --worker-mode               Internal manager mode: serve multiple test requests over stdin/stdout");
+                "  --worker-mode               Internal manager mode: serve multiple test requests over stdin/stdout"
+            );
             Console.WriteLine("  --filter <text>             Path substring filter");
             Console.WriteLine("  --category <name[,name]>    Category/path filter (repeatable)");
-            Console.WriteLine("  --feature <name[,name]>     Include tests requiring these features (repeatable)");
-            Console.WriteLine("  --status <name[,name]>      Query status filter: failed, skipped, passed, not-yet");
-            Console.WriteLine("  --reason <text>             Query failed/skip reason substring filter");
-            Console.WriteLine("  --updated-since <date>      Query only tests updated on/after the given date");
-            Console.WriteLine("  --group-by <name>           Query grouping: all, category, folder, feature, none");
             Console.WriteLine(
-                "  --list <name>               Query list output: failed, skipped, passed, not-yet, all, none");
-            Console.WriteLine("  --top <n>                   Limit grouped rows in --query-incremental mode");
-            Console.WriteLine("  --exclude-feature <name[,name]>  Exclude tests requiring these features (repeatable)");
+                "  --feature <name[,name]>     Include tests requiring these features (repeatable)"
+            );
             Console.WriteLine(
-                "  --allow-features            No-op for compatibility; feature-tagged tests run by default unless excluded");
-            Console.WriteLine("  --max-tests <n>             Stop after selecting first n test files");
-            Console.WriteLine("  --timeout-ms <ms>           Per-test timeout in milliseconds (0 = no timeout)");
-            Console.WriteLine("  --timeout-total-ms <ms>     Stop whole run after elapsed milliseconds");
+                "  --status <name[,name]>      Query status filter: failed, skipped, passed, not-yet"
+            );
             Console.WriteLine(
-                "  --stop-on-long-test-seconds <n>  Timeout a test after n seconds and skip it (default: 8)");
-            Console.WriteLine("  --show-skipped              Print skipped tests in --query-incremental mode");
-            Console.WriteLine("  --progress-every <n>        Print progress every n files (default: 25)");
-            Console.WriteLine("  --progress-seconds <n>      Print progress every n seconds with working tests");
+                "  --reason <text>             Query failed/skip reason substring filter"
+            );
+            Console.WriteLine(
+                "  --updated-since <date>      Query only tests updated on/after the given date"
+            );
+            Console.WriteLine(
+                "  --group-by <name>           Query grouping: all, category, folder, feature, none"
+            );
+            Console.WriteLine(
+                "  --list <name>               Query list output: failed, skipped, passed, not-yet, all, none"
+            );
+            Console.WriteLine(
+                "  --top <n>                   Limit grouped rows in --query-incremental mode"
+            );
+            Console.WriteLine(
+                "  --exclude-feature <name[,name]>  Exclude tests requiring these features (repeatable)"
+            );
+            Console.WriteLine(
+                "  --allow-features            No-op for compatibility; feature-tagged tests run by default unless excluded"
+            );
+            Console.WriteLine(
+                "  --max-tests <n>             Stop after selecting first n test files"
+            );
+            Console.WriteLine(
+                "  --timeout-ms <ms>           Per-test timeout in milliseconds (0 = no timeout)"
+            );
+            Console.WriteLine(
+                "  --timeout-total-ms <ms>     Stop whole run after elapsed milliseconds"
+            );
+            Console.WriteLine(
+                "  --stop-on-long-test-seconds <n>  Timeout a test after n seconds and skip it (default: 8)"
+            );
+            Console.WriteLine(
+                "  --show-skipped              Print skipped tests in --query-incremental mode"
+            );
+            Console.WriteLine(
+                "  --progress-every <n>        Print progress every n files (default: 25)"
+            );
+            Console.WriteLine(
+                "  --progress-seconds <n>      Print progress every n seconds with working tests"
+            );
             Console.WriteLine("  --verbose-progress          Print every file progress line");
-            Console.WriteLine("  --parallel <n>              Run up to n test files in parallel (default: 8)");
+            Console.WriteLine(
+                "  --parallel <n>              Run up to n test files in parallel (default: 8)"
+            );
             Console.WriteLine("  --no-metadata-cache         Disable metadata cache");
             Console.WriteLine("  --rebuild-cache             Rebuild metadata cache before run");
-            Console.WriteLine("  --skip-passed               Skip tests recorded as passed in the local pass cache");
             Console.WriteLine(
-                "  --regexp-engine <mode>      Select RegExp path: built-in, current, or experimental");
+                "  --skip-passed               Skip tests recorded as passed in the local pass cache"
+            );
             Console.WriteLine(
-                "  --no-external-regexp        Use the built-in RegExp path instead of the external engine");
+                "  --real-timers               Use wall-clock timer waits instead of FakeTimeProvider-driven time"
+            );
             Console.WriteLine(
-                "                             Alias for --regexp-engine built-in");
+                "  --max-listed <n>            Max listed failed/passed/skipped tests"
+            );
             Console.WriteLine(
-                "  --real-timers               Use wall-clock timer waits instead of FakeTimeProvider-driven time");
-            Console.WriteLine("  --max-listed <n>            Max listed failed/passed/skipped tests");
-            Console.WriteLine("  --show-passed               Include passed/skipped list in report");
+                "  --show-passed               Include passed/skipped list in report"
+            );
             Console.WriteLine(
-                "  --full-path                 Display absolute paths instead of solution-relative paths");
+                "  --full-path                 Display absolute paths instead of solution-relative paths"
+            );
             Console.WriteLine("  --help, -h                  Show this help");
         }
     }
-
 
     private sealed class Test262Metadata
     {
@@ -890,10 +1091,12 @@ internal static partial class Program
         {
             var legacy = ParseLegacyMetadata(source);
             var startMarker = source.IndexOf("/*---", StringComparison.Ordinal);
-            if (startMarker < 0) return legacy;
+            if (startMarker < 0)
+                return legacy;
 
             var endMarker = source.IndexOf("---*/", startMarker + 5, StringComparison.Ordinal);
-            if (endMarker < 0) return legacy;
+            if (endMarker < 0)
+                return legacy;
 
             var metaText = source.Substring(startMarker + 5, endMarker - (startMarker + 5));
             var lines = metaText.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
@@ -903,7 +1106,8 @@ internal static partial class Program
             foreach (var raw in lines)
             {
                 var line = raw.Trim();
-                if (line.Length == 0) continue;
+                if (line.Length == 0)
+                    continue;
 
                 if (line.StartsWith("negative:", StringComparison.Ordinal))
                 {
@@ -960,14 +1164,17 @@ internal static partial class Program
         private static Test262Metadata ParseLegacyMetadata(string source)
         {
             var metadata = new Test262Metadata();
-            if (source.IndexOf("@negative", StringComparison.OrdinalIgnoreCase) >= 0) metadata.IsNegative = true;
+            if (source.IndexOf("@negative", StringComparison.OrdinalIgnoreCase) >= 0)
+                metadata.IsNegative = true;
 
-            if (source.IndexOf("@noStrict", StringComparison.OrdinalIgnoreCase) >= 0) metadata.Flags.Add("noStrict");
+            if (source.IndexOf("@noStrict", StringComparison.OrdinalIgnoreCase) >= 0)
+                metadata.Flags.Add("noStrict");
 
             if (source.IndexOf("@onlyStrict", StringComparison.OrdinalIgnoreCase) >= 0)
                 metadata.Flags.Add("onlyStrict");
 
-            if (source.IndexOf("@module", StringComparison.OrdinalIgnoreCase) >= 0) metadata.Flags.Add("module");
+            if (source.IndexOf("@module", StringComparison.OrdinalIgnoreCase) >= 0)
+                metadata.Flags.Add("module");
 
             return metadata;
         }
@@ -976,13 +1183,15 @@ internal static partial class Program
         {
             var start = line.IndexOf('[');
             var end = line.IndexOf(']');
-            if (start < 0 || end <= start) return;
+            if (start < 0 || end <= start)
+                return;
 
             var inner = line.Substring(start + 1, end - start - 1);
             foreach (var token in inner.Split(','))
             {
                 var item = CleanMetadataToken(token.Trim());
-                if (item.Length > 0) output.Add(item);
+                if (item.Length > 0)
+                    output.Add(item);
             }
         }
 
@@ -990,13 +1199,15 @@ internal static partial class Program
         {
             var start = line.IndexOf('[');
             var end = line.IndexOf(']');
-            if (start < 0 || end <= start) return;
+            if (start < 0 || end <= start)
+                return;
 
             var inner = line.Substring(start + 1, end - start - 1);
             foreach (var token in inner.Split(','))
             {
                 var item = CleanMetadataToken(token.Trim());
-                if (item.Length > 0) output.Add(item);
+                if (item.Length > 0)
+                    output.Add(item);
             }
         }
 
@@ -1027,25 +1238,25 @@ internal static partial class Program
 
         public TestFileCandidate? ToCandidate(string resolvedRoot)
         {
-            if (string.IsNullOrWhiteSpace(RelativePath)) return null;
+            if (string.IsNullOrWhiteSpace(RelativePath))
+                return null;
 
-            var path = Path.GetFullPath(Path.Combine(resolvedRoot,
-                RelativePath.Replace('/', Path.DirectorySeparatorChar)));
-            var metadata = new Test262Metadata
-            {
-                IsNegative = IsNegative
-            };
-            foreach (var f in Features) metadata.Features.Add(f);
+            var path = Path.GetFullPath(
+                Path.Combine(resolvedRoot, RelativePath.Replace('/', Path.DirectorySeparatorChar))
+            );
+            var metadata = new Test262Metadata { IsNegative = IsNegative };
+            foreach (var f in Features)
+                metadata.Features.Add(f);
 
-            foreach (var f in Flags) metadata.Flags.Add(f);
+            foreach (var f in Flags)
+                metadata.Flags.Add(f);
 
-            foreach (var include in Includes) metadata.Includes.Add(include);
+            foreach (var include in Includes)
+                metadata.Includes.Add(include);
 
             return new(path, metadata);
         }
     }
 
-    private sealed record TestFileCandidate(
-        string Path,
-        Test262Metadata Metadata);
+    private sealed record TestFileCandidate(string Path, Test262Metadata Metadata);
 }

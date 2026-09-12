@@ -6,10 +6,7 @@ internal sealed class GameSandboxAssets
 
     public static GameSandboxAssets CreateDefault()
     {
-        return new()
-        {
-            ScriptRoot = Path.Combine(AppContext.BaseDirectory, "scripts")
-        };
+        return new() { ScriptRoot = Path.Combine(AppContext.BaseDirectory, "scripts") };
     }
 
     public string ReadScript(string scriptPath)

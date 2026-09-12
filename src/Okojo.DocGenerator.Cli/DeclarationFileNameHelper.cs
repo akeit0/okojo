@@ -19,7 +19,8 @@ internal static class DeclarationFileNameHelper
 
     private static string GetDefaultBasePath(INamedTypeSymbol symbol)
     {
-        var fullName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+        var fullName = symbol
+            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
             .Replace("global::", string.Empty, StringComparison.Ordinal);
 
         var sb = new StringBuilder(fullName.Length);

@@ -38,7 +38,8 @@ internal static partial class Program
                 options.QueryTop,
                 options.MaxListed,
                 options.ShowSkippedInQuery,
-                options.FullPath);
+                options.FullPath
+            );
             return;
         }
 
@@ -46,8 +47,9 @@ internal static partial class Program
         var progressOutput = ResolveProgressOutput(options, repoRoot, resolvedRoot);
         var progressDocPath = progressOutput.DocPath;
         var progressJsonPath = progressOutput.JsonPath;
-        var hasProgressOutputs = !string.IsNullOrWhiteSpace(progressDocPath) ||
-                                 !string.IsNullOrWhiteSpace(progressJsonPath);
+        var hasProgressOutputs =
+            !string.IsNullOrWhiteSpace(progressDocPath)
+            || !string.IsNullOrWhiteSpace(progressJsonPath);
         var report = new StringBuilder();
 
         void Log(string line = "")
@@ -71,7 +73,8 @@ internal static partial class Program
             repoRoot,
             options,
             cachePath,
-            static _ => { });
+            static _ => { }
+        );
         var files = allCandidates
             .Where(c => MatchesFilter(c.Path, options.Filter))
             .Where(c => MatchesCategory(c.Path, resolvedRoot, options.Categories))
@@ -83,7 +86,9 @@ internal static partial class Program
         var runSw = Stopwatch.StartNew();
         var totalFiles = files.Length;
         var passedCachePath = GetPassedCachePath(repoRoot, resolvedRoot);
-        var passedCache = options.SkipPassed ? LoadPassedCache(passedCachePath) : new(StringComparer.OrdinalIgnoreCase);
+        var passedCache = options.SkipPassed
+            ? LoadPassedCache(passedCachePath)
+            : new(StringComparer.OrdinalIgnoreCase);
 
         var runnable = new List<TestFileCandidate>(files.Length);
         var collectedSkipped = 0;
@@ -154,7 +159,8 @@ internal static partial class Program
             Log,
             passed,
             failed,
-            skipped);
+            skipped
+        );
 
         if (options.SkipPassed)
             SavePassedCache(passedCachePath, passedCache.Concat(passed.Select(NormalizeCachePath)));
@@ -232,12 +238,11 @@ internal static partial class Program
                 passedCache,
                 passed,
                 failed,
-                skipped);
+                skipped
+            );
 
             if (!string.IsNullOrWhiteSpace(progressDocPath))
-                WriteProgressDoc(
-                    progressDocPath,
-                    progressSnapshot);
+                WriteProgressDoc(progressDocPath, progressSnapshot);
 
             if (!string.IsNullOrWhiteSpace(progressJsonPath))
                 WriteProgressJson(progressJsonPath, progressSnapshot);
@@ -254,7 +259,8 @@ internal static partial class Program
                 passed,
                 failed,
                 skipped,
-                incrementalOutput.JsonPath!);
+                incrementalOutput.JsonPath!
+            );
             WriteProgressDoc(incrementalOutput.DocPath!, incrementalResult.Snapshot);
             WriteIncrementalProgressJson(incrementalOutput.JsonPath!, incrementalResult.Store);
         }
@@ -262,20 +268,27 @@ internal static partial class Program
         Log();
         Log($"Report written: {MakeDisplayPath(repoRoot, outputPath, options.FullPath)}");
         if (!string.IsNullOrWhiteSpace(progressDocPath))
-            Log($"Progress doc written: {MakeDisplayPath(repoRoot, progressDocPath, options.FullPath)}");
+            Log(
+                $"Progress doc written: {MakeDisplayPath(repoRoot, progressDocPath, options.FullPath)}"
+            );
         if (!string.IsNullOrWhiteSpace(progressJsonPath))
-            Log($"Progress json written: {MakeDisplayPath(repoRoot, progressJsonPath, options.FullPath)}");
+            Log(
+                $"Progress json written: {MakeDisplayPath(repoRoot, progressJsonPath, options.FullPath)}"
+            );
         if (hasProgressOutputs)
         {
             var incrementalOutput = ResolveIncrementalProgressOutput(repoRoot);
             Log(
-                $"Incremental progress doc written: {MakeDisplayPath(repoRoot, incrementalOutput.DocPath!, options.FullPath)}");
+                $"Incremental progress doc written: {MakeDisplayPath(repoRoot, incrementalOutput.DocPath!, options.FullPath)}"
+            );
             Log(
-                $"Incremental progress json written: {MakeDisplayPath(repoRoot, incrementalOutput.JsonPath!, options.FullPath)}");
+                $"Incremental progress json written: {MakeDisplayPath(repoRoot, incrementalOutput.JsonPath!, options.FullPath)}"
+            );
         }
 
         if (executedFiles > 0)
             Log(
-                $"Timing: wall={FormatRunnerTimingDuration(runSw.Elapsed)} parse={FormatRunnerTimingDuration(progress.ParseDuration)} compile={FormatRunnerTimingDuration(progress.CompileDuration)} run={FormatRunnerTimingDuration(progress.RunDuration)} total={FormatRunnerTimingDuration(progress.TotalDuration)} rate={executedFiles / Math.Max(0.001d, runSw.Elapsed.TotalSeconds):F2}/s");
+                $"Timing: wall={FormatRunnerTimingDuration(runSw.Elapsed)} parse={FormatRunnerTimingDuration(progress.ParseDuration)} compile={FormatRunnerTimingDuration(progress.CompileDuration)} run={FormatRunnerTimingDuration(progress.RunDuration)} total={FormatRunnerTimingDuration(progress.TotalDuration)} rate={executedFiles / Math.Max(0.001d, runSw.Elapsed.TotalSeconds):F2}/s"
+            );
     }
 }

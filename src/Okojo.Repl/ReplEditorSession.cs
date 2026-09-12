@@ -4,7 +4,8 @@ public sealed class ReplEditorSession(
     Func<string, bool> isInputComplete,
     ReplHistoryStore history,
     string primaryPrompt = "> ",
-    string continuationPrompt = "| ")
+    string continuationPrompt = "| "
+)
 {
     private int? desiredColumn;
     private bool hasOrigin;
@@ -23,11 +24,17 @@ public sealed class ReplEditorSession(
 
         var width = Math.Max(20, console.BufferWidth);
         var bufferHeight = Math.Max(1, console.BufferHeight);
-        var layout =
-            ReplConsoleLayout.Create(Buffer.Text, Buffer.CursorIndex, width, primaryPrompt, continuationPrompt);
+        var layout = ReplConsoleLayout.Create(
+            Buffer.Text,
+            Buffer.CursorIndex,
+            width,
+            primaryPrompt,
+            continuationPrompt
+        );
         var rowsToClear = Math.Min(
             Math.Max(previousRows, layout.TotalRows),
-            Math.Max(1, bufferHeight - originTop));
+            Math.Max(1, bufferHeight - originTop)
+        );
 
         var cursorVisible = console.CursorVisible;
         console.CursorVisible = false;

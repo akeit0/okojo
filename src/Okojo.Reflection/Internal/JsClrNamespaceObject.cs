@@ -1,7 +1,9 @@
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
-using static Okojo.Runtime.AtomTable;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
+using static Okojo.JavaScript.Execution.AtomTable;
 
 namespace Okojo.Reflection.Internal;
 
@@ -20,8 +22,13 @@ internal sealed class JsClrNamespaceObject : JsObject, IClrNamespaceReference
 
     public string? NamespacePath { get; }
 
-    internal override bool TryGetPropertyAtomWithReceiverValue(JsRealm realm, in JsValue receiverValue, int atom,
-        out JsValue value, out SlotInfo slotInfo)
+    internal override bool TryGetPropertyAtomWithReceiverValue(
+        JsRealm realm,
+        in JsValue receiverValue,
+        int atom,
+        out JsValue value,
+        out SlotInfo slotInfo
+    )
     {
         slotInfo = SlotInfo.Invalid;
         if (atom == IdSymbolToStringTag)
@@ -37,14 +44,24 @@ internal sealed class JsClrNamespaceObject : JsObject, IClrNamespaceReference
         }
 
         if (Prototype is not null && Prototype != this)
-            return Prototype.TryGetPropertyAtomWithReceiverValue(realm, receiverValue, atom, out value, out _);
+            return Prototype.TryGetPropertyAtomWithReceiverValue(
+                realm,
+                receiverValue,
+                atom,
+                out value,
+                out _
+            );
 
         value = JsValue.Undefined;
         return false;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(JsRealm realm, int atom,
-        out PropertyDescriptor descriptor, bool needDescriptor = true)
+    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
+        JsRealm realm,
+        int atom,
+        out PropertyDescriptor descriptor,
+        bool needDescriptor = true
+    )
     {
         if (atom == IdSymbolToStringTag)
         {
@@ -57,7 +74,9 @@ internal sealed class JsClrNamespaceObject : JsObject, IClrNamespaceReference
         if (atom >= 0)
         {
             descriptor = needDescriptor
-                ? PropertyDescriptor.Const(realm.ResolveClrPath(CombinePath(realm.Atoms.AtomToString(atom))))
+                ? PropertyDescriptor.Const(
+                    realm.ResolveClrPath(CombinePath(realm.Atoms.AtomToString(atom)))
+                )
                 : default;
             return true;
         }
@@ -66,7 +85,11 @@ internal sealed class JsClrNamespaceObject : JsObject, IClrNamespaceReference
         return false;
     }
 
-    internal override void CollectOwnNamedPropertyAtoms(JsRealm realm, List<int> atomsOut, bool enumerableOnly)
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
     {
         if (!enumerableOnly)
             atomsOut.Add(IdSymbolToStringTag);

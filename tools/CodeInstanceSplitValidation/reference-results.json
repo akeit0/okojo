@@ -1,0 +1,36 @@
+{
+  "scope": "Node/V8 reference behavior only; Okojo was not executed",
+  "node": "v22.16.0",
+  "v8": "12.4.254.21-node.26",
+  "cases": [
+    {
+      "name": "fresh closure identity and captures",
+      "result": "3,12,false,false",
+      "status": "passed"
+    },
+    {
+      "name": "private brands, super and generators",
+      "result": "5,99,true",
+      "status": "passed"
+    },
+    {
+      "name": "tagged site identity and freezing",
+      "result": true,
+      "status": "passed"
+    },
+    {
+      "name": "delete uses global environment, not globalThis property",
+      "result": true,
+      "status": "passed"
+    },
+    {
+      "name": "delete lexical binding is false",
+      "result": false,
+      "status": "passed"
+    },
+    {
+      "name": "declaration rejection precedes side effects",
+      "status": "passed"
+    }
+  ]
+}

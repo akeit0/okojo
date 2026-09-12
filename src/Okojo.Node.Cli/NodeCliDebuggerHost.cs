@@ -1,6 +1,8 @@
 using System.Globalization;
 using Okojo.DebugServer;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Node.Cli;
 
@@ -12,7 +14,11 @@ internal sealed class NodeCliDebuggerHost : IDisposable
     private readonly DebugServerOptions options;
     private readonly DebuggerSession session;
 
-    private NodeCliDebuggerHost(DebugServerOptions options, DebuggerSession session, NodeCliInspectConsole console)
+    private NodeCliDebuggerHost(
+        DebugServerOptions options,
+        DebuggerSession session,
+        NodeCliInspectConsole console
+    )
     {
         this.options = options;
         this.session = session;
@@ -45,7 +51,11 @@ internal sealed class NodeCliDebuggerHost : IDisposable
 
         var sourceMaps = runtime.SourceMapRegistry;
         NodeCliInspectConsole? console = null;
-        var session = new DebuggerSession(runtime.Runtime.MainAgent, options, line => console!.OnSessionOutput(line));
+        var session = new DebuggerSession(
+            runtime.Runtime.MainAgent,
+            options,
+            line => console!.OnSessionOutput(line)
+        );
         console = new(session, workingDirectory, entrySourcePath, sourceMaps);
         runtime.Runtime.MainAgent.AttachDebugger(session);
         ApplyCheckpointHookSelection(runtime.Runtime.MainAgent, options);
@@ -74,7 +84,7 @@ internal sealed class NodeCliDebuggerHost : IDisposable
         var args = new List<string>
         {
             "--check-interval",
-            DefaultCheckInterval.ToString(CultureInfo.InvariantCulture)
+            DefaultCheckInterval.ToString(CultureInfo.InvariantCulture),
         };
 
         if (cli.InspectMode == NodeCliInspectMode.Break)

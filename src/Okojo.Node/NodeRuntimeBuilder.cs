@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using Okojo.Hosting;
-using Okojo.RegExp;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.WebAssembly;
 
 namespace Okojo.Node;
@@ -13,7 +15,9 @@ namespace Okojo.Node;
 /// </summary>
 public sealed class NodeRuntimeBuilder
 {
-    private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime.CreateBuilder();
+    private readonly JsRuntimeBuilder runtimeBuilder = JsRuntime
+        .CreateBuilder()
+        .UseThreadPoolHosting();
     private readonly NodeTerminalOptions terminalOptions = new();
     private bool installNodeGlobals = true;
 
@@ -90,11 +94,14 @@ public sealed class NodeRuntimeBuilder
     public NodeRuntime Build()
     {
         var options = runtimeBuilder.BuildOptions();
-        if (options.Core.RegExpEngine is null)
-            options.Core.UseRegExpEngine(RegExpEngine.Default);
         var baseLoader = options.ModuleSourceLoader ?? new FileModuleSourceLoader();
         var nodeLoader = new NodeModuleSourceLoader(baseLoader, options.Host.SourceMapRegistry);
         options.Host.UseModuleSourceLoader(nodeLoader);
-        return new(JsRuntime.Create(options), nodeLoader, terminalOptions.Clone(), installNodeGlobals);
+        return new(
+            JsRuntime.Create(options),
+            nodeLoader,
+            terminalOptions.Clone(),
+            installNodeGlobals
+        );
     }
 }

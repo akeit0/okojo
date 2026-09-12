@@ -1,6 +1,8 @@
 using Okojo.Browser;
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace OkojoHostEventLoopSandbox;
 
@@ -34,7 +36,8 @@ internal sealed class BrowserThreadPoolHost : IDisposable
 
         var moduleLoader = new DemoModuleLoader(assets);
         var httpClient = new HttpClient(new DemoFetchHandler(assets.FetchPayloads));
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseBrowserHost(browser =>
             {
                 browser.ModuleSourceLoader = moduleLoader;

@@ -1,984 +1,511 @@
-import {
-  ChildProcessWithoutNullStreams,
-  spawn,
-} from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
-import * as vscode from 'vscode';
-import { panelHost } from './panelHost';
-import { BreakpointStore } from './breakpointStore';
-import { buildBytecodeViewModel, renderBytecodeShellHtml } from './bytecodeView';
-import {
-  BreakpointRequestState,
-  DapScopeEntry,
-  HostBreakpointAddedMessage,
-  HostBreakpointClearedMessage,
-  HostBreakpointUpdatedMessage,
-  HostBytecodeMessage,
-  HostErrorMessage,
-  HostEvaluateMessage,
-  HostEventMessage,
-  HostFrame,
-  HostOptionUpdatedMessage,
-  HostScopeSnapshot,
-  HostStoppedMessage,
-  OkojoLaunchArguments,
-} from './debugTypes';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { BreakpointState, BreakpointStore } from './breakpointStore';
+import { DapRequest, Disposable, ProtocolMessage } from './dapProtocol';
+import { DebugHost, HostClient, HostFactory, HostLaunch, HostMessage } from './hostClient';
+import { HostFrame, HostStoppedMessage } from './debugTypes';
 
-import {
-  LoggingDebugSession,
-  InitializedEvent,
-  OutputEvent,
-  StoppedEvent,
-  TerminatedEvent,
-} from '@vscode/debugadapter';
-import { DebugProtocol } from '@vscode/debugprotocol';
+type Phase = 'created' | 'initialized' | 'starting' | 'configuring' | 'running' | 'paused' | 'terminated';
 
-export class OkojoDebugSession extends LoggingDebugSession {
-  private static readonly adapterVersion = '0.0.1';
-  private readonly threadId = 1;
+/** Shared implementation for VS Code's inline adapter and the standalone stdio entry. */
+export class OkojoDebugSession implements Disposable {
+  private phase: Phase = 'created';
+  private sequence = 1;
+  private nextFrameId = 1;
+  private readonly frameIds = new Map<number, number>();
+  private readonly listeners = new Set<(message: ProtocolMessage) => void>();
+  private readonly answered = new WeakSet<object>();
+  private readonly pending = new Map<number, DapRequest>();
+  private readonly breakpoints = new BreakpointStore();
+  private readonly knownSources = new Set<string>();
+  private host?: DebugHost;
+  private pendingLaunch?: DapRequest;
+  private entry?: HostStoppedMessage;
+  private snapshot?: HostStoppedMessage;
+  private launchArgs: Record<string, any> = {};
+  private cwd = process.cwd();
+  private lineBase = 1;
+  private columnBase = 1;
+  private uriPaths = false;
+  private stepGranularity: 'line' | 'instruction' = 'line';
+  private exceptionFilters: string[] = [];
+  private breakpointSerial: Promise<unknown> = Promise.resolve();
+  private disposed = false;
 
-  private launchArgs: OkojoLaunchArguments | undefined;
-  private configurationDone = false;
-  private hostProcess: ChildProcessWithoutNullStreams | undefined;
-  private hostStarted = false;
-  private hostTerminated = false;
-  private nextVariablesReference = 1;
-  private lastSnapshot: HostStoppedMessage | undefined;
-  private lastStopKind = 'pause';
-  private paused = false;
-  private pauseTimestamp = 0;
-  private pauseWasObserved = false;
-  private traceAdapter = false;
+  public constructor(private readonly makeHost: HostFactory = (launch, event) => new HostClient(launch, event)) {}
 
-  private readonly pendingBreakpointsBySource = new Map<string, BreakpointRequestState>();
-  private readonly breakpointHandlesBySource = new Map<string, Set<number>>();
-  private readonly handleSourceById = new Map<number, string>();
-  private readonly breakpointStore = new BreakpointStore();
-  private readonly scopesByReference = new Map<number, DapScopeEntry>();
-  private readonly pendingEvaluateResponses = new Map<number, DebugProtocol.EvaluateResponse>();
-  private stepGranularity: 'Line' | 'Instruction' = 'Line';
-  private nextHostEvaluateRequestId = 1;
-  private bytecodeShellReady = false;
-  private pendingSourceMappedNext: SourceMappedNextState | undefined;
-  private suppressStepGranularityOutput = false;
+  public readonly onDidSendMessage = (
+    listener: (message: ProtocolMessage) => void,
+    thisArgs?: any,
+    disposables?: Disposable[],
+  ): Disposable => {
+    const bound = thisArgs ? listener.bind(thisArgs) : listener;
+    this.listeners.add(bound);
+    const disposable = { dispose: () => { this.listeners.delete(bound); } };
+    disposables?.push(disposable);
+    return disposable;
+  };
 
-  public constructor() {
-    super();
-    this.setDebuggerLinesStartAt1(true);
-    this.setDebuggerColumnsStartAt1(true);
-  }
-
-  protected initializeRequest(
-    response: DebugProtocol.InitializeResponse,
-    _args: DebugProtocol.InitializeRequestArguments
-  ): void {
-    response.body = response.body || {};
-    response.body.supportsConfigurationDoneRequest = true;
-    response.body.supportsTerminateRequest = true;
-    response.body.supportsEvaluateForHovers = true;
-    response.body.supportsExceptionInfoRequest = true;
-    this.sendResponse(response);
-    this.sendEvent(new InitializedEvent());
-  }
-
-  protected launchRequest(
-    response: DebugProtocol.LaunchResponse,
-    args: OkojoLaunchArguments
-  ): void {
-    this.launchArgs = args;
-    this.sendResponse(response);
-  }
-
-  protected configurationDoneRequest(
-    response: DebugProtocol.ConfigurationDoneResponse,
-    _args: DebugProtocol.ConfigurationDoneArguments
-  ): void {
-    this.configurationDone = true;
-    this.sendResponse(response);
-    void this.startHostIfNeeded();
-  }
-
-  protected continueRequest(
-    response: DebugProtocol.ContinueResponse,
-    _args: DebugProtocol.ContinueArguments
-  ): void {
-    this.pendingSourceMappedNext = undefined;
-    const pauseAgeMs = Date.now() - this.pauseTimestamp;
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] continueRequest paused=${this.paused} observed=${this.pauseWasObserved} age=${pauseAgeMs}\n`,
-        'console'
-      ));
-    }
-    if (this.paused && !this.pauseWasObserved && pauseAgeMs >= 0 && pauseAgeMs < 1500) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] rejecting premature continue (${pauseAgeMs}ms after stop)\n`,
-        'console'
-      ));
-      this.sendErrorResponse(response, 2001, 'Pause handshake not completed yet.');
+  public handleMessage(message: ProtocolMessage): void {
+    if (this.disposed || message.type !== 'request') return;
+    const request = message as DapRequest;
+    if (!Number.isInteger(request.seq) || request.seq < 0 || typeof request.command !== 'string') return;
+    if (this.pending.has(request.seq)) {
+      this.error(request, 'A request with this sequence number is already pending.');
       return;
     }
-
-    this.paused = false;
-    this.sendHostCommand('continue');
-    this.sendResponse(response);
+    this.pending.set(request.seq, request);
+    // Do not serialize the request loop: launch intentionally remains pending
+    // while the client sends setBreakpoints and configurationDone.
+    void this.dispatch(request).catch(error => this.error(request, String(error instanceof Error ? error.message : error)));
   }
 
-  protected nextRequest(
-    response: DebugProtocol.NextResponse,
-    _args: DebugProtocol.NextArguments
-  ): void {
-    if (this.tryStartSourceMappedNext()) {
-      this.sendResponse(response);
-      return;
+  private send(message: Omit<ProtocolMessage, 'seq'>): void {
+    const envelope = { ...message, seq: this.sequence++ } as ProtocolMessage;
+    for (const listener of this.listeners) listener(envelope);
+  }
+
+  private respond(request: DapRequest, body?: Record<string, any>): void {
+    if (this.answered.has(request)) return;
+    this.answered.add(request);
+    if (this.pending.get(request.seq) === request) this.pending.delete(request.seq);
+    this.send({ type: 'response', request_seq: request.seq, command: request.command, success: true, ...(body ? { body } : {}) });
+  }
+
+  private error(request: DapRequest, message: string): void {
+    if (this.answered.has(request)) return;
+    this.answered.add(request);
+    if (this.pending.get(request.seq) === request) this.pending.delete(request.seq);
+    this.send({ type: 'response', request_seq: request.seq, command: request.command,
+      success: false, message, body: { error: { id: 1, format: message, showUser: true } } });
+  }
+
+  private event(event: string, body?: Record<string, any>): void {
+    this.send({ type: 'event', event, ...(body ? { body } : {}) });
+  }
+
+  private async dispatch(request: DapRequest): Promise<void> {
+    if (request.arguments !== undefined && (!request.arguments || typeof request.arguments !== 'object' || Array.isArray(request.arguments))) {
+      throw new Error('Request arguments must be an object.');
     }
-
-    this.pendingSourceMappedNext = undefined;
-    this.paused = false;
-    this.sendHostCommand('step');
-    this.sendResponse(response);
-  }
-
-  protected stepInRequest(
-    response: DebugProtocol.StepInResponse,
-    _args: DebugProtocol.StepInArguments
-  ): void {
-    this.pendingSourceMappedNext = undefined;
-    this.paused = false;
-    this.sendHostCommand('stepin');
-    this.sendResponse(response);
-  }
-
-  protected stepOutRequest(
-    response: DebugProtocol.StepOutResponse,
-    _args: DebugProtocol.StepOutArguments
-  ): void {
-    this.pendingSourceMappedNext = undefined;
-    this.paused = false;
-    this.sendHostCommand('stepout');
-    this.sendResponse(response);
-  }
-
-  protected threadsRequest(
-    response: DebugProtocol.ThreadsResponse
-  ): void {
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] threadsRequest paused=${this.paused}\n`,
-        'console'
-      ));
-    }
-    if (this.paused) {
-      this.pauseWasObserved = true;
-    }
-    response.body = {
-      threads: [{ id: this.threadId, name: 'Okojo Main Thread' }],
-    };
-    this.sendResponse(response);
-  }
-
-  protected disconnectRequest(
-    response: DebugProtocol.DisconnectResponse,
-    _args: DebugProtocol.DisconnectArguments
-  ): void {
-    this.shutdownHost();
-    this.sendResponse(response);
-  }
-
-  protected terminateRequest(
-    response: DebugProtocol.TerminateResponse,
-    _args: DebugProtocol.TerminateArguments
-  ): void {
-    this.shutdownHost();
-    this.sendResponse(response);
-  }
-
-  public requestBytecodeDump(): void {
-    this.sendHostCommand('bytecode');
-  }
-
-  public async showDebugOptionsMenu(): Promise<void> {
-    const choice = await vscode.window.showQuickPick([
-      {
-        label: this.stepGranularity === 'Line' ? '$(check) Line' : '    Line',
-        granularity: 'Line' as const,
-        description: 'Step by source line'
-      },
-      {
-        label: this.stepGranularity === 'Instruction' ? '$(check) Instruction' : '    Instruction',
-        granularity: 'Instruction' as const,
-        description: 'Step by bytecode instruction'
-      }
-    ], {
-      placeHolder: 'Step granularity',
-    });
-
-    if (!choice) {
-      return;
-    }
-
-    this.stepGranularity = choice.granularity;
-    this.sendHostCommand(`stepmode ${choice.granularity.toLowerCase()}`);
-  }
-
-  public toggleBytecodeView(): void {
-    if (panelHost.isOpen()) {
-      panelHost.disposePanel();
-      this.bytecodeShellReady = false;
-      return;
-    }
-
-    panelHost.showPlaceholder();
-    this.bytecodeShellReady = false;
-    this.requestBytecodeDump();
-  }
-
-  protected setBreakPointsRequest(
-    response: DebugProtocol.SetBreakpointsResponse,
-    args: DebugProtocol.SetBreakpointsArguments
-  ): void {
-    const sourcePath = this.normalizeSourcePath(args.source?.path ?? args.source?.name);
-    const lines = (args.breakpoints ?? [])
-      .map((breakpoint) => breakpoint.line)
-      .filter((line) => Number.isFinite(line) && line > 0);
-
-    this.trace(`[okojo] setBreakPoints ${sourcePath} -> [${lines.join(', ')}]\n`);
-
-    if (!existsSync(sourcePath)) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] ignoring breakpoints for missing file ${sourcePath}\n`,
-        'console'
-      ));
-      this.pendingBreakpointsBySource.delete(sourcePath);
-      response.body = {
-        breakpoints: lines.map((line) => ({ verified: false, line })),
-      };
-      this.sendResponse(response);
-      return;
-    }
-
-    this.pendingBreakpointsBySource.set(sourcePath, { sourcePath, lines });
-    if (this.hostStarted) {
-      this.refreshHostBreakpointsForSource(sourcePath, lines);
-    }
-
-    response.body = {
-      breakpoints: this.breakpointStore.getResponseBreakpoints(sourcePath, lines),
-    };
-    this.sendResponse(response);
-  }
-
-  protected stackTraceRequest(
-    response: DebugProtocol.StackTraceResponse,
-    _args: DebugProtocol.StackTraceArguments
-  ): void {
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] stackTraceRequest paused=${this.paused}\n`,
-        'console'
-      ));
-    }
-    if (this.paused) {
-      this.pauseWasObserved = true;
-    }
-    const snapshot = this.lastSnapshot;
-    const frames = snapshot?.stackFrames ?? (snapshot?.currentFrame ? [snapshot.currentFrame] : []);
-    response.body = {
-      stackFrames: frames.map((frame, index) => this.toStackFrame(frame, index + 1)),
-      totalFrames: frames.length,
-    };
-    this.sendResponse(response);
-  }
-
-  protected scopesRequest(
-    response: DebugProtocol.ScopesResponse,
-    args: DebugProtocol.ScopesArguments
-  ): void {
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] scopesRequest paused=${this.paused}\n`,
-        'console'
-      ));
-    }
-    if (this.paused) {
-      this.pauseWasObserved = true;
-    }
-    const snapshot = this.lastSnapshot;
-    const frameId = Math.max(1, Number(args.frameId ?? 1));
-    const scopeChain = snapshot?.scopeChain ?? [];
-    const scopes: DebugProtocol.Scope[] = [];
-
-    if (scopeChain.length > 0) {
-      const startIndex = Math.min(frameId - 1, scopeChain.length - 1);
-      for (let index = startIndex; index < scopeChain.length; index++) {
-        const scope = scopeChain[index];
-        const scopeName = index === startIndex
-          ? `Locals${scope.frameInfo.functionName ? ` (${scope.frameInfo.functionName})` : ''}`
-          : `Captured ${index - startIndex}`;
-        const ref = this.registerScope({
-          name: scopeName,
-          variables: (scope.localValues ?? []).map((local) => ({
-            name: local.name,
-            value: local.value ?? '',
-          })),
-        });
-
-        scopes.push({
-          name: scopeName,
-          variablesReference: ref,
-          expensive: false,
-        });
-      }
-    } else if (snapshot) {
-      const values = snapshot.localValues ?? [];
-      const ref = this.registerScope({
-        name: 'Locals',
-        variables: values.map((local) => ({
-          name: local.name,
-          value: local.value ?? '',
-        })),
+    const args = request.arguments ?? {};
+    if (request.command === 'initialize') {
+      if (this.phase !== 'created') throw new Error('The adapter is already initialized.');
+      if (args.pathFormat !== undefined && !['path', 'uri'].includes(args.pathFormat)) throw new Error('Unsupported pathFormat.');
+      this.lineBase = args.linesStartAt1 === false ? 0 : 1;
+      this.columnBase = args.columnsStartAt1 === false ? 0 : 1;
+      this.uriPaths = args.pathFormat === 'uri';
+      this.phase = 'initialized';
+      this.respond(request, {
+        supportsConfigurationDoneRequest: true,
+        supportsTerminateRequest: true,
+        supportsEvaluateForHovers: true,
+        supportsExceptionInfoRequest: true,
+        supportsLoadedSourcesRequest: true,
+        supportsSteppingGranularity: true,
+        exceptionBreakpointFilters: [{ filter: 'all', label: 'All JavaScript exceptions', default: false,
+          description: 'Stops when the VM first captures an exception, before unwinding. Includes handled exceptions.' }],
       });
-
-      scopes.push({
-        name: 'Locals',
-        variablesReference: ref,
-        expensive: false,
-      });
-    }
-
-    response.body = { scopes };
-    this.sendResponse(response);
-  }
-
-  protected variablesRequest(
-    response: DebugProtocol.VariablesResponse,
-    args: DebugProtocol.VariablesArguments
-  ): void {
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] variablesRequest paused=${this.paused}\n`,
-        'console'
-      ));
-    }
-    if (this.paused) {
-      this.pauseWasObserved = true;
-    }
-    const scope = this.scopesByReference.get(args.variablesReference);
-    if (!scope) {
-      response.body = { variables: [] };
-      this.sendResponse(response);
       return;
     }
-
-    response.body = {
-      variables: scope.variables.map((variable) => ({
-        name: variable.name,
-        value: variable.value,
-        variablesReference: 0,
-      })),
-    };
-    this.sendResponse(response);
-  }
-
-  protected evaluateRequest(
-    response: DebugProtocol.EvaluateResponse,
-    args: DebugProtocol.EvaluateArguments
-  ): void {
-    if (this.traceAdapter) {
-      this.sendEvent(new OutputEvent(
-        `[okojo] evaluateRequest paused=${this.paused}\n`,
-        'console'
-      ));
-    }
-    if (this.paused) {
-      this.pauseWasObserved = true;
-    }
-    const expression = (args.expression ?? '').trim();
-    if (expression.length === 0) {
-      response.body = {
-        result: '',
-        variablesReference: 0,
-      };
-      this.sendResponse(response);
+    if (request.command === 'disconnect' || request.command === 'terminate') {
+      this.respond(request);
+      this.host?.stop();
+      this.finish(0);
       return;
     }
+    if (this.phase === 'created') throw new Error('initialize must be the first request.');
+    if (this.phase === 'terminated') throw new Error('The debug session has terminated.');
 
-    const requestId = this.nextHostEvaluateRequestId++;
-    this.pendingEvaluateResponses.set(requestId, response);
-    this.sendHostCommand(`evaluate ${requestId} ${Math.max(1, Number(args.frameId ?? 1))} ${JSON.stringify(expression)}`);
-  }
-
-  protected exceptionInfoRequest(
-    response: DebugProtocol.ExceptionInfoResponse,
-    _args: DebugProtocol.ExceptionInfoArguments
-  ): void {
-    const message = this.lastSnapshot?.summary ?? 'Paused execution';
-    response.body = {
-      exceptionId: this.lastStopKind,
-      breakMode: 'always',
-      description: message,
-      details: {
-        typeName: this.lastStopKind,
-      },
-    };
-    this.sendResponse(response);
-  }
-
-  private async startHostIfNeeded(): Promise<void> {
-    if (this.hostStarted || !this.configurationDone || !this.launchArgs) {
-      return;
-    }
-
-    const args = this.launchArgs;
-    const cwd = this.normalizeWorkingDirectory(args.cwd);
-    const program = this.resolvePath(args.program, cwd);
-    const project = this.resolveDebugServerProject(args.debugServerProject, cwd, program);
-    const checkInterval = this.resolveCheckInterval(args.checkInterval);
-    const stepGranularity = this.resolveStepGranularity(args.stepGranularity);
-    this.traceAdapter = !!args.traceAdapter;
-
-    const dotnetArgs = [
-      'run',
-      '--project',
-      project,
-      '--',
-      '--script',
-      program,
-      '--cwd',
-      cwd,
-      '--check-interval',
-      String(checkInterval),
-      '--step-granularity',
-      stepGranularity,
-    ];
-    this.stepGranularity = stepGranularity === 'instruction' ? 'Instruction' : 'Line';
-    if (args.moduleEntry) {
-      dotnetArgs.push('--module-entry');
-    }
-    if (args.enableSourceMaps) {
-      dotnetArgs.push('--enable-source-maps');
-    }
-
-    if (args.stopOnCall) {
-      dotnetArgs.push('--stop-call');
-    }
-    if (args.stopOnReturn) {
-      dotnetArgs.push('--stop-return');
-    }
-    if (args.stopOnPump) {
-      dotnetArgs.push('--stop-pump');
-    }
-    if (args.stopOnSuspendGenerator) {
-      dotnetArgs.push('--stop-suspend');
-    }
-    if (args.stopOnResumeGenerator) {
-      dotnetArgs.push('--stop-resume');
-    }
-    if (args.stopOnPeriodic) {
-      dotnetArgs.push('--stop-periodic');
-    }
-    if (args.stopOnEntry) {
-      dotnetArgs.push('--stop-entry');
-    }
-    if (args.stopOnDebuggerStatement === false) {
-      dotnetArgs.push('--no-stop-debugger');
-    }
-    if (args.stopOnBreakpoint === false) {
-      dotnetArgs.push('--no-stop-breakpoint');
-    }
-
-    for (const { sourcePath, lines } of this.pendingBreakpointsBySource.values()) {
-      this.trace(`[okojo] launch breakpoints ${sourcePath} -> [${lines.join(', ')}]\n`);
-      for (const line of lines) {
-        dotnetArgs.push('--break', `${sourcePath}:${line}`);
-      }
-    }
-
-    this.sendEvent(
-      new OutputEvent(
-        `[okojo] adapter ${OkojoDebugSession.adapterVersion} launching dotnet ${dotnetArgs.join(' ')}\n`,
-        'console'
-      )
-    );
-
-    this.hostProcess = spawn('dotnet', dotnetArgs, {
-      cwd: path.dirname(project),
-      env: {
-        ...process.env,
-        ...(args.traceBreakpoints ? { okojo_DEBUG_TRACE_BREAKPOINTS: '1' } : {}),
-      },
-      stdio: 'pipe',
-    });
-    this.hostStarted = true;
-
-    const stdout = readline.createInterface({
-      input: this.hostProcess.stdout,
-      crlfDelay: Infinity,
-    });
-    stdout.on('line', (line) => this.handleHostLine(line));
-
-    this.hostProcess.stderr.on('data', (chunk: Buffer) => {
-      this.sendEvent(new OutputEvent(String(chunk), 'stderr'));
-    });
-
-    this.hostProcess.once('error', (err) => {
-      this.sendEvent(new OutputEvent(`[okojo] debug host failed: ${String(err)}\n`, 'stderr'));
-      this.sendEvent(new TerminatedEvent());
-      this.hostTerminated = true;
-    });
-
-    this.hostProcess.once('exit', (code, signal) => {
-      if (this.hostTerminated) {
+    switch (request.command) {
+      case 'launch':
+        await this.launch(request, args);
+        return;
+      case 'attach':
+        throw new Error('Attach is not supported. Use an Okojo launch configuration.');
+      case 'configurationDone':
+        if (this.phase !== 'configuring' || !this.entry || !this.pendingLaunch) throw new Error('No launch is awaiting configuration.');
+        await this.breakpointSerial;
+        this.respond(request);
+        this.respond(this.pendingLaunch);
+        this.pendingLaunch = undefined;
+        if (this.launchArgs.stopOnEntry === true && !this.launchArgs.noDebug) {
+          this.stopped(this.entry);
+        } else {
+          this.phase = 'running';
+          // The host's pre-execution stop is a configuration barrier, not a
+          // user-visible stop unless stopOnEntry was explicitly requested.
+          void this.host!.request('resume', { mode: 'continue' }).catch(error => this.fatal(error));
+        }
+        this.entry = undefined;
+        return;
+      case 'setBreakpoints':
+        await this.setBreakpoints(request, args);
+        return;
+      case 'setExceptionBreakpoints': {
+        const filters = args.filters ?? [];
+        if (!Array.isArray(filters) || filters.some(filter => filter !== 'all')) throw new Error('Only the all-exceptions filter is supported.');
+        if ((args.filterOptions?.length ?? 0) || (args.exceptionOptions?.length ?? 0)) throw new Error('Exception conditions and exception options are not supported.');
+        this.exceptionFilters = this.launchArgs.noDebug ? [] : filters;
+        if (this.host) await this.host.request('setExceptionBreakpoints', { filters: this.exceptionFilters });
+        this.respond(request, { breakpoints: [] });
         return;
       }
-
-      this.hostTerminated = true;
-      this.bytecodeShellReady = false;
-      if (panelHost.isOpen()) {
-        panelHost.showPlaceholder();
+      case 'threads':
+        this.respond(request, { threads: this.host ? [{ id: 1, name: 'Okojo Main Thread' }] : [] });
+        return;
+      case 'pause':
+        this.thread(args);
+        if (this.phase === 'paused') { this.respond(request); return; }
+        if (this.phase !== 'running') throw new Error('Execution is not running.');
+        await this.host!.request('pause');
+        this.respond(request);
+        return;
+      case 'continue':
+      case 'next':
+      case 'stepIn':
+      case 'stepOut':
+        await this.resume(request, args);
+        return;
+      case 'stackTrace': {
+        this.thread(args);
+        const snapshot = this.requirePaused();
+        const start = this.integer(args.startFrame ?? 0, 'startFrame', 0);
+        const levels = this.integer(args.levels ?? 0, 'levels', 0);
+        const frames = snapshot.stackFrames ?? (snapshot.currentFrame ? [snapshot.currentFrame] : []);
+        const ids = [...this.frameIds.keys()];
+        this.respond(request, {
+          stackFrames: frames.slice(start, levels ? start + levels : undefined)
+            .map((frame, index) => this.frame(frame, ids[start + index], start + index)),
+          totalFrames: frames.length,
+        });
+        return;
       }
-      const message = signal ? `signal ${signal}` : `exit ${code ?? 0}`;
-      this.sendEvent(new OutputEvent(`[okojo] debug host ended with ${message}\n`, 'console'));
-      this.sendEvent(new TerminatedEvent());
-    });
-  }
-
-  private shutdownHost(): void {
-    if (!this.hostStarted || !this.hostProcess) {
-      return;
-    }
-
-    try {
-      this.sendHostCommand('quit');
-    } catch {
-      // ignore
-    }
-
-    try {
-      this.hostProcess.stdin.end();
-    } catch {
-      // ignore
-    }
-
-    try {
-      this.hostProcess.kill();
-    } catch {
-      // ignore
-    }
-
-    this.hostProcess = undefined;
-    this.hostStarted = false;
-  }
-
-  private handleHostLine(line: string): void {
-    const parsed = this.tryParseJson(line);
-    if (!parsed) {
-      this.sendEvent(new OutputEvent(`${line}\n`, 'console'));
-      return;
-    }
-
-    const message = parsed as HostEventMessage & { [key: string]: unknown };
-    switch (message.event) {
-      case 'stopped':
-        this.lastSnapshot = message as HostStoppedMessage;
-        if (this.handlePendingSourceMappedNext(this.lastSnapshot)) {
-          return;
-        }
-        this.lastStopKind = this.mapStopReason(this.lastSnapshot.kind);
-        this.scopesByReference.clear();
-        this.paused = true;
-        this.pauseTimestamp = Date.now();
-        this.pauseWasObserved = false;
-        this.sendEvent(new OutputEvent(
-          `[okojo] stopped ${this.lastStopKind} ${this.lastSnapshot.sourceLocation?.sourcePath ?? ''}:${this.lastSnapshot.sourceLocation?.line ?? 0}\n`,
-          'console'
-        ));
-        {
-          const event = new StoppedEvent(this.lastStopKind, this.threadId, this.lastSnapshot.summary);
-          (event.body as DebugProtocol.StoppedEvent['body']).allThreadsStopped = true;
-          this.sendEvent(event);
-        }
-        if (this.lastStopKind !== 'entry' && (panelHost.isOpen() || this.shouldAutoOpenBytecodePanel())) {
-          this.requestBytecodeDump();
-        }
+      case 'scopes': {
+        this.requirePaused();
+        const frameId = this.hostFrame(args.frameId);
+        const body = await this.host!.request('scopes', { frameId });
+        this.respond(request, body);
         return;
-      case 'breakpoint-added':
-        this.recordBreakpointHandle(message as HostBreakpointAddedMessage);
-        return;
-      case 'breakpoint-updated':
-        this.updateBreakpointHandle(message as HostBreakpointUpdatedMessage);
-        return;
-      case 'breakpoint-cleared':
-        this.forgetBreakpointHandle(message as HostBreakpointClearedMessage);
-        return;
-      case 'bytecode':
-        void this.openBytecodeView(message as HostBytecodeMessage);
-        return;
-      case 'option-updated':
-        this.applyOptionUpdate(message as HostOptionUpdatedMessage);
+      }
+      case 'variables':
+        this.requirePaused();
+        this.respond(request, await this.host!.request('variables', {
+          variablesReference: this.integer(args.variablesReference, 'variablesReference', 1),
+          start: this.integer(args.start ?? 0, 'start', 0),
+          count: this.integer(args.count ?? 0, 'count', 0),
+          ...(args.filter !== undefined ? { filter: args.filter } : {}),
+        }));
         return;
       case 'evaluate':
-        this.handleEvaluateResult(message as HostEvaluateMessage);
+        this.requirePaused();
+        this.respond(request, await this.host!.request('evaluate', {
+          expression: this.string(args.expression, 'expression'),
+          frameId: args.frameId === undefined ? 1 : this.hostFrame(args.frameId),
+        }));
         return;
-      case 'error':
-        this.sendEvent(new OutputEvent(this.formatHostError(message as HostErrorMessage), 'stderr'));
+      case 'exceptionInfo': {
+        this.thread(args);
+        const snapshot = this.requirePaused();
+        if (snapshot.kind !== 'caught-exception') throw new Error('The current stop is not an exception.');
+        this.respond(request, { exceptionId: 'JavaScript exception', breakMode: 'always', description: snapshot.summary });
         return;
-      case 'terminated':
-        this.hostTerminated = true;
-        this.paused = false;
-        this.bytecodeShellReady = false;
-        this.pendingSourceMappedNext = undefined;
-        this.sendEvent(new TerminatedEvent());
+      }
+      case 'loadedSources': {
+        if (!this.host) throw new Error('No program has been launched.');
+        const body = await this.host.request('loadedSources');
+        const sources = (body.sources ?? []).map((source: { path: string }) => {
+          this.knownSources.add(this.normalizePath(source.path));
+          return this.source(source.path);
+        });
+        this.respond(request, { sources });
+        return;
+      }
+      case 'source': {
+        const sourcePath = this.normalizePath(this.string(args.source?.path, 'source.path'));
+        if (!this.knownSources.has(sourcePath)) throw new Error('The requested source is not known to this session.');
+        const content = await readFile(sourcePath, 'utf8');
+        this.respond(request, { content, mimeType: 'text/javascript' });
+        return;
+      }
+      case 'okojo/bytecode':
+        this.requirePaused();
+        this.respond(request, await this.host!.request('bytecode'));
         return;
       default:
-        this.sendEvent(new OutputEvent(`${line}\n`, 'console'));
-        return;
+        throw new Error(`Unsupported DAP request '${request.command}'.`);
     }
   }
 
-  private refreshHostBreakpointsForSource(sourcePath: string, lines: number[]): void {
-    this.trace(`[okojo] refresh breakpoints ${sourcePath} -> [${lines.join(', ')}]\n`);
-
-    const knownHandles = this.breakpointHandlesBySource.get(sourcePath);
-    if (knownHandles) {
-      for (const handleId of knownHandles) {
-        this.sendHostCommand(`clear ${handleId}`);
-      }
-      knownHandles.clear();
+  private async launch(request: DapRequest, args: Record<string, any>): Promise<void> {
+    if (this.phase !== 'initialized') throw new Error('Only one launch is allowed per adapter session.');
+    const programValue = this.string(args.program, 'program');
+    this.cwd = args.cwd === undefined ? process.cwd() : this.normalizePath(this.string(args.cwd, 'cwd'));
+    if (!existsSync(this.cwd) || !statSync(this.cwd).isDirectory()) throw new Error(`Working directory does not exist: ${this.cwd}`);
+    const program = this.normalizePath(programValue);
+    if (!existsSync(program) || !statSync(program).isFile()) throw new Error(`Program does not exist: ${program}`);
+    const interval = this.integer(args.checkInterval ?? 1024, 'checkInterval', 1);
+    const granularity = args.stepGranularity ?? 'line';
+    if (!['line', 'instruction'].includes(granularity)) throw new Error('stepGranularity must be line or instruction.');
+    this.stepGranularity = granularity;
+    this.launchArgs = { ...args, program };
+    if (args.noDebug) this.exceptionFilters = [];
+    this.knownSources.add(program);
+    const hostArgs = ['--script', program, '--cwd', this.cwd, '--check-interval', String(interval),
+      '--step-granularity', granularity, '--stop-entry', '--structured-output'];
+    if (args.moduleEntry === true) hostArgs.push('--module-entry');
+    else if (args.moduleEntry === false) hostArgs.push('--script-entry');
+    if (args.enableSourceMaps === true) hostArgs.push('--enable-source-maps');
+    if (args.noDebug || args.stopOnDebuggerStatement === false) hostArgs.push('--no-stop-debugger');
+    if (args.noDebug || args.stopOnBreakpoint === false) hostArgs.push('--no-stop-breakpoint');
+    for (const [key, flag] of Object.entries({ stopOnCall: '--stop-call', stopOnReturn: '--stop-return',
+      stopOnPump: '--stop-pump', stopOnSuspendGenerator: '--stop-suspend', stopOnResumeGenerator: '--stop-resume', stopOnPeriodic: '--stop-periodic' })) {
+      if (args[key] === true && !args.noDebug) hostArgs.push(flag);
     }
-
-    for (const line of lines) {
-      this.sendHostCommand(`break ${sourcePath}:${line}`);
+    const dotnet = args.dotnetPath === undefined ? 'dotnet' : this.string(args.dotnetPath, 'dotnetPath');
+    let command = dotnet;
+    let commandArgs: string[];
+    if (args.debugServerPath !== undefined) {
+      const server = this.normalizePath(this.string(args.debugServerPath, 'debugServerPath'));
+      if (!existsSync(server) || !statSync(server).isFile()) throw new Error(`Debug host does not exist: ${server}`);
+      const prefix = args.debugServerArgs ?? [];
+      if (!Array.isArray(prefix) || prefix.some(item => typeof item !== 'string')) throw new Error('debugServerArgs must be an array of strings.');
+      if (path.extname(server).toLowerCase() === '.dll') commandArgs = [server, ...prefix, ...hostArgs];
+      else { command = server; commandArgs = [...prefix, ...hostArgs]; }
+    } else {
+      const project = this.findProject(args.debugServerProject);
+      commandArgs = ['run', '--project', project, '--configuration', 'Release', '--no-launch-profile', '--verbosity', 'quiet'];
+      if (args.noBuild === true) commandArgs.push('--no-build');
+      commandArgs.push('--', ...hostArgs);
     }
-  }
-
-  private sendHostCommand(command: string): void {
-    if (!this.hostProcess) {
-      return;
-    }
-
-    this.trace(`[okojo] -> host ${command}\n`);
-    this.hostProcess.stdin.write(`${command}\n`);
-  }
-
-  private recordBreakpointHandle(message: HostBreakpointAddedMessage): void {
-    if (message.sourcePath == null) {
-      return;
-    }
-
-    const sourcePath = this.normalizeSourcePath(message.sourcePath);
-    this.trace(`[okojo] breakpoint-added ${sourcePath}:${message.requestedLine} handle ${message.handleId}\n`);
-    let handles = this.breakpointHandlesBySource.get(sourcePath);
-    if (!handles) {
-      handles = new Set<number>();
-      this.breakpointHandlesBySource.set(sourcePath, handles);
-    }
-
-    handles.add(message.handleId);
-    this.handleSourceById.set(message.handleId, sourcePath);
-    this.applyBreakpointUpdate(message);
-  }
-
-  private forgetBreakpointHandle(message: HostBreakpointClearedMessage): void {
-    const sourcePath = this.handleSourceById.get(message.handleId);
-    if (!sourcePath) {
-      return;
-    }
-
-    const handles = this.breakpointHandlesBySource.get(sourcePath);
-    if (handles) {
-      handles.delete(message.handleId);
-      if (handles.size === 0) {
-        this.breakpointHandlesBySource.delete(sourcePath);
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    if (args.env !== undefined) {
+      if (!args.env || typeof args.env !== 'object' || Array.isArray(args.env)) throw new Error('env must be an object.');
+      for (const [name, value] of Object.entries(args.env)) {
+        if (value === null) delete env[name];
+        else if (typeof value === 'string') env[name] = value;
+        else throw new Error(`Environment variable ${name} must be a string or null.`);
       }
     }
-
-    this.handleSourceById.delete(message.handleId);
-    this.breakpointStore.removeHandle(message.handleId);
-  }
-
-  private updateBreakpointHandle(message: HostBreakpointUpdatedMessage): void {
-    this.applyBreakpointUpdate(message);
-  }
-
-  private applyBreakpointUpdate(message: HostBreakpointAddedMessage | HostBreakpointUpdatedMessage): void {
-    const breakpoint = this.breakpointStore.applyUpdate(
-      (sourcePath) => this.normalizeSourcePath(sourcePath),
-      message
-    );
-    this.sendEvent(this.breakpointStore.toChangedEvent(breakpoint));
-  }
-
-  private registerScope(scope: DapScopeEntry): number {
-    const reference = this.nextVariablesReference++;
-    this.scopesByReference.set(reference, scope);
-    return reference;
-  }
-
-  private toStackFrame(frame: HostFrame, id: number): DebugProtocol.StackFrame {
-    const fallbackLocation = this.lastSnapshot?.sourceLocation;
-    const hasFrameLocation = frame.hasSourceLocation === true && (frame.sourceLine ?? 0) > 0;
-    const sourcePath = hasFrameLocation
-      ? (frame.sourcePath ?? fallbackLocation?.sourcePath)
-      : fallbackLocation?.sourcePath;
-    const line = Math.max(1, hasFrameLocation ? (frame.sourceLine ?? fallbackLocation?.line ?? 1) : (fallbackLocation?.line ?? 1));
-    const column = Math.max(1, hasFrameLocation ? (frame.sourceColumn ?? fallbackLocation?.column ?? 1) : (fallbackLocation?.column ?? 1));
-    const source = sourcePath
-      ? { path: sourcePath, name: path.basename(sourcePath) }
-      : undefined;
-
-    return {
-      id,
-      name: frame.functionName ?? '<anonymous>',
-      source,
-      line,
-      column,
-    };
-  }
-
-  private mapStopReason(kind?: string): string {
-    switch ((kind ?? '').toLowerCase()) {
-      case 'entry':
-        return 'entry';
-      case 'step':
-        return 'step';
-      case 'breakpoint':
-        return 'breakpoint';
-      case 'debugger-statement':
-        return 'pause';
-      case 'suspend-generator':
-      case 'resume-generator':
-      case 'call':
-      case 'return':
-      case 'pump':
-      case 'periodic':
-        return 'pause';
-      default:
-        return 'pause';
-    }
-  }
-
-  private shouldAutoOpenBytecodePanel(): boolean {
+    if (args.traceBreakpoints) env.OKOJO_DEBUG_TRACE_BREAKPOINTS = '1';
+    this.pendingLaunch = request;
+    this.phase = 'starting';
     try {
-      return !!vscode.workspace.getConfiguration('okojo.debugger').get<boolean>('openOnStop', false);
-    } catch {
-      return false;
+      const launch: HostLaunch = { command, args: commandArgs, cwd: this.cwd, env,
+        startupTimeout: this.integer(args.startupTimeout ?? 120_000, 'startupTimeout', 1),
+        requestTimeout: this.integer(args.requestTimeout ?? 10_000, 'requestTimeout', 1) };
+      if (args.traceAdapter) this.event('output', { category: 'console', output: `[okojo] ${command} ${commandArgs.map(arg => JSON.stringify(arg)).join(' ')}\n` });
+      this.host = this.makeHost(launch, event => this.onHostEvent(event));
+      this.entry = await this.host.ready as HostStoppedMessage;
+      if (this.isTerminated()) return;
+      this.phase = 'configuring';
+      for (const [source, states] of this.breakpoints.sources()) await this.syncBreakpoints(source, [...states.values()]);
+      if (this.exceptionFilters.length) await this.host.request('setExceptionBreakpoints', { filters: this.exceptionFilters });
+      this.event('initialized');
+      // The launch response is sent by configurationDone, not here.
+    } catch (error) {
+      this.error(request, error instanceof Error ? error.message : String(error));
+      this.pendingLaunch = undefined;
+      this.host?.stop();
+      this.finish(1);
     }
   }
 
-  private applyOptionUpdate(message: HostOptionUpdatedMessage): void {
-    if (message.name === 'stepGranularity' && typeof message.value === 'string') {
-      this.stepGranularity = message.value === 'Instruction' ? 'Instruction' : 'Line';
-      if (this.suppressStepGranularityOutput) {
-        this.suppressStepGranularityOutput = false;
-        return;
-      }
-      this.sendEvent(new OutputEvent(`[okojo] step granularity: ${this.stepGranularity}\n`, 'console'));
-      return;
-    }
-
-    this.sendEvent(new OutputEvent(`[okojo] option updated: ${message.name ?? 'unknown'}\n`, 'console'));
-  }
-
-  private normalizeSourcePath(sourcePath?: string | null): string {
-    const cwd = this.normalizeWorkingDirectory(this.launchArgs?.cwd);
-    if (!sourcePath || sourcePath.length === 0) {
-      return cwd;
-    }
-
-    return this.resolvePath(sourcePath, cwd);
-  }
-
-  private tryStartSourceMappedNext(): boolean {
-    if (!this.launchArgs?.enableSourceMaps || this.stepGranularity !== 'Line') {
-      return false;
-    }
-
-    const sourcePath = this.lastSnapshot?.sourceLocation?.sourcePath;
-    const line = this.lastSnapshot?.sourceLocation?.line;
-    if (!sourcePath || !line || line <= 0) {
-      return false;
-    }
-
-    this.pendingSourceMappedNext = {
-      sourcePath: this.normalizeSourcePath(sourcePath),
-      line,
-      stackDepth: this.lastSnapshot?.stackFrames?.length ?? 1,
-      restoreGranularity: this.stepGranularity,
-    };
-
-    this.paused = false;
-    this.suppressStepGranularityOutput = true;
-    this.sendHostCommand('stepmode instruction');
-    this.sendHostCommand('step');
-    return true;
-  }
-
-  private handlePendingSourceMappedNext(snapshot: HostStoppedMessage): boolean {
-    const pending = this.pendingSourceMappedNext;
-    if (!pending) {
-      return false;
-    }
-
-    const sourcePath = snapshot.sourceLocation?.sourcePath
-      ? this.normalizeSourcePath(snapshot.sourceLocation.sourcePath)
-      : undefined;
-    const line = snapshot.sourceLocation?.line ?? 0;
-    const stackDepth = snapshot.stackFrames?.length ?? 1;
-    const stillOnSameDisplayedLine = !!sourcePath
-      && sourcePath === pending.sourcePath
-      && line === pending.line
-      && stackDepth >= pending.stackDepth;
-
-    if (stillOnSameDisplayedLine) {
-      this.paused = false;
-      this.sendHostCommand('step');
-      return true;
-    }
-
-    this.pendingSourceMappedNext = undefined;
-    if (pending.restoreGranularity === 'Line') {
-      this.suppressStepGranularityOutput = true;
-      this.sendHostCommand('stepmode line');
-    }
-
-    return false;
-  }
-
-  private normalizeWorkingDirectory(cwd?: string): string {
-    if (!cwd || cwd.length === 0) {
-      return process.cwd();
-    }
-
-    return this.resolvePath(cwd, process.cwd());
-  }
-
-  private resolvePath(value: string, cwd: string): string {
-    return path.isAbsolute(value) ? path.resolve(value) : path.resolve(cwd, value);
-  }
-
-  private resolveDebugServerProject(project?: string, cwd?: string, program?: string): string {
-    const root = this.findWorkspaceRoot(cwd, program);
-    const defaultProject = path.resolve(root, 'src', 'Okojo.DebugServer', 'Okojo.DebugServer.csproj');
-    if (!project || project.length === 0) {
-      return defaultProject;
-    }
-
-    return this.resolvePath(project, root);
-  }
-
-  private findWorkspaceRoot(cwd?: string, program?: string): string {
-    const candidates = [cwd, program ? path.dirname(program) : undefined, process.cwd()]
-      .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0);
-
-    for (const candidate of candidates) {
-      let current = path.resolve(candidate);
-      while (true) {
-        const project = path.join(current, 'src', 'Okojo.DebugServer', 'Okojo.DebugServer.csproj');
-        if (existsSync(project)) {
-          return current;
-        }
-
-        const parent = path.dirname(current);
-        if (parent === current) {
-          break;
-        }
-
-        current = parent;
-      }
-    }
-
-    return process.cwd();
-  }
-
-  private resolveCheckInterval(raw?: number): number {
-    const value = Number(raw ?? 1024);
-    if (!Number.isFinite(value) || value < 1) {
-      return 1024;
-    }
-
-    return Math.floor(value);
-  }
-
-  private resolveStepGranularity(raw?: string): 'line' | 'instruction' {
-    const value = String(raw ?? '').toLowerCase();
-    if (value === 'instruction' || value === 'pc') {
-      return 'instruction';
-    }
-
-    return 'line';
-  }
-
-  private tryParseJson(line: string): unknown {
-    try {
-      return JSON.parse(line);
-    } catch {
-      return undefined;
-    }
-  }
-
-  private formatHostError(message: HostErrorMessage): string {
-    const parts = [
-      '[okojo] ',
-      message.type ? `${message.type}: ` : '',
-      message.message ?? 'debug host error',
-    ];
-
-    if (message.stack) {
-      parts.push(`\n${message.stack}`);
-    }
-
-    parts.push('\n');
-    return parts.join('');
-  }
-
-  private handleEvaluateResult(message: HostEvaluateMessage): void {
-    const requestId = Number(message.requestId ?? 0);
-    const response = this.pendingEvaluateResponses.get(requestId);
-    if (!response) {
-      return;
-    }
-
-    this.pendingEvaluateResponses.delete(requestId);
-    if (message.success) {
-      response.body = {
-        result: message.result ?? '',
-        variablesReference: 0,
-      };
-      this.sendResponse(response);
-      return;
-    }
-
-    this.sendErrorResponse(response, 2002, message.message ?? 'Evaluation failed.');
-  }
-
-  private async openBytecodeView(message: HostBytecodeMessage): Promise<void> {
-    if (!this.bytecodeShellReady) {
-      panelHost.setHtml(renderBytecodeShellHtml());
-      this.bytecodeShellReady = true;
-    }
-
-    await panelHost.postMessage({
-      type: 'bytecode-update',
-      payload: buildBytecodeViewModel(message),
+  private async setBreakpoints(request: DapRequest, args: Record<string, any>): Promise<void> {
+    const source = this.normalizePath(this.string(args.source?.path, 'source.path'));
+    const requested: Record<string, any>[] = args.breakpoints ?? (args.lines ?? []).map((line: number) => ({ line }));
+    if (!Array.isArray(requested)) throw new Error('breakpoints must be an array.');
+    const entries = requested.map(item => {
+      if (!item || typeof item !== 'object') throw new Error('Invalid breakpoint.');
+      const line = this.integer(item.line, 'line', this.lineBase) + 1 - this.lineBase;
+      const unsupported = ['condition', 'hitCondition', 'logMessage', 'column'].some(key => item[key] !== undefined);
+      return { line, unsupported };
     });
-    this.trace(`[okojo] opened ${message.title ?? 'Okojo Bytecode'}\n`);
+    const states = this.breakpoints.replace(source, entries.filter(item => !item.unsupported).map(item => item.line));
+    if (this.host) {
+      const sync = this.breakpointSerial.then(() => this.syncBreakpoints(source, states));
+      this.breakpointSerial = sync.catch(() => {});
+      await sync;
+    }
+    let index = 0;
+    this.respond(request, { breakpoints: entries.map(item => item.unsupported
+      ? { verified: false, line: item.line - 1 + this.lineBase,
+        message: 'Conditional, hit-count, logpoint and column breakpoints are not supported.' }
+      : this.breakpoint(states[index++])) });
   }
 
-  private trace(text: string): void {
-    if (!this.traceAdapter) {
-      return;
-    }
+  private async syncBreakpoints(sourcePath: string, states: BreakpointState[]): Promise<void> {
+    const body = await this.host!.request('setBreakpoints', { sourcePath,
+      breakpoints: this.launchArgs.noDebug ? [] : states.map(state => ({ line: state.requestedLine, id: state.id })) });
+    for (const message of body.breakpoints ?? []) this.breakpoints.applyUpdate(message);
+  }
 
-    this.sendEvent(new OutputEvent(text, 'console'));
+  private breakpoint(state: BreakpointState): Record<string, any> {
+    return { id: state.id, verified: state.verified,
+      source: this.source(state.resolvedSourcePath ?? state.sourcePath),
+      line: (state.resolvedLine ?? state.requestedLine) - 1 + this.lineBase,
+      ...(state.resolvedColumn ? { column: state.resolvedColumn - 1 + this.columnBase } : {}),
+      ...(state.message ? { message: state.message } : {}),
+    };
+  }
+
+  private async resume(request: DapRequest, args: Record<string, any>): Promise<void> {
+    this.thread(args);
+    this.requirePaused();
+    if (args.targetId !== undefined) throw new Error('Step-in targets are not supported.');
+    const granularity = args.granularity ?? this.stepGranularity;
+    if (!['line', 'statement', 'instruction'].includes(granularity)) throw new Error('Invalid stepping granularity.');
+    const mode = { continue: 'continue', next: 'step', stepIn: 'stepin', stepOut: 'stepout' }[request.command]!;
+    this.invalidatePause();
+    this.phase = 'running';
+    try {
+      await this.host!.request('resume', { mode, granularity: granularity === 'instruction' ? 'instruction' : 'line' });
+      this.respond(request, request.command === 'continue' ? { allThreadsContinued: true } : undefined);
+      this.event('continued', { threadId: 1, allThreadsContinued: true });
+    } catch (error) {
+      this.error(request, error instanceof Error ? error.message : String(error));
+      this.fatal(error);
+    }
+  }
+
+  private stopped(snapshot: HostStoppedMessage): void {
+    if (this.isTerminated()) return;
+    this.snapshot = snapshot;
+    this.phase = 'paused';
+    this.frameIds.clear();
+    const frames = snapshot.stackFrames ?? (snapshot.currentFrame ? [snapshot.currentFrame] : []);
+    frames.forEach((_frame, index) => this.frameIds.set(this.nextFrameId++, index + 1));
+    for (const frame of frames) if (frame.sourcePath) this.knownSources.add(this.normalizePath(frame.sourcePath));
+    if (snapshot.sourceLocation?.sourcePath) this.knownSources.add(this.normalizePath(snapshot.sourceLocation.sourcePath));
+    const reason = snapshot.kind === 'entry' ? 'entry' : snapshot.kind === 'step' ? 'step'
+      : snapshot.kind === 'breakpoint' || snapshot.kind === 'debugger-statement' ? 'breakpoint'
+      : snapshot.kind === 'caught-exception' ? 'exception' : 'pause';
+    this.event('stopped', { reason, threadId: 1, allThreadsStopped: true, description: snapshot.summary });
+  }
+
+  private onHostEvent(message: HostMessage): void {
+    if (this.isTerminated()) return;
+    switch (message.event) {
+      case 'stopped': this.stopped(message as HostStoppedMessage); break;
+      case 'breakpoint-updated': {
+        const state = this.breakpoints.applyUpdate(message);
+        if (state) this.event('breakpoint', { reason: 'changed', breakpoint: this.breakpoint(state) });
+        break;
+      }
+      case 'bytecode': this.event('okojo/bytecode', message); break;
+      case 'output': this.event('output', { category: message.category ?? 'console', output: message.output ?? '' }); break;
+      case 'error': this.event('output', { category: 'stderr', output: `[okojo] ${message.type ?? 'Error'}: ${message.message ?? ''}\n${message.stack ?? ''}\n` }); break;
+      case 'host-exit':
+        if (this.pendingLaunch) this.error(this.pendingLaunch, message.message ?? 'The debug host exited during launch.');
+        this.finish(message.exitCode ?? 1);
+        break;
+      case 'terminated': this.finish(message.exitCode ?? 0); break;
+    }
+  }
+
+  private frame(frame: HostFrame, id: number, index: number): Record<string, any> {
+    const location = index === 0 ? this.snapshot?.sourceLocation : undefined;
+    const sourcePath = frame.sourcePath ?? location?.sourcePath;
+    const line = frame.hasSourceLocation ? frame.sourceLine : location?.line;
+    const column = frame.hasSourceLocation ? frame.sourceColumn : location?.column;
+    return { id, name: frame.functionName || '<anonymous>',
+      ...(sourcePath ? { source: this.source(sourcePath) } : {}),
+      line: line && line > 0 ? line - 1 + this.lineBase : 0,
+      column: column && column > 0 ? column - 1 + this.columnBase : 0 };
+  }
+
+  private source(sourcePath: string): Record<string, any> {
+    const normalized = this.normalizePath(sourcePath);
+    return { name: path.basename(normalized), path: this.uriPaths ? pathToFileURL(normalized).href : normalized, sourceReference: 0 };
+  }
+
+  private hostFrame(frameId: unknown): number {
+    const id = this.integer(frameId, 'frameId', 1);
+    const frame = this.frameIds.get(id);
+    if (frame === undefined) throw new Error('Unknown or expired frame id.');
+    return frame;
+  }
+
+  private requirePaused(): HostStoppedMessage {
+    if (this.phase !== 'paused' || !this.snapshot) throw new Error('Execution is not paused.');
+    return this.snapshot;
+  }
+
+  private thread(args: Record<string, any>): void {
+    if (args.threadId !== 1) throw new Error('Unknown thread id; Okojo exposes thread 1.');
+  }
+
+  private normalizePath(value: string): string {
+    if (/^file:/i.test(value)) value = fileURLToPath(value);
+    else if (/^[a-z][a-z\d+.-]*:\/\//i.test(value)) throw new Error('Only local file sources are supported.');
+    const resolved = path.resolve(this.cwd, value);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  }
+
+  private findProject(supplied?: unknown): string {
+    if (supplied !== undefined) {
+      const project = this.normalizePath(this.string(supplied, 'debugServerProject'));
+      if (!existsSync(project)) throw new Error(`Debug server project does not exist: ${project}`);
+      return project;
+    }
+    for (let directory = this.cwd;; directory = path.dirname(directory)) {
+      const candidate = path.join(directory, 'src', 'Okojo.DebugServer', 'Okojo.DebugServer.csproj');
+      if (existsSync(candidate)) return candidate;
+      if (path.dirname(directory) === directory) break;
+    }
+    const adjacent = path.resolve(__dirname, '../../../Okojo.DebugServer/Okojo.DebugServer.csproj');
+    if (existsSync(adjacent)) return adjacent;
+    throw new Error('Set debugServerPath to a published Okojo.DebugServer binary/DLL, or debugServerProject to its .csproj.');
+  }
+
+  private integer(value: unknown, name: string, minimum: number): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < minimum || value > 0x7fffffff) {
+      throw new Error(`${name} must be an integer between ${minimum} and 2147483647.`);
+    }
+    return value;
+  }
+
+  private string(value: unknown, name: string): string {
+    if (typeof value !== 'string' || value.length === 0 || value.includes('\0')) throw new Error(`${name} must be a non-empty string without NUL characters.`);
+    return value;
+  }
+
+  private invalidatePause(): void { this.snapshot = undefined; this.frameIds.clear(); }
+  private isTerminated(): boolean { return this.phase === 'terminated'; }
+
+  private finish(exitCode: number): void {
+    if (this.isTerminated()) return;
+    this.phase = 'terminated';
+    this.invalidatePause();
+    this.entry = undefined;
+    this.pendingLaunch = undefined;
+    for (const request of [...this.pending.values()]) this.error(request, 'The debug session ended before the request completed.');
+    this.event('exited', { exitCode });
+    this.event('terminated');
+  }
+
+  private fatal(error: unknown): void {
+    if (this.isTerminated()) return;
+    this.event('output', { category: 'stderr', output: `[okojo] ${String(error)}\n` });
+    this.host?.stop();
+    this.finish(1);
+  }
+
+  public getStepGranularity(): 'line' | 'instruction' { return this.stepGranularity; }
+  public setStepGranularity(value: 'line' | 'instruction'): void { this.stepGranularity = value; }
+  public requestBytecodeDump(): void {
+    if (this.phase === 'paused') void this.host?.request('bytecode').catch(error => {
+      this.event('output', { category: 'stderr', output: `${String(error)}\n` });
+    });
+  }
+
+  public dispose(): void {
+    if (this.disposed) return;
+    this.host?.stop();
+    this.finish(0);
+    this.disposed = true;
+    this.listeners.clear();
   }
 }
-
-type SourceMappedNextState = {
-  sourcePath: string;
-  line: number;
-  stackDepth: number;
-  restoreGranularity: 'Line' | 'Instruction';
-};

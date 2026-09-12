@@ -6,10 +6,12 @@ using BenchmarkDotNet.Order;
 using Jint;
 using Jint.Native.Function;
 using Okojo.Benchmarks;
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 [MemoryDiagnoser]
 [Orderer(SummaryOrderPolicy.Declared)]
@@ -28,8 +30,19 @@ public class VsJintBenchmarks
     private string source = string.Empty;
 
     //scripts/*.js
-    [Params("for-loop-sum", "pure-function-call", "many-object")] // "indexing", "lexical-block"//"loop","generator",
-
+    [Params(
+        "for-loop-sum",
+        "smi-sum-loop",
+        "arith",
+        "lexical-block",
+        "closure-heavy",
+        "pure-function-call",
+        "math-call",
+        "named-get",
+        "object",
+        "many-object",
+        "indexing"
+    )]
     // [Params("nop", "arith", "loop", "object", "many-object", "function-call", "closure-heavy", "with-eval-heavy",
     //     "math-call")]
     public string Scenario { get; set; } = "indexing";
@@ -75,7 +88,6 @@ public class VsJintBenchmarks
     //     return _sink;
     // }
     [BenchmarkCategory("Jint")]
-
     [Benchmark(Baseline = true)]
     public double Jint_Execute_Function()
     {
@@ -88,12 +100,14 @@ public class VsJintBenchmarks
     {
         public ConfigWithCustomEnvVars()
         {
-            AddJob(Job.ShortRun
-                    .WithEnvironmentVariables(new EnvironmentVariable("DOTNET_TieredPGO", "0"))
+            AddJob(
+                Job.ShortRun.WithEnvironmentVariables(
+                    new EnvironmentVariable("DOTNET_TieredPGO", "0")
                 )
+            )
                 //.
                 //AddJob(Job.ShortRun.WithRuntime(NativeAotRuntime.Net90))
-                ;
+            ;
         }
     }
     // [Benchmark]

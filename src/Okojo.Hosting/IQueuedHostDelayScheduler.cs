@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -16,5 +18,6 @@ public interface IQueuedHostDelayScheduler : IHostDelayScheduler
         TimeSpan delay,
         HostTaskQueueKey targetQueue,
         Action<object?> callback,
-        object? state);
+        object? state
+    );
 }

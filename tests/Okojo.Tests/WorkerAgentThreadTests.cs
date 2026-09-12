@@ -1,4 +1,7 @@
-using Okojo.Runtime;
+using Okojo.Hosting;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Tests;
 
@@ -7,10 +10,10 @@ public class WorkerAgentThreadTests
     [Test]
     public void WorkerRunner_ProcessesPostedMessage_OnWorkerThread()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
 
         using var cts = new CancellationTokenSource();
         using var received = new ManualResetEventSlim(false);
@@ -34,19 +37,27 @@ public class WorkerAgentThreadTests
 
         main.PostMessage(worker, "ping");
 
-        Assert.That(received.Wait(TimeSpan.FromSeconds(2)), Is.True, "worker message was not processed in time");
+        Assert.That(
+            received.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker message was not processed in time"
+        );
         Assert.That(handlerThreadId, Is.EqualTo(workerThreadId));
 
         cts.Cancel();
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
     public void WorkerRunner_StopsOnCancellation_WhenIdle()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
 
         using var cts = new CancellationTokenSource();
         var thread = new Thread(() => runner.Run(cts.Token));
@@ -54,16 +65,20 @@ public class WorkerAgentThreadTests
 
         cts.Cancel();
 
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
     public void WorkerRunner_PostMessage_OrderIsFifo()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var main = engine.MainAgent;
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
         using var cts = new CancellationTokenSource();
 
         var done = new ManualResetEventSlim(false);
@@ -90,20 +105,28 @@ public class WorkerAgentThreadTests
         for (var i = 0; i < 50; i++)
             main.PostMessage(worker, i);
 
-        Assert.That(done.Wait(TimeSpan.FromSeconds(2)), Is.True, "worker did not receive all messages in time");
+        Assert.That(
+            done.Wait(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker did not receive all messages in time"
+        );
         Assert.That(failure, Is.Null);
         Assert.That(seen, Is.EqualTo(50));
 
         cts.Cancel();
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop in time");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop in time"
+        );
     }
 
     [Test]
     public void WorkerRunner_StopsWhenAgentTerminated()
     {
-        var engine = JsRuntime.Create();
+        var engine = JsRuntime.CreateBuilder().UseWorkerGlobals().Build();
         var worker = engine.CreateWorkerAgent();
-        var runner = new JsAgentRunner(worker);
+        using var runner = new HostPump(worker);
         using var cts = new CancellationTokenSource();
 
         var thread = new Thread(() => runner.Run(cts.Token));
@@ -111,6 +134,10 @@ public class WorkerAgentThreadTests
 
         worker.Terminate();
 
-        Assert.That(thread.Join(TimeSpan.FromSeconds(2)), Is.True, "worker thread did not stop after terminate");
+        Assert.That(
+            thread.Join(TimeSpan.FromSeconds(2)),
+            Is.True,
+            "worker thread did not stop after terminate"
+        );
     }
 }

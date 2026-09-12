@@ -40,11 +40,7 @@ var command = args[cmdIndex];
 var cmdArgs = args.Skip(cmdIndex + 1).ToArray();
 
 // Process設定
-var psi = new ProcessStartInfo
-{
-    FileName = command,
-    UseShellExecute = false
-};
+var psi = new ProcessStartInfo { FileName = command, UseShellExecute = false };
 
 // 環境変数を設定（既存 + 上書き）
 foreach (var kv in env)

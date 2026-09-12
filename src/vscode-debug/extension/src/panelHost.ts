@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 class PanelHost {
   private static readonly panelTitle = 'Okojo Bytecode';
   private panel: vscode.WebviewPanel | undefined;
+  private ready = false;
+  private pendingMessage: unknown;
 
   ensurePanel(): vscode.WebviewPanel {
     return this.getOrCreatePanel(true);
@@ -16,8 +18,18 @@ class PanelHost {
         vscode.ViewColumn.Beside,
         { enableFindWidget: true, enableScripts: true, retainContextWhenHidden: true }
       );
+      this.panel.webview.onDidReceiveMessage(message => {
+        if (message?.type !== 'ready') return;
+        this.ready = true;
+        if (this.pendingMessage !== undefined) {
+          void this.panel?.webview.postMessage(this.pendingMessage);
+          this.pendingMessage = undefined;
+        }
+      });
       this.panel.onDidDispose(() => {
         this.panel = undefined;
+        this.ready = false;
+        this.pendingMessage = undefined;
       });
     } else if (reveal) {
       this.panel.reveal(vscode.ViewColumn.Beside);
@@ -47,6 +59,8 @@ class PanelHost {
   setHtml(html: string): void {
     const panel = this.getOrCreatePanel(false);
     panel.title = PanelHost.panelTitle;
+    this.ready = false;
+    this.pendingMessage = undefined;
     panel.webview.html = html;
   }
 
@@ -55,6 +69,12 @@ class PanelHost {
       return Promise.resolve(false);
     }
 
+    // The initial model can arrive before the webview installs its listener.
+    // Keep only the latest stop until the new document explicitly becomes ready.
+    if (!this.ready) {
+      this.pendingMessage = message;
+      return Promise.resolve(true);
+    }
     return this.panel.webview.postMessage(message);
   }
 

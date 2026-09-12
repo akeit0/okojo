@@ -1,7 +1,9 @@
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Tests;
 
@@ -11,21 +13,26 @@ public class ExecuteFunctionTests
     public void Execute_BytecodeFunction_WithNestedCalls_CompletesWithoutEarlyExit()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   function functionCall() {
-                                                                       let identity = function (x) {
-                                                                           return x;
-                                                                       };
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                function functionCall() {
+                    let identity = function (x) {
+                        return x;
+                    };
 
-                                                                       var s = 0;
-                                                                       for (var i = 0; i < 10000; i++) {
-                                                                           s = identity(i) + 1;
-                                                                       }
+                    var s = 0;
+                    for (var i = 0; i < 10000; i++) {
+                        s = identity(i) + 1;
+                    }
 
-                                                                       return s;
-                                                                   }
-                                                                   functionCall;
-                                                                   """));
+                    return s;
+                }
+                functionCall;
+                """
+            )
+        );
 
         realm.Execute(script);
 

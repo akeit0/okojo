@@ -1,10 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using OkojoJsValue = Okojo.JsValue;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
+using OkojoJsValue = Okojo.JavaScript.JsValue;
 
 namespace Okojo.Benchmarks;
 
@@ -18,7 +20,8 @@ public class OkojoAsyncGeneratorBenchmarks
     private double sink;
     private string source = string.Empty;
 
-    [Params("ag-retq", "ag-retq-core")] public string Scenario { get; set; } = "ag-retq";
+    [Params("ag-retq", "ag-retq-core")]
+    public string Scenario { get; set; } = "ag-retq";
 
     [GlobalSetup]
     public void Setup()
@@ -58,10 +61,12 @@ public class OkojoAsyncGeneratorBenchmarks
         double sum = 0;
         for (uint i = 0; i < promises.Length; i++)
         {
-            if (!promises.TryGetElement(i, out var promiseValue) ||
-                !promiseValue.TryGetObject(out var promiseObj) ||
-                promiseObj is not JsPromiseObject promise ||
-                !promise.IsFulfilled)
+            if (
+                !promises.TryGetElement(i, out var promiseValue)
+                || !promiseValue.TryGetObject(out var promiseObj)
+                || promiseObj is not JsPromiseObject promise
+                || !promise.IsFulfilled
+            )
                 continue;
 
             var settled = promise.SettledResult;

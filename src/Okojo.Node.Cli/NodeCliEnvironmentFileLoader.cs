@@ -62,15 +62,17 @@ internal static class NodeCliEnvironmentFileLoader
             if (ch == '\\' && i + 1 < value.Length)
             {
                 i++;
-                builder.Append(value[i] switch
-                {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '\\' => '\\',
-                    '"' => '"',
-                    _ => value[i]
-                });
+                builder.Append(
+                    value[i] switch
+                    {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        '\\' => '\\',
+                        '"' => '"',
+                        _ => value[i],
+                    }
+                );
                 continue;
             }
 

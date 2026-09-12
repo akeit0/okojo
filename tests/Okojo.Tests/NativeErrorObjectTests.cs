@@ -1,5 +1,7 @@
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
@@ -10,7 +12,11 @@ public class NativeErrorObjectTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var inner = new IndexOutOfRangeException("native boom");
-        var ex = new JsRuntimeException(JsErrorKind.InternalError, "wrapped boom", innerException: inner);
+        var ex = new JsRuntimeException(
+            JsErrorKind.InternalError,
+            "wrapped boom",
+            innerException: inner
+        );
 
         var value = realm.CreateErrorObjectFromException(ex);
 

@@ -2,7 +2,12 @@ using Microsoft.CodeAnalysis;
 
 namespace Okojo.SourceGenerator.GlobalGeneration;
 
-internal sealed class GlobalParameterModel(string name, ITypeSymbol type, bool hasDefaultValue, object? defaultValue)
+internal sealed class GlobalParameterModel(
+    string name,
+    ITypeSymbol type,
+    bool hasDefaultValue,
+    object? defaultValue
+)
 {
     public string Name { get; } = name;
     public ITypeSymbol Type { get; } = type;
@@ -15,7 +20,8 @@ internal sealed class GlobalFunctionModel(
     IMethodSymbol symbol,
     int length,
     bool isConstructor,
-    IReadOnlyList<GlobalParameterModel> parameters)
+    IReadOnlyList<GlobalParameterModel> parameters
+)
 {
     public string Name { get; } = name;
     public IMethodSymbol Symbol { get; } = symbol;
@@ -30,7 +36,8 @@ internal sealed class GlobalPropertyModel(
     ITypeSymbol type,
     bool writable,
     bool enumerable,
-    bool configurable)
+    bool configurable
+)
 {
     public string Name { get; } = name;
     public ISymbol Symbol { get; } = symbol;
@@ -45,7 +52,8 @@ internal sealed class GlobalTypeModel(
     string installerMethodName,
     string propertySourceMethodName,
     IReadOnlyList<GlobalFunctionModel> functions,
-    IReadOnlyList<GlobalPropertyModel> properties)
+    IReadOnlyList<GlobalPropertyModel> properties
+)
 {
     public INamedTypeSymbol Symbol { get; } = symbol;
     public string InstallerMethodName { get; } = installerMethodName;

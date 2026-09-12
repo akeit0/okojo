@@ -1,10 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using Okojo.Bytecode;
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Benchmarks;
 
@@ -14,33 +16,33 @@ namespace Okojo.Benchmarks;
 public class OkojoGlobalBindingBenchmarks
 {
     private const string MathLoadFunctionSource = """
-                                                  (() => {
-                                                      let value = Math;
-                                                      for (let i = 0; i < 1000000; i++) {
-                                                          value = Math;
-                                                      }
-                                                      return value;
-                                                  })()
-                                                  """;
+        (() => {
+            let value = Math;
+            for (let i = 0; i < 1000000; i++) {
+                value = Math;
+            }
+            return value;
+        })()
+        """;
 
     private const string LoadFunctionSource = """
-                                              (() => {
-                                                  let sum = 0;
-                                                  for (let i = 0; i < 1000000; i++) {
-                                                      sum += shared;
-                                                  }
-                                                  return sum;
-                                              })()
-                                              """;
+        (() => {
+            let sum = 0;
+            for (let i = 0; i < 1000000; i++) {
+                sum += shared;
+            }
+            return sum;
+        })()
+        """;
 
     private const string StoreFunctionSource = """
-                                               (() => {
-                                                   for (let i = 0; i < 1000000; i++) {
-                                                       shared = i;
-                                                   }
-                                                   return shared;
-                                               })()
-                                               """;
+        (() => {
+            for (let i = 0; i < 1000000; i++) {
+                shared = i;
+            }
+            return shared;
+        })()
+        """;
 
     private JsRealm globalLoadRealm = null!;
 
@@ -57,8 +59,14 @@ public class OkojoGlobalBindingBenchmarks
     {
         (globalLoadRealm, globalLoadScript) = CreateScript(string.Empty, MathLoadFunctionSource);
         (lexicalLoadRealm, lexicalLoadScript) = CreateScript("let shared = 1;", LoadFunctionSource);
-        (globalStoreRealm, globalStoreScript) = CreateScript("var shared = 0;", StoreFunctionSource);
-        (lexicalStoreRealm, lexicalStoreScript) = CreateScript("let shared = 0;", StoreFunctionSource);
+        (globalStoreRealm, globalStoreScript) = CreateScript(
+            "var shared = 0;",
+            StoreFunctionSource
+        );
+        (lexicalStoreRealm, lexicalStoreScript) = CreateScript(
+            "let shared = 0;",
+            StoreFunctionSource
+        );
     }
 
     [Benchmark(Baseline = true)]
@@ -89,13 +97,19 @@ public class OkojoGlobalBindingBenchmarks
         return lexicalStoreRealm.Accumulator.Int32Value;
     }
 
-    private static (JsRealm Realm, JsScript Script) CreateScript(string preludeSource, string bodySource)
+    private static (JsRealm Realm, JsScript Script) CreateScript(
+        string preludeSource,
+        string bodySource
+    )
     {
         var realm = JsRuntime.CreateBuilder().Build().DefaultRealm;
 
         if (!string.IsNullOrEmpty(preludeSource))
         {
-            var preludeScript = JsCompiler.Compile(realm, JavaScriptParser.ParseScript(preludeSource));
+            var preludeScript = JsCompiler.Compile(
+                realm,
+                JavaScriptParser.ParseScript(preludeSource)
+            );
             realm.Execute(preludeScript);
         }
 

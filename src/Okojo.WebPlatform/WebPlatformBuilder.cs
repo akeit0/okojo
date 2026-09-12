@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.WebPlatform;
 
@@ -21,7 +23,9 @@ public sealed class WebPlatformBuilder
     {
         options.UseRealmSetup(realm =>
         {
-            var scheduler = state.WebRuntimeDelayScheduler ?? new TimeProviderDelayScheduler(realm.Engine.TimeProvider);
+            var scheduler =
+                state.WebRuntimeDelayScheduler
+                ?? new TimeProviderDelayScheduler(realm.TimeProvider);
             new WebRuntimeApiModule(_ => scheduler, state.WebRuntimeTimerQueueKey).Install(realm);
         });
         return this;
@@ -114,11 +118,9 @@ public sealed class WebPlatformBuilder
     public WebPlatformBuilder UseWebWorkers(WebWorkerHost workerHost)
     {
         ArgumentNullException.ThrowIfNull(workerHost);
-        options.AddRealmApiModule(WebWorkerApiModule.Shared);
+        options.UseWorkerMessaging(workerMessaging => new WebWorkerApiModule(workerMessaging));
         options.UseLowLevelHost(host => host.UseWorkerMessageQueue(WebTaskQueueKeys.Messages));
-        options.UseHosting(hosting => hosting
-            .UseWorkerGlobals()
-            .UseJsWorkerHost(workerHost));
+        options.UseHosting(hosting => hosting.UseJsWorkerHost(workerHost));
         return this;
     }
 

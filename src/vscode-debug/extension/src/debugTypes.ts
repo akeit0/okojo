@@ -1,6 +1,4 @@
-import { DebugProtocol } from '@vscode/debugprotocol';
-
-export type OkojoLaunchArguments = DebugProtocol.LaunchRequestArguments & {
+export type OkojoLaunchArguments = {
   program: string;
   cwd?: string;
   debugServerProject?: string;

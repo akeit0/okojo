@@ -1,6 +1,9 @@
 namespace Okojo.DocGenerator.Annotations;
 
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface, Inherited = false)]
+[AttributeUsage(
+    AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface,
+    Inherited = false
+)]
 public sealed class DocDeclarationAttribute : Attribute
 {
     public DocDeclarationAttribute(string fileName)

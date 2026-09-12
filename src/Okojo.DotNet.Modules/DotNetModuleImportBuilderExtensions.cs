@@ -1,5 +1,7 @@
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 using Okojo.Reflection;
-using Okojo.Runtime;
 
 namespace Okojo.DotNet.Modules;
 
@@ -7,7 +9,8 @@ public static class DotNetModuleImportBuilderExtensions
 {
     public static JsRuntimeBuilder UseDotNetModuleImports(
         this JsRuntimeBuilder builder,
-        Action<DotNetModuleImportOptions>? configure = null)
+        Action<DotNetModuleImportOptions>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -24,7 +27,8 @@ public static class DotNetModuleImportBuilderExtensions
     public static JsRuntimeBuilder UseDotNetModuleImports(
         this JsRuntimeBuilder builder,
         IModuleSourceLoader fallbackLoader,
-        Action<DotNetModuleImportOptions>? configure = null)
+        Action<DotNetModuleImportOptions>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(fallbackLoader);

@@ -6,7 +6,7 @@ This file defines contributor and agent operating rules for **Okojo** work insid
 
 This `AGENTS.md` applies to:
 
-- `src/Okojo`
+- `src/Okojo.JavaScript`, `src/Okojo.JavaScript.Embedding`
 - `tests/Okojo.Tests`
 - `docs/` (Okojo design/workflow docs)
 - Okojo tooling (`tools/OkojoBytecodeTool`, `tools/V8BytecodeTool`, `tools/Test262Runner`)
@@ -78,7 +78,7 @@ Avoid making runtime object internals, parser AST internals, or VM helper types 
 1. refine the stable embedding and host API boundaries
 2. reduce runtime allocation/branch overhead on hot property paths
 3. keep module/runtime simplification moving without reintroducing wrapper-heavy paths
-4. complete the experimental compiler and make it usable in real execution paths
+4. extend and optimize the canonical compiler in real execution paths
 5. add selected staging ECMA-262 support where it is worth carrying, starting with candidates such as `Temporal`
 6. improve `Okojo.Node` compatibility against real Node-facing workloads
 7. attempt real HTML/CSS renderer integration to exercise DOM-manipulation browser compatibility
@@ -156,11 +156,11 @@ For every new Okojo feature (syntax or runtime):
 
 Template:
 
-- `docs/OKOJO_FEATURE_NOTE_TEMPLATE.md`
+- `docs/guides/OKOJO_FEATURE_NOTE_TEMPLATE.md`
 
 Also follow:
 
-- `docs/FEATURE_IMPLEMENTATION_WORKFLOW.md`
+- `docs/guides/FEATURE_IMPLEMENTATION_WORKFLOW.md`
 
 ## Planning Doc Rule
 
@@ -172,35 +172,74 @@ Current top-level anchor document:
 
 Supporting architecture document for the current next slice:
 
-- `OKOJO_API_ASSEMBLY_TASK_QUEUE_PLAN.md`
+- `docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`
+
+## Formatting (Required)
+
+- After editing `.cs` or `.csproj` files, run `dotnet csharpier format <changed files>` before validation or commit.
+- Format only changed files unless repository-wide formatting is explicitly requested.
+- Keep text files LF as configured by `.editorconfig` and `.gitattributes`.
 
 ## Test Workflow (Required)
 
-### Fast local loop
+Choose the workflow that matches the change. The workflows below are alternatives, not a sequence to execute from top to bottom.
+
+### Focused-first workflow
+
+For a change with a meaningful focused test, run it first:
 
 ```powershell
-dotnet test tests/Okojo.Tests/Okojo.Tests.csproj
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --filter <Name>
 ```
 
-When doing repeated focused runs, prefer:
+After the focused test passes, run the full suite once without rebuilding:
 
 ```powershell
-dotnet build tests/Okojo.Tests/Okojo.Tests.csproj
-dotnet test tests/Okojo.Tests/Okojo.Tests.csproj --no-build --filter <Name>
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build
+```
+
+The first `dotnet test` builds the test project before running the filter. A successful full suite includes the focused coverage; do not run the same filter again afterward.
+
+### Repeated focused workflow
+
+When iterating repeatedly, build once and reuse that build for focused runs:
+
+```powershell
+dotnet build tests/Okojo.Tests/Okojo.Tests.csproj -c Release
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build --filter <Name>
 ```
 
 This avoids transient `Okojo.dll` copy/file-lock races during tight local iteration.
 
+After the final focused run passes, run the full suite once:
+
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release --no-build
+```
+
+### Full-only workflow
+
+For a broad change with no meaningful focused filter, run the full suite directly:
+
+```powershell
+dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Release
+```
+
 Discipline:
 
 - Do not run `dotnet build` and `dotnet test` in parallel.
-- If a build is needed, wait for the build to finish before running tests.
-- If only one verification command is needed, prefer a single `dotnet test ...` command instead of `build` plus `test --no-build`.
-- Use `build` + `test --no-build` only for repeated focused loops after the sequential build has completed.
+- Do not run a focused test after a successful full suite unless diagnosing a later failure.
+- Use `build` plus `test --no-build` only for repeated focused iterations.
+- Documentation-only changes do not require a .NET build or test unless the document changes a generated or executable artifact.
+- Treat every build warning and test failure as a blocker; fix it before committing unless the user explicitly approves an exception.
 
 ### Test262 workflow
 
-`tools/Test262Runner -help`
+```powershell
+dotnet run --project tools/Test262Runner/Test262Runner.csproj -- --help
+```
+
+(`-help` is not a flag; a bare unknown argument starts a full run.)
 
 ### Test262 prioritization
 
@@ -217,4 +256,4 @@ Fix order:
 - Do not revert user refactors unless explicitly requested.
 - Prefer minimal/local fixes with nearby regression tests.
 - For generated sources, do not reintroduce monolithic generated files (keep split workflow).
-- When changing public API in `src/Okojo`, document the intended stable layer and the internal layer boundary.
+- When changing public API in `src/Okojo.JavaScript` or `src/Okojo.JavaScript.Embedding`, document the intended stable layer and the internal layer boundary.

@@ -1,4 +1,4 @@
-using Okojo.SourceMaps;
+using Okojo.JavaScript.SourceMaps;
 
 namespace Okojo.Node;
 

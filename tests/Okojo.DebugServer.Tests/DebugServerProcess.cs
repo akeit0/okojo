@@ -23,7 +23,9 @@ internal sealed class DebugServerProcess : IAsyncDisposable
     public static DebugServerProcess Start(string scriptPath, IReadOnlyList<string> extraArgs)
     {
         string repoRoot = FindRepoRoot();
-        string project = Path.GetFullPath(Path.Combine(repoRoot, "src", "Okojo.DebugServer", "Okojo.DebugServer.csproj"));
+        string project = Path.GetFullPath(
+            Path.Combine(repoRoot, "src", "Okojo.DebugServer", "Okojo.DebugServer.csproj")
+        );
 
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -46,7 +48,9 @@ internal sealed class DebugServerProcess : IAsyncDisposable
         foreach (var arg in extraArgs)
             startInfo.ArgumentList.Add(arg);
 
-        var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start debug server.");
+        var process =
+            Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Failed to start debug server.");
         return new DebugServerProcess(process);
     }
 
@@ -56,8 +60,8 @@ internal sealed class DebugServerProcess : IAsyncDisposable
         process.StandardInput.Flush();
     }
 
-    public async Task<JsonElement> WaitForJsonEventAsync(string eventName, TimeSpan timeout)
-        => await Task.FromResult(WaitForJsonEvent(eventName, timeout)).ConfigureAwait(false);
+    public async Task<JsonElement> WaitForJsonEventAsync(string eventName, TimeSpan timeout) =>
+        await Task.FromResult(WaitForJsonEvent(eventName, timeout)).ConfigureAwait(false);
 
     public async Task WaitForExitAsync(TimeSpan timeout)
     {
@@ -75,9 +79,7 @@ internal sealed class DebugServerProcess : IAsyncDisposable
         {
             process.StandardInput.Close();
         }
-        catch
-        {
-        }
+        catch { }
 
         if (!process.HasExited)
         {
@@ -85,9 +87,7 @@ internal sealed class DebugServerProcess : IAsyncDisposable
             {
                 process.Kill(entireProcessTree: true);
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         stdoutLines.CompleteAdding();
@@ -114,8 +114,10 @@ internal sealed class DebugServerProcess : IAsyncDisposable
             if (line is null)
                 break;
 
-            if (TryParseEvent(line, out var payload) &&
-                string.Equals(GetString(payload, "event"), eventName, StringComparison.Ordinal))
+            if (
+                TryParseEvent(line, out var payload)
+                && string.Equals(GetString(payload, "event"), eventName, StringComparison.Ordinal)
+            )
             {
                 return payload;
             }
@@ -124,7 +126,11 @@ internal sealed class DebugServerProcess : IAsyncDisposable
         throw new TimeoutException(BuildTimeoutMessage(eventName));
     }
 
-    private static async Task PumpAsync(TextReader reader, BlockingCollection<string> lines, CancellationToken cancellationToken)
+    private static async Task PumpAsync(
+        TextReader reader,
+        BlockingCollection<string> lines,
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -137,9 +143,7 @@ internal sealed class DebugServerProcess : IAsyncDisposable
                 lines.Add(line, cancellationToken);
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) { }
         finally
         {
             lines.CompleteAdding();
@@ -153,8 +157,11 @@ internal sealed class DebugServerProcess : IAsyncDisposable
 
         try
         {
-            return stdoutLines.TryTake(out var line, (int)Math.Min(timeout.TotalMilliseconds, int.MaxValue),
-                cancellationTokenSource.Token)
+            return stdoutLines.TryTake(
+                out var line,
+                (int)Math.Min(timeout.TotalMilliseconds, int.MaxValue),
+                cancellationTokenSource.Token
+            )
                 ? line
                 : null;
         }
@@ -187,7 +194,9 @@ internal sealed class DebugServerProcess : IAsyncDisposable
 
     private static string? GetString(JsonElement payload, string propertyName)
     {
-        return payload.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+        return
+            payload.TryGetProperty(propertyName, out var property)
+            && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
     }
@@ -205,7 +214,12 @@ internal sealed class DebugServerProcess : IAsyncDisposable
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
         {
-            var candidate = Path.Combine(current.FullName, "src", "Okojo.DebugServer", "Okojo.DebugServer.csproj");
+            var candidate = Path.Combine(
+                current.FullName,
+                "src",
+                "Okojo.DebugServer",
+                "Okojo.DebugServer.csproj"
+            );
             if (File.Exists(candidate))
                 return current.FullName;
 

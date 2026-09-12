@@ -1,10 +1,12 @@
 using System.Numerics;
-using Okojo.Bytecode;
-using Okojo.Compiler;
 using Okojo.Diagnostics;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo.Values;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.Values;
 
 namespace Okojo.Tests;
 
@@ -14,9 +16,9 @@ public class BigIntBytecodeTests
     public void Compiler_Emits_LdaTypedConst_For_BigInt_Literal()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("1n;"));
+        var script = realm.CompileScript("1n;");
 
-        Assert.That(script.Bytecode.Contains((byte)JsOpCode.LdaTypedConst), Is.True);
+        Assert.That(script.BytecodeArray.Contains((byte)JsOpCode.LdaTypedConst), Is.True);
         Assert.That(script.ObjectConstants.OfType<JsBigInt>().Any(b => b.Value == 1), Is.True);
     }
 
@@ -24,16 +26,14 @@ public class BigIntBytecodeTests
     public void Vm_Loads_BigInt_Through_LdaTypedConst()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
-            [
-                (byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var code = new JsFunctionCode(
+            [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -44,15 +44,15 @@ public class BigIntBytecodeTests
     [Test]
     public void Disassembler_Formats_LdaTypedConst()
     {
-        var script = new JsScript(
-            [
-                (byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var code = new JsFunctionCode(
+            [(byte)JsOpCode.LdaTypedConst, (byte)Tag.JsTagBigInt, 0, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             [new JsBigInt(1)],
             0,
-            Array.Empty<int>()
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(
+            Okojo.JavaScript.Embedding.JsRuntime.Create().DefaultRealm
         );
 
         var text = Disassembler.Dump(script);

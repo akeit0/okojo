@@ -1,5 +1,7 @@
 using Okojo.Hosting;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.WebPlatform;
 
@@ -13,15 +15,24 @@ public sealed class WebWorkerHost : IHostingJsWorkerHost
         this.options = options;
     }
 
-    public WorkerRuntime CreateWorker(JsRealm ownerRealm, string? moduleEntry, string? ownerReferrer)
+    public WorkerRuntime CreateWorker(
+        JsRealm ownerRealm,
+        string? scriptEntry,
+        string? ownerReferrer,
+        WorkerScriptType scriptType
+    )
     {
         ArgumentNullException.ThrowIfNull(ownerRealm);
 
-        return WorkerRuntimeFactory.CreateWorkerRuntime(ownerRealm, hostedWorker =>
-        {
-            hostedWorker.ModuleEntry = moduleEntry;
-            hostedWorker.ModuleReferrer = ownerReferrer;
-            hostedWorker.StartBackgroundHost = options.StartBackgroundHost;
-        });
+        return WorkerRuntimeFactory.CreateWorkerRuntime(
+            ownerRealm,
+            hostedWorker =>
+            {
+                hostedWorker.ScriptEntry = scriptEntry;
+                hostedWorker.ScriptReferrer = ownerReferrer;
+                hostedWorker.ScriptType = scriptType;
+                hostedWorker.StartBackgroundHost = options.StartBackgroundHost;
+            }
+        );
     }
 }

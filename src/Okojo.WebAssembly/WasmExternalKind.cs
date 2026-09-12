@@ -5,5 +5,5 @@ public enum WasmExternalKind
     Function,
     Memory,
     Table,
-    Global
+    Global,
 }

@@ -1,11 +1,14 @@
 using System.Runtime.CompilerServices;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Objects;
 using Okojo.Node;
-using Okojo.Objects;
-using Okojo;
 
-var escapeOutput = args.Any(static arg => string.Equals(arg, "--escape-output", StringComparison.Ordinal));
-var forwardedArgs = args
-    .Where(static arg => !string.Equals(arg, "--escape-output", StringComparison.Ordinal))
+var escapeOutput = args.Any(static arg =>
+    string.Equals(arg, "--escape-output", StringComparison.Ordinal)
+);
+var forwardedArgs = args.Where(static arg =>
+        !string.Equals(arg, "--escape-output", StringComparison.Ordinal)
+    )
     .ToArray();
 var appRoot = ResolveAppRoot();
 var entryPath = Path.Combine(appRoot, "main.mjs");
@@ -21,7 +24,11 @@ if (forwardedArgs.Length == 0)
     RunScenario("greet", ["greet", "--name", "okojo", "--times", "2"], verbose: true);
     RunScenario("inspect", ["inspect", "alpha", "beta", "--upper", "--repeat", "2"], verbose: true);
     RunScenario("report", ["report", "--config", "app.config.json"], verbose: true);
-    RunScenario("explain", ["explain", "--doc", "project.explain.json", "--width", "68"], verbose: true);
+    RunScenario(
+        "explain",
+        ["explain", "--doc", "project.explain.json", "--width", "68"],
+        verbose: true
+    );
 }
 else
 {
@@ -44,7 +51,8 @@ int RunScenario(string name, string[] argv, bool verbose)
     {
         try
         {
-            using var runtime = OkojoNodeRuntime.CreateBuilder()
+            using var runtime = OkojoNodeRuntime
+                .CreateBuilder()
                 .ConfigureTerminal(options =>
                 {
                     options.Stdout = stdout;
@@ -75,7 +83,7 @@ int RunScenario(string name, string[] argv, bool verbose)
             {
                 Console.WriteLine($"exception: {ex.GetType().Name}");
                 Console.WriteLine(ex);
-                if (ex is Okojo.Runtime.JsRuntimeException jsEx)
+                if (ex is Okojo.JavaScript.Execution.JsRuntimeException jsEx)
                 {
                     Console.WriteLine($"detailCode: {jsEx.DetailCode}");
                     if (jsEx.ThrownValue is { } thrownValue)
@@ -124,7 +132,7 @@ int RunScenario(string name, string[] argv, bool verbose)
         if (!verbose)
         {
             Console.Error.WriteLine(failure);
-            if (failure is Okojo.Runtime.JsRuntimeException jsEx)
+            if (failure is Okojo.JavaScript.Execution.JsRuntimeException jsEx)
             {
                 var okojoStack = jsEx.FormatOkojoStackTrace();
                 if (!string.IsNullOrEmpty(okojoStack))
@@ -158,8 +166,7 @@ static bool TryGetDefaultExport(JsValue moduleNamespace, out JsValue value)
 
 static string EscapeControl(string text)
 {
-    return text
-        .Replace("\u001b", "\\u001b", StringComparison.Ordinal)
+    return text.Replace("\u001b", "\\u001b", StringComparison.Ordinal)
         .Replace("\r", "\\r", StringComparison.Ordinal)
         .Replace("\n", "\\n", StringComparison.Ordinal);
 }

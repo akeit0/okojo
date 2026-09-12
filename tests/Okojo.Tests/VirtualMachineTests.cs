@@ -1,7 +1,9 @@
-using Okojo.Bytecode;
-using Okojo.Compiler;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Tests;
 
@@ -19,19 +21,24 @@ public class VirtualMachineTests
         // LdaSmi 2
         // Add r0
         // Return
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaSmi, 1,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.LdaSmi, 2,
-                (byte)JsOpCode.Add, 0, 0, // reg 0, slot 0
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaSmi,
+                1,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaSmi,
+                2,
+                (byte)JsOpCode.Add,
+                0, // reg 0 (single operand; feedback operand removed)
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             1,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -42,19 +49,25 @@ public class VirtualMachineTests
     public void Mov_Does_Not_Clobber_Accumulator()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaSmi, 7,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.LdaSmi, 9,
-                (byte)JsOpCode.Mov, 0, 1,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaSmi,
+                7,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaSmi,
+                9,
+                (byte)JsOpCode.Mov,
+                0,
+                1,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             2,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -64,10 +77,8 @@ public class VirtualMachineTests
     [Test]
     public void TestCompilerIntegration()
     {
-        var program = JavaScriptParser.ParseScript("let x = 10; x + 5;");
-
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript("let x = 10; x + 5;");
 
         realm.Execute(script);
 
@@ -77,7 +88,8 @@ public class VirtualMachineTests
     [Test]
     public void TestLoopIntegration()
     {
-        var source = @"
+        var source =
+            @"
             function test() {
                 let sum = 0;
                 let i = 1;
@@ -89,10 +101,9 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -102,7 +113,8 @@ public class VirtualMachineTests
     [Test]
     public void TestClosureCounter()
     {
-        var source = @"
+        var source =
+            @"
             function makeCounter() {
                 let count = 0;
                 return function() {
@@ -125,7 +137,8 @@ public class VirtualMachineTests
     [Test]
     public void TestRecursionFib()
     {
-        var source = @"
+        var source =
+            @"
             function fib(n) {
                 if (n < 2) return n;
                 return fib(n - 1) + fib(n - 2);
@@ -143,7 +156,8 @@ public class VirtualMachineTests
     [Test]
     public void TestFunctionExpressionBasic()
     {
-        var source = @"
+        var source =
+            @"
             let f = function () { return 1 + 2; };
             f();
         ";
@@ -157,7 +171,8 @@ public class VirtualMachineTests
     [Test]
     public void TestClosureCounterInstancesAreIndependent()
     {
-        var source = @"
+        var source =
+            @"
             function makeCounter() {
                 let count = 0;
                 return function () {
@@ -181,7 +196,8 @@ public class VirtualMachineTests
     [Test]
     public void TestThrowsOnCapturedLexicalReadBeforeInitialization()
     {
-        var source = @"
+        var source =
+            @"
             function test() {
                 let y = (function read() { return x; })();
                 let x = 1;
@@ -189,9 +205,8 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -200,7 +215,8 @@ public class VirtualMachineTests
     [Test]
     public void TestDontThrowsOnCapturedLexicalAfterInitialization()
     {
-        var source = @"
+        var source =
+            @"
             function test() {
                 let y = (function read() { return x; });
                 let x = 1;
@@ -208,9 +224,8 @@ public class VirtualMachineTests
             }
             test();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         Assert.DoesNotThrow(() => realm.Execute(script));
     }
@@ -218,16 +233,16 @@ public class VirtualMachineTests
     [Test]
     public void TestVarReadBeforeInitializationReturnsUndefined()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 return x;
                 var x = 1;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -237,16 +252,16 @@ public class VirtualMachineTests
     [Test]
     public void TestLetRegisterReadBeforeInitializationThrows()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 return x;
                 let x = 1;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -255,16 +270,16 @@ public class VirtualMachineTests
     [Test]
     public void TestLetRegisterWriteBeforeInitializationThrows()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 x = 1;
                 let x;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -273,16 +288,16 @@ public class VirtualMachineTests
     [Test]
     public void TestLetDeclarationWithoutInitializerBecomesUndefinedAfterDeclaration()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let x;
                 return x;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -292,7 +307,8 @@ public class VirtualMachineTests
     [Test]
     public void TestBlockScopedLetShadowingDoesNotOverwriteOuter()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let x = 1;
                 {
@@ -302,9 +318,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -314,7 +329,8 @@ public class VirtualMachineTests
     [Test]
     public void TestBlockScopedLetShadowingHasOwnTdz()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let x = 1;
                 {
@@ -324,9 +340,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -335,7 +350,8 @@ public class VirtualMachineTests
     [Test]
     public void TestClosureCapturesInnerBlockLetShadow()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let x = 1;
                 {
@@ -346,9 +362,8 @@ public class VirtualMachineTests
             let f = t();
             f();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -358,7 +373,8 @@ public class VirtualMachineTests
     [Test]
     public void TestClosureCapturesInnerBlockLetShadowTdz()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let x = 1;
                 {
@@ -369,9 +385,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Is.EqualTo("Cannot access 'x' before initialization"));
@@ -380,7 +395,8 @@ public class VirtualMachineTests
     [Test]
     public void TestChildFunctionUsesParentContextSlotWhenChildHasOwnContext()
     {
-        var source = @"
+        var source =
+            @"
             function outer() {
                 let x = 1;
                 return function child() {
@@ -403,7 +419,8 @@ public class VirtualMachineTests
     [Test]
     public void TestNonImmediateParentCaptureMutation()
     {
-        var source = @"
+        var source =
+            @"
             function outer() {
                 let x = 1;
                 function mid() {
@@ -427,7 +444,8 @@ public class VirtualMachineTests
     [Test]
     public void TestNonImmediateAndImmediateParentCapturesTogether()
     {
-        var source = @"
+        var source =
+            @"
             function outer() {
                 let x = 1;
                 return function mid() {
@@ -448,7 +466,8 @@ public class VirtualMachineTests
     [Test]
     public void TestBitwiseOperatorsLowerAndExecute()
     {
-        var source = @"
+        var source =
+            @"
             function t(a, b) {
                 return (a & b) | (a ^ b);
             }
@@ -465,7 +484,8 @@ public class VirtualMachineTests
     [Test]
     public void TestShiftOperatorsIncludingUnsignedRightShift()
     {
-        var source = @"
+        var source =
+            @"
             function t(a) {
                 return (a >>> 1) + (a << 2) + (a >> 1);
             }
@@ -482,7 +502,8 @@ public class VirtualMachineTests
     [Test]
     public void TestForLoopBasicSum()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let s = 0;
                 for (let i = 0; i < 3; i = i + 1) {
@@ -499,25 +520,24 @@ public class VirtualMachineTests
         Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(3));
     }
 
-
     [Test]
     public void TestForLoopFuncBasicSum()
     {
         var source = """
-                     function functionCall() {
-                         let identity = function (x) {
-                             return x;
-                         }
+            function functionCall() {
+                let identity = function (x) {
+                    return x;
+                }
 
-                         var s = 0;
-                         for (var i = 0; i < 1000; i=i+1) {
-                             s = identity(i)+1;
-                         }
+                var s = 0;
+                for (var i = 0; i < 1000; i=i+1) {
+                    s = identity(i)+1;
+                }
 
-                         return s;
-                     }
-                     functionCall();
-                     """;
+                return s;
+            }
+            functionCall();
+            """;
         var realm = JsRuntime.Create().DefaultRealm;
 
         realm.Eval(source);
@@ -528,7 +548,8 @@ public class VirtualMachineTests
     [Test]
     public void TestForLoopWithoutInitAndUpdate()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let i = 0;
                 let s = 0;
@@ -550,7 +571,8 @@ public class VirtualMachineTests
     [Test]
     public void TestForLoopBreakAndContinue()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let s = 0;
                 for (let i = 0; i < 6; i = i + 1) {
@@ -574,7 +596,8 @@ public class VirtualMachineTests
     [Test]
     public void TestNestedLoopsContinueTargetsCurrentLoop()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let s = 0;
                 for (let i = 0; i < 3; i = i + 1) {
@@ -592,9 +615,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -604,7 +626,8 @@ public class VirtualMachineTests
     [Test]
     public void TestUpdateExpressionsPrefixPostfix()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let i = 1;
                 let a = i++;
@@ -615,9 +638,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -627,7 +649,8 @@ public class VirtualMachineTests
     [Test]
     public void TestForLoopUpdateExpressionIpp()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let s = 0;
                 for (let i = 0; i < 4; i++) {
@@ -637,9 +660,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -649,16 +671,16 @@ public class VirtualMachineTests
     [Test]
     public void TestUpdateExpressionOnConstThrows()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 const x = 1;
                 x++;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Does.Contain("constant"));
@@ -668,7 +690,8 @@ public class VirtualMachineTests
     [Test]
     public void TestEqualityOperatorsBasic()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let a = (1 == ""1"");
                 let b = (1 != 2);
@@ -683,9 +706,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -695,7 +717,8 @@ public class VirtualMachineTests
     [Test]
     public void TestEqualityNullUndefinedAndStrictDifference()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let a = (null == undefined);
                 let b = (null === undefined);
@@ -706,9 +729,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -718,7 +740,8 @@ public class VirtualMachineTests
     [Test]
     public void TestEqualityBoolLooseCoercion()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let a = (true == 1);
                 let b = (false == 0);
@@ -731,9 +754,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -743,7 +765,8 @@ public class VirtualMachineTests
     [Test]
     public void TestUnaryNegateAndUnaryPlus()
     {
-        var source = @"
+        var source =
+            @"
             function t(a) {
                 return -a + +a;
             }
@@ -759,14 +782,14 @@ public class VirtualMachineTests
     [Test]
     public void TestUnaryLogicalNot()
     {
-        var source = @"
+        var source =
+            @"
             function t(a) { return !a; }
             t(0);
         ";
-        var program = JavaScriptParser.ParseScript(source);
 
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -777,7 +800,8 @@ public class VirtualMachineTests
     [Test]
     public void TestUnaryBitwiseNot()
     {
-        var source = @"
+        var source =
+            @"
             function t(a) { return ~a; }
             t(3);
         ";
@@ -792,7 +816,8 @@ public class VirtualMachineTests
     [Test]
     public void TestSmiArithmeticExtensionsMulModExp()
     {
-        var source = @"
+        var source =
+            @"
             function t(a) {
                 return (a * 3) + (a % 5) + (a ** 2);
             }
@@ -808,16 +833,16 @@ public class VirtualMachineTests
     [Test]
     public void TestObjectLiteralNamedPropertyRead()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = { x: 1 };
                 return o.x;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -827,7 +852,8 @@ public class VirtualMachineTests
     [Test]
     public void TestObjectNamedPropertyWriteThenRead()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = {};
                 o.x = 1;
@@ -845,7 +871,8 @@ public class VirtualMachineTests
     [Test]
     public void TestObjectNamedPropertyAssignmentExpressionReturnsValue()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = {};
                 return (o.x = 7);
@@ -862,16 +889,16 @@ public class VirtualMachineTests
     [Test]
     public void TestObjectLiteralMultiplePropertiesAndDuplicateKeyLastWins()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = { x: 1, y: 2, x: 7 };
                 return o.x + o.y;
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -881,7 +908,8 @@ public class VirtualMachineTests
     [Test]
     public void TestKeyedPropertyUintIndexGetSet()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = {};
                 o[0] = 3;
@@ -889,9 +917,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -901,7 +928,8 @@ public class VirtualMachineTests
     [Test]
     public void TestKeyedPropertyStringKeyGetSet()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = {};
                 let k = ""x"";
@@ -910,9 +938,8 @@ public class VirtualMachineTests
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -922,16 +949,16 @@ public class VirtualMachineTests
     [Test]
     public void TestKeyedPropertyAssignmentExpressionReturnsValue()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 let o = {};
                 return (o[1] = 9);
             }
             t();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -941,15 +968,15 @@ public class VirtualMachineTests
     [Test]
     public void TestObjectLiteralNumericLikeKeysUseIndexedSemantics()
     {
-        var source = @"
+        var source =
+            @"
             function a(){ let o = { 0: 3 }; return o[0]; }
             function b(){ let o = { ""0"": 4 }; return o[0]; }
             function c(){ let o = { [""0""]: 5 }; return o[0]; }
             a() + b() + c();
         ";
-        var program = JavaScriptParser.ParseScript(source);
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, program);
+        var script = realm.CompileScript(source);
 
         realm.Execute(script);
 
@@ -959,7 +986,8 @@ public class VirtualMachineTests
     [Test]
     public void TestThrowsOnConstReassignment()
     {
-        var source = @"
+        var source =
+            @"
             function t() {
                 const x = 1;
                 x = 2;
@@ -976,7 +1004,8 @@ public class VirtualMachineTests
     [Test]
     public void TestThrowsOnCapturedConstReassignment()
     {
-        var source = @"
+        var source =
+            @"
             function outer() {
                 const x = 1;
                 return function () { x = 2; };

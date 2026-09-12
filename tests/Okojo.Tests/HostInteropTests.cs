@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using System.Text;
 using Okojo.Annotations;
-using Okojo.Compiler;
 using Okojo.DocGenerator.Annotations;
-using Okojo.Objects;
-using Okojo.Parsing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.Reflection;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
 
 namespace Okojo.Tests;
 
@@ -172,26 +174,42 @@ public sealed class ManualHostBindingSample : IHostBindable
 
     private static HostBinding CreateHostBinding()
     {
-        return new(typeof(ManualHostBindingSample),
+        return new(
+            typeof(ManualHostBindingSample),
             [
-                new("X", HostMemberBindingKind.Property, false,
+                new(
+                    "X",
+                    HostMemberBindingKind.Property,
+                    false,
                     static (in info) => new(info.GetThis<ManualHostBindingSample>().X),
                     static (in info) =>
                     {
                         info.GetThis<ManualHostBindingSample>().X = info.GetArgumentSingle(0);
                         return JsValue.Undefined;
-                    })
+                    }
+                ),
             ],
             [
-                new("Sin", HostMemberBindingKind.Method, true,
+                new(
+                    "Sin",
+                    HostMemberBindingKind.Method,
+                    true,
                     methodBody: static (in info) => new(Sin(info.GetArgumentSingle(0))),
-                    functionLength: 1),
-                new("Bounce", HostMemberBindingKind.Method, true,
+                    functionLength: 1
+                ),
+                new(
+                    "Bounce",
+                    HostMemberBindingKind.Method,
+                    true,
                     methodBody: static (in info) =>
-                        HostValueConverter.ConvertToJsValue(info.Realm,
-                            Bounce(info.GetArgument<ManualHostBindingSample>(0))),
-                    functionLength: 1)
-            ]);
+                        HostValueConverter.ConvertToJsValue(
+                            info.Realm,
+                            Bounce(info.GetArgument<ManualHostBindingSample>(0))
+                        ),
+                    functionLength: 1
+                ),
+            ]
+        );
     }
 }
 
@@ -308,17 +326,30 @@ public sealed class ManualAsyncHostBindingSample : IHostBindable
 
     private static HostBinding CreateHostBinding()
     {
-        return new(typeof(ManualAsyncHostBindingSample),
+        return new(
+            typeof(ManualAsyncHostBindingSample),
             [],
             [
-                new("EchoAsync", HostMemberBindingKind.Method, true,
-                    methodBody: static (in info) => info.Realm.WrapTask(EchoAsync(info.GetArgumentString(0))),
-                    functionLength: 1),
-                new("AwaitEcho", HostMemberBindingKind.Method, true,
+                new(
+                    "EchoAsync",
+                    HostMemberBindingKind.Method,
+                    true,
                     methodBody: static (in info) =>
-                        info.Realm.WrapTask(AwaitEcho(info.Realm.ToTask<string>(info.GetArgument(0)))),
-                    functionLength: 1)
-            ]);
+                        info.Realm.WrapTask(EchoAsync(info.GetArgumentString(0))),
+                    functionLength: 1
+                ),
+                new(
+                    "AwaitEcho",
+                    HostMemberBindingKind.Method,
+                    true,
+                    methodBody: static (in info) =>
+                        info.Realm.WrapTask(
+                            AwaitEcho(info.Realm.ToTask<string>(info.GetArgument(0)))
+                        ),
+                    functionLength: 1
+                ),
+            ]
+        );
     }
 }
 
@@ -348,10 +379,12 @@ public sealed class ManualAsyncEnumerableHostBindingSample : IHostBindable
         return new(typeof(ManualAsyncEnumerableHostBindingSample), [], [])
         {
             AsyncEnumerator = new(
-                static target => ((ManualAsyncEnumerableHostBindingSample)target).GetAsyncEnumerator(),
+                static target =>
+                    ((ManualAsyncEnumerableHostBindingSample)target).GetAsyncEnumerator(),
                 static state => ((Enumerator)state).MoveNextAsync(),
                 static state => ((Enumerator)state).Current,
-                static state => ((Enumerator)state).DisposeAsync())
+                static state => ((Enumerator)state).DisposeAsync()
+            ),
         };
     }
 
@@ -463,14 +496,19 @@ public class HostInteropTests
         var host = new HostCounter();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            host.Name = "sum";
-            let first = host.AddAndDescribe(3);
-            let keys = Object.keys(host).join(",");
-            let hostName = host.Name;
-            host.Name = "sum2";
-            [first, hostName, host.Count, keys,host.Name].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                host.Name = "sum";
+                let first = host.AddAndDescribe(3);
+                let keys = Object.keys(host).join(",");
+                let hostName = host.Name;
+                host.Name = "sum2";
+                [first, hostName, host.Count, keys,host.Name].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -487,10 +525,15 @@ public class HostInteropTests
         var host = new HostCounter();
         realm.Global["host"] = JsValue.FromObject(realm.WrapHostObject(host));
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            host[1] = "bb";
-            [host[0], host[1], Reflect.ownKeys(host).slice(0, 3).join(",")].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                host[1] = "bb";
+                [host[0], host[1], Reflect.ownKeys(host).slice(0, 3).join(",")].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -504,16 +547,21 @@ public class HostInteropTests
         var realm = CreateClrRealm();
         realm.Global["host"] = realm.WrapHostValue(new HostCounter());
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const nameDesc = Object.getOwnPropertyDescriptor(host, "Name");
-            const countDesc = Object.getOwnPropertyDescriptor(host, "Count");
-            const methodDesc = Object.getOwnPropertyDescriptor(host, "AddAndDescribe");
-            [
-              typeof nameDesc.get === "function" && !("value" in nameDesc),
-              typeof countDesc.get === "function" && typeof countDesc.set === "function" && !("value" in countDesc),
-              typeof methodDesc.value === "function" && methodDesc.get === undefined && methodDesc.set === undefined
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const nameDesc = Object.getOwnPropertyDescriptor(host, "Name");
+                const countDesc = Object.getOwnPropertyDescriptor(host, "Count");
+                const methodDesc = Object.getOwnPropertyDescriptor(host, "AddAndDescribe");
+                [
+                  typeof nameDesc.get === "function" && !("value" in nameDesc),
+                  typeof countDesc.get === "function" && typeof countDesc.set === "function" && !("value" in countDesc),
+                  typeof methodDesc.value === "function" && methodDesc.get === undefined && methodDesc.set === undefined
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -527,18 +575,25 @@ public class HostInteropTests
         var realm = CreateClrRealm();
         realm.Global["host"] = realm.WrapHostValue(new StringBuilder(100));
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            [
-              Object.prototype.toString.call(host),
-              host[Symbol.toStringTag]
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                [
+                  Object.prototype.toString.call(host),
+                  host[Symbol.toStringTag]
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(),
-            Is.EqualTo("[object System.Text.StringBuilder]|System.Text.StringBuilder"));
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("[object System.Text.StringBuilder]|System.Text.StringBuilder")
+        );
     }
 
     [Test]
@@ -548,10 +603,15 @@ public class HostInteropTests
         var host = new HostAccessorEdges();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const value = host.SetterOnly;
-            [value === undefined, host.SetterOnlyWriteCount, host.LastSetterOnlyValue].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const value = host.SetterOnly;
+                [value === undefined, host.SetterOnlyWriteCount, host.LastSetterOnlyValue].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -568,10 +628,15 @@ public class HostInteropTests
         var host = new HostAccessorEdges();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            host.GetterOnly = 9;
-            [host.GetterOnlyReadCount, host.GetterOnly].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                host.GetterOnly = 9;
+                [host.GetterOnlyReadCount, host.GetterOnly].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -585,7 +650,9 @@ public class HostInteropTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => realm.WrapHostValue(new HostCounter()));
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            realm.WrapHostValue(new HostCounter())
+        );
 
         Assert.That(ex!.Message, Does.Contain("AllowClrAccess"));
     }
@@ -606,19 +673,27 @@ public class HostInteropTests
     {
         ClrNamespaceSample.Label = "type";
         ClrNamespaceSample.StaticCount = 0;
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
         var sampleNamespace = realm.GetClrNamespace("Okojo.Tests");
-        Assert.That(sampleNamespace.TryGetProperty("ClrNamespaceSample", out var sampleTypeValue), Is.True);
+        Assert.That(
+            sampleNamespace.TryGetProperty("ClrNamespaceSample", out var sampleTypeValue),
+            Is.True
+        );
         Assert.That(sampleTypeValue.TryGetObject(out var sampleTypeObject), Is.True);
         Assert.That(sampleTypeObject, Is.TypeOf<JsHostFunction>());
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const value = new clr.Okojo.Tests.ClrNamespaceSample();
-            value.Ping();
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const value = new clr.Okojo.Tests.ClrNamespaceSample();
+                value.Ping();
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -629,23 +704,32 @@ public class HostInteropTests
     [Test]
     public void ClrNamespaceAndTypeObjectsExposeToStringTag()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            [
-              Object.prototype.toString.call(clr.System),
-              Object.prototype.toString.call(clr.Okojo.Tests.ClrNamespaceSample)
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                [
+                  Object.prototype.toString.call(clr.System),
+                  Object.prototype.toString.call(clr.Okojo.Tests.ClrNamespaceSample)
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(),
-            Is.EqualTo("[object CLR Namespace System]|[object CLR Type Okojo.Tests.ClrNamespaceSample]"));
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo(
+                "[object CLR Namespace System]|[object CLR Type Okojo.Tests.ClrNamespaceSample]"
+            )
+        );
     }
 
     [Test]
@@ -653,24 +737,29 @@ public class HostInteropTests
     {
         ClrNamespaceSample.Label = "type";
         ClrNamespaceSample.StaticCount = 0;
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = clr.Okojo.Tests.ClrNamespaceSample;
-            const labelDesc = Object.getOwnPropertyDescriptor(type, "Label");
-            const methodDesc = Object.getOwnPropertyDescriptor(type, "DescribeStatic");
-            type.Label = "changed";
-            [
-              type.DescribeStatic(4),
-              type.Label,
-              type.StaticCount,
-              typeof labelDesc.get === "function" && typeof labelDesc.set === "function" && !("value" in labelDesc),
-              typeof methodDesc.value === "function" && methodDesc.get === undefined && methodDesc.set === undefined
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = clr.Okojo.Tests.ClrNamespaceSample;
+                const labelDesc = Object.getOwnPropertyDescriptor(type, "Label");
+                const methodDesc = Object.getOwnPropertyDescriptor(type, "DescribeStatic");
+                type.Label = "changed";
+                [
+                  type.DescribeStatic(4),
+                  type.Label,
+                  type.StaticCount,
+                  typeof labelDesc.get === "function" && typeof labelDesc.set === "function" && !("value" in labelDesc),
+                  typeof methodDesc.value === "function" && methodDesc.get === undefined && methodDesc.set === undefined
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -682,27 +771,32 @@ public class HostInteropTests
     public void ClrNamespaceObjectSupportsStaticClasses()
     {
         ClrStaticNamespaceSample.Reset();
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
-            let constructTypeError = false;
-            try {
-              new type();
-            } catch (e) {
-              constructTypeError = e && e.name === "TypeError";
-            }
-            type.Name = "static";
-            [
-              type.AddAndDescribe(2),
-              type.Count,
-              type.Name,
-              constructTypeError
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
+                let constructTypeError = false;
+                try {
+                  new type();
+                } catch (e) {
+                  constructTypeError = e && e.name === "TypeError";
+                }
+                type.Name = "static";
+                [
+                  type.AddAndDescribe(2),
+                  type.Count,
+                  type.Name,
+                  constructTypeError
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -713,15 +807,20 @@ public class HostInteropTests
     [Test]
     public void ClrTypeObjectSupportsStaticMethodOverloads()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
-            [type.Echo(7), type.Echo("hi"), type.Echo({ ok: 1 }).startsWith("object:"), typeof type.Echo].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
+                [type.Echo(7), type.Echo("hi"), type.Echo({ ok: 1 }).startsWith("object:"), typeof type.Echo].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -732,15 +831,20 @@ public class HostInteropTests
     [Test]
     public void ClrHostObjectSupportsInstanceMethodOverloads()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
         realm.Global["sample"] = realm.WrapHostValue(new ClrNamespaceSample());
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            [sample.Echo(3), sample.Echo("ok"), sample.Echo({ ok: 1 }).startsWith("object:"), typeof sample.Echo].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                [sample.Echo(3), sample.Echo("ok"), sample.Echo({ ok: 1 }).startsWith("object:"), typeof sample.Echo].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -751,15 +855,20 @@ public class HostInteropTests
     [Test]
     public void ClrReflectionOverloadResolutionPrefersFixedArityOverParamsArray()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
-            [type.JoinValues(), type.JoinValues(7), type.JoinValues(1, 2, 3)].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = clr.Okojo.Tests.ClrStaticNamespaceSample;
+                [type.JoinValues(), type.JoinValues(7), type.JoinValues(1, 2, 3)].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -770,30 +879,37 @@ public class HostInteropTests
     [Test]
     public void ClrInteropExposesSelectedSpecialNameMethods()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrOperatorSample).Assembly)
-            .AddClrAssembly(typeof(List<>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(ClrOperatorSample).Assembly)
+                .AddClrAssembly(typeof(List<>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
-            const list = new ListOfString();
-            list.Add("a");
-            list.Add("b");
-            list.set_Item(1, "z");
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
+                const list = new ListOfString();
+                list.Add("a");
+                list.Add("b");
+                list.set_Item(1, "z");
 
-            const Sample = clr.Okojo.Tests.ClrOperatorSample;
-            const sum = Sample.op_Addition(new Sample(3), new Sample(4));
+                const Sample = clr.Okojo.Tests.ClrOperatorSample;
+                const sum = Sample.op_Addition(new Sample(3), new Sample(4));
 
-            [
-              typeof list.get_Item,
-              list.get_Item(0),
-              list.get_Item(1),
-              sum.Value
-            ].join("|");
-            """));
+                [
+                  typeof list.get_Item,
+                  list.get_Item(0),
+                  list.get_Item(1),
+                  sum.Value
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -804,16 +920,21 @@ public class HostInteropTests
     [Test]
     public void ClrNamespaceObjectExposesConsoleWriteLineMethod()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(Console).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(Console).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = clr.System.Console;
-            const desc = Object.getOwnPropertyDescriptor(type, "WriteLine");
-            [typeof type.WriteLine, typeof desc.value].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = clr.System.Console;
+                const desc = Object.getOwnPropertyDescriptor(type, "WriteLine");
+                [typeof type.WriteLine, typeof desc.value].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -824,85 +945,112 @@ public class HostInteropTests
     [Test]
     public void ClrNamespaceObjectSupportsGenericTypeBinding()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(List<>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(List<>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const ListOfString = clr.System.Collections.Generic.List(clr.System.String);
-            const list = new ListOfString();
-            list.Add("x");
-            [
-              Object.prototype.toString.call(ListOfString),
-              Object.prototype.toString.call(list),
-              list.Count,
-              list[0]
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const ListOfString = clr.System.Collections.Generic.List(clr.System.String);
+                const list = new ListOfString();
+                list.Add("x");
+                [
+                  Object.prototype.toString.call(ListOfString),
+                  Object.prototype.toString.call(list),
+                  list.Count,
+                  list[0]
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(),
+        Assert.That(
+            realm.Accumulator.AsString(),
             Is.EqualTo(
-                "[object CLR Type System.Collections.Generic.List<System.String>]|[object System.Collections.Generic.List<System.String>]|1|x"));
+                "[object CLR Type System.Collections.Generic.List<System.String>]|[object System.Collections.Generic.List<System.String>]|1|x"
+            )
+        );
     }
 
     [Test]
     public void ClrNamespaceObjectSupportsGenericTypeAritySuffix()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(KeyValuePair<,>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(KeyValuePair<,>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const Pair = clr.System.Collections.Generic.KeyValuePair$2(
-              clr.System.String,
-              clr.System.String
-            );
-            const pair = new Pair("left", "right");
-            [
-              Object.prototype.toString.call(Pair),
-              pair.Key,
-              pair.Value
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const Pair = clr.System.Collections.Generic.KeyValuePair$2(
+                  clr.System.String,
+                  clr.System.String
+                );
+                const pair = new Pair("left", "right");
+                [
+                  Object.prototype.toString.call(Pair),
+                  pair.Key,
+                  pair.Value
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(),
+        Assert.That(
+            realm.Accumulator.AsString(),
             Is.EqualTo(
-                "[object CLR Type System.Collections.Generic.KeyValuePair<System.String, System.String>]|left|right"));
+                "[object CLR Type System.Collections.Generic.KeyValuePair<System.String, System.String>]|left|right"
+            )
+        );
     }
 
     [Test]
     public void ClrNamespaceObjectSupportsGenericMethodAritySuffix()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(Enumerable).Assembly)
-            .AddClrAssembly(typeof(List<>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(Enumerable).Assembly)
+                .AddClrAssembly(typeof(List<>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
-            const list = new ListOfString();
-            list.Add("a");
-            list.Add("b");
-            const toArray = clr.System.Linq.Enumerable.ToArray$1(clr.System.String);
-            const array = toArray(list);
-            [
-              array.Length,
-              array[0],
-              array[1]
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const ListOfString = clr.System.Collections.Generic.List$1(clr.System.String);
+                const list = new ListOfString();
+                list.Add("a");
+                list.Add("b");
+                const toArray = clr.System.Linq.Enumerable.ToArray$1(clr.System.String);
+                const array = toArray(list);
+                [
+                  array.Length,
+                  array[0],
+                  array[1]
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -913,32 +1061,39 @@ public class HostInteropTests
     [Test]
     public void ClrUsingResolverSupportsNamespaceAndTypeImports()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(Enumerable).Assembly)
-            .AddClrAssembly(typeof(KeyValuePair<,>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(Enumerable).Assembly)
+                .AddClrAssembly(typeof(KeyValuePair<,>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const clrUsings = $using(clr.System, clr.System.Collections.Generic);
-            clrUsings.Add(clr.System.Linq.Enumerable);
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const clrUsings = $using(clr.System, clr.System.Collections.Generic);
+                clrUsings.Add(clr.System.Linq.Enumerable);
 
-            const Pair = clrUsings.KeyValuePair$2(clrUsings.String, clrUsings.Int32);
-            const pair = new Pair("count", 3);
-            const ListOfString = clrUsings.List$1(clrUsings.String);
-            const list = new ListOfString();
-            list.Add("x");
-            list.Add("y");
-            const array = clrUsings.ToArray$1(clrUsings.String)(list);
+                const Pair = clrUsings.KeyValuePair$2(clrUsings.String, clrUsings.Int32);
+                const pair = new Pair("count", 3);
+                const ListOfString = clrUsings.List$1(clrUsings.String);
+                const list = new ListOfString();
+                list.Add("x");
+                list.Add("y");
+                const array = clrUsings.ToArray$1(clrUsings.String)(list);
 
-            [
-              pair.Key,
-              pair.Value,
-              array.Length,
-              array[1]
-            ].join("|");
-            """));
+                [
+                  pair.Key,
+                  pair.Value,
+                  array.Length,
+                  array[1]
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -949,26 +1104,33 @@ public class HostInteropTests
     [Test]
     public void ClrHostObjectsSupportSymbolIteratorViaGetEnumerator()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(Dictionary<,>).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(Dictionary<,>).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const $usings = $using(clr.System, clr.System.Collections.Generic);
-            const Dict = $usings.Dictionary$2($usings.String, $usings.String);
-            const dict = new Dict();
-            dict.set_Item("one", "ichi");
-            dict.set_Item("two", "ni");
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const $usings = $using(clr.System, clr.System.Collections.Generic);
+                const Dict = $usings.Dictionary$2($usings.String, $usings.String);
+                const dict = new Dict();
+                dict.set_Item("one", "ichi");
+                dict.set_Item("two", "ni");
 
-            let parts = [];
-            for (const p of dict) {
-              parts.push(p.Key + ":" + p.Value);
-            }
+                let parts = [];
+                for (const p of dict) {
+                  parts.push(p.Key + ":" + p.Value);
+                }
 
-            parts.sort().join("|");
-            """));
+                parts.sort().join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -983,21 +1145,23 @@ public class HostInteropTests
         var host = new PatternEnumerableHostSample([1, 2, 3]);
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = realm.Eval("""
-                              (() => {
-                                const iter = host[Symbol.iterator]();
-                                const first = iter.next();
-                                const closed = iter.return("stop");
-                                const after = iter.next();
-                                return [
-                                  typeof host[Symbol.iterator],
-                                  first.value,
-                                  closed.value,
-                                  closed.done,
-                                  after.done
-                                ].join("|");
-                              })()
-                              """);
+        var value = realm.Eval(
+            """
+            (() => {
+              const iter = host[Symbol.iterator]();
+              const first = iter.next();
+              const closed = iter.return("stop");
+              const after = iter.next();
+              return [
+                typeof host[Symbol.iterator],
+                first.value,
+                closed.value,
+                closed.done,
+                after.done
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("function|1|stop|true|true"));
@@ -1011,23 +1175,25 @@ public class HostInteropTests
         var host = new PatternAsyncEnumerableHostSample([1, 2, 3]);
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const iter = host[Symbol.asyncIterator]();
-                                             const first = await iter.next();
-                                             const closed = await iter.return("done");
-                                             const after = await iter.next();
-                                             const collected = await Array.fromAsync(host);
-                                             return [
-                                               typeof host[Symbol.asyncIterator],
-                                               first.value,
-                                               closed.value,
-                                               closed.done,
-                                               after.done,
-                                               collected.join(",")
-                                             ].join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const iter = host[Symbol.asyncIterator]();
+              const first = await iter.next();
+              const closed = await iter.return("done");
+              const after = await iter.next();
+              const collected = await Array.fromAsync(host);
+              return [
+                typeof host[Symbol.asyncIterator],
+                first.value,
+                closed.value,
+                closed.done,
+                after.done,
+                collected.join(",")
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("function|1|done|true|true|1,2,3"));
@@ -1041,16 +1207,18 @@ public class HostInteropTests
         var host = new PatternAsyncEnumerableHostSample([1, 2, 3]);
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const values = [];
-                                             for await (const value of host) {
-                                               values.push(value);
-                                               break;
-                                             }
-                                             return values.join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const values = [];
+              for await (const value of host) {
+                values.push(value);
+                break;
+              }
+              return values.join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("1"));
@@ -1064,16 +1232,18 @@ public class HostInteropTests
         var host = new PatternEnumerableHostSample([1, 2, 3]);
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const values = [];
-                                             for await (const value of host) {
-                                               values.push(value);
-                                               break;
-                                             }
-                                             return values.join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const values = [];
+              for await (const value of host) {
+                values.push(value);
+                break;
+              }
+              return values.join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("1"));
@@ -1084,14 +1254,18 @@ public class HostInteropTests
     public async Task ManualHostBindingSupportsAsyncEnumerableConversion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["host"] = realm.WrapHostValue(new ManualAsyncEnumerableHostBindingSample(4, 5, 6));
+        realm.Global["host"] = realm.WrapHostValue(
+            new ManualAsyncEnumerableHostBindingSample(4, 5, 6)
+        );
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const result = await Array.fromAsync(host);
-                                             return result.join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const result = await Array.fromAsync(host);
+              return result.join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("4|5|6"));
@@ -1104,16 +1278,18 @@ public class HostInteropTests
         var host = new CompilerGeneratedAsyncEnumerableHostSample();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const values = [];
-                                             for await (const value of host.SampleAsync()) {
-                                               values.push(value);
-                                               break;
-                                             }
-                                             return values.join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const values = [];
+              for await (const value of host.SampleAsync()) {
+                values.push(value);
+                break;
+              }
+              return values.join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("1"));
@@ -1127,15 +1303,17 @@ public class HostInteropTests
         var host = new CompilerGeneratedAsyncEnumerableHostSample();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             const values = [];
-                                             for await (const value of host.SampleAsync()) {
-                                               values.push(value);
-                                             }
-                                             return values.join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              const values = [];
+              for await (const value of host.SampleAsync()) {
+                values.push(value);
+              }
+              return values.join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("1|2|3|4|5|6|7|8|9|10"));
@@ -1149,17 +1327,19 @@ public class HostInteropTests
         var host = new DisposableHostSample();
         realm.Global["host"] = realm.WrapHostValue(host);
 
-        var value = await realm.EvalAsync("""
-                                           (async () => {
-                                             host[Symbol.dispose]();
-                                             await host[Symbol.asyncDispose]();
-                                             return [
-                                               typeof Symbol.asyncDispose,
-                                               typeof host[Symbol.dispose],
-                                               typeof host[Symbol.asyncDispose]
-                                             ].join("|");
-                                           })()
-                                           """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              host[Symbol.dispose]();
+              await host[Symbol.asyncDispose]();
+              return [
+                typeof Symbol.asyncDispose,
+                typeof host[Symbol.dispose],
+                typeof host[Symbol.asyncDispose]
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("symbol|function|function"));
@@ -1170,24 +1350,31 @@ public class HostInteropTests
     [Test]
     public void ClrHelpersSupportRefOutPlaceholdersAndTypedNull()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrRefOutSample).Assembly)
-            .AddClrAssembly(typeof(int).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(ClrRefOutSample).Assembly)
+                .AddClrAssembly(typeof(int).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const sample = clr.Okojo.Tests.ClrRefOutSample;
-            const n = $place(clr.System.Int32, 4);
-            const s = $place(clr.System.String);
-            sample.Increment(n);
-            sample.AssignText(s);
-            [
-              n.value,
-              s.value,
-              sample.Choose($null(clr.System.String))
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const sample = clr.Okojo.Tests.ClrRefOutSample;
+                const n = $place(clr.System.Int32, 4);
+                const s = $place(clr.System.String);
+                sample.Increment(n);
+                sample.AssignText(s);
+                [
+                  n.value,
+                  s.value,
+                  sample.Choose($null(clr.System.String))
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1198,20 +1385,27 @@ public class HostInteropTests
     [Test]
     public void ClrCastHelperForcesClrConversion()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly)
-            .AddClrAssembly(typeof(int).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(ClrStaticNamespaceSample).Assembly)
+                .AddClrAssembly(typeof(int).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const sample = clr.Okojo.Tests.ClrStaticNamespaceSample;
-            [
-              sample.Echo(7),
-              sample.Echo($cast(clr.System.String, 7)),
-              sample.Echo$1(clr.System.Int32)(9)
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const sample = clr.Okojo.Tests.ClrStaticNamespaceSample;
+                [
+                  sample.Echo(7),
+                  sample.Echo($cast(clr.System.String, 7)),
+                  sample.Echo$1(clr.System.Int32)(9)
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1222,20 +1416,27 @@ public class HostInteropTests
     [Test]
     public void ClrVoidMethodReturnsUndefined()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(List<>).Assembly)
-            .AddClrAssembly(typeof(int).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(List<>).Assembly)
+                .AddClrAssembly(typeof(int).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const ListOfInt = clr.System.Collections.Generic.List(clr.System.Int32);
-            const list = new ListOfInt();
-            [
-              list.Add(7) === undefined,
-              list[0]
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const ListOfInt = clr.System.Collections.Generic.List(clr.System.Int32);
+                const list = new ListOfInt();
+                [
+                  list.Add(7) === undefined,
+                  list[0]
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1246,20 +1447,25 @@ public class HostInteropTests
     [Test]
     public void ClrNamespaceObjectRespectsAssemblyOptIn()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(StringBuilder).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options.AllowClrAccess().AddClrAssembly(typeof(StringBuilder).Assembly)
+        );
         var realm = engine.DefaultRealm;
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            let ok = false;
-            try {
-              new clr.Okojo.Tests.ClrNamespaceSample();
-              ok = true;
-            } catch (e) {
-            }
-            ok;
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                let ok = false;
+                try {
+                  new clr.Okojo.Tests.ClrNamespaceSample();
+                  ok = true;
+                } catch (e) {
+                }
+                ok;
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1270,7 +1476,7 @@ public class HostInteropTests
     public void ClrGlobalIsUndefinedWhenClrAccessDisabled()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("typeof clr;"));
+        var script = realm.CompileScript("typeof clr;");
 
         realm.Execute(script);
 
@@ -1288,6 +1494,38 @@ public class HostInteropTests
         var second = realm.WrapHostObject(sample);
 
         Assert.That(ReferenceEquals(first, second), Is.True);
+    }
+
+    [Test]
+    public void CallInfoGetThisReadsUserDataObjects()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var sample = new ManualHostBindingSample();
+        var function = new JsHostFunction(
+            realm,
+            (in info) =>
+                ReferenceEquals(info.GetThis<ManualHostBindingSample>(), sample)
+                    ? JsValue.True
+                    : JsValue.False,
+            "test",
+            0
+        );
+
+        var untypedWrapper = new JsUserDataObject(realm) { UserData = sample };
+        var typedWrapper = new JsUserDataObject<ManualHostBindingSample>(realm)
+        {
+            UserData = sample,
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                function.Call(realm, JsValue.FromObject(untypedWrapper), []).IsTrue,
+                Is.True
+            );
+            Assert.That(function.Call(realm, JsValue.FromObject(typedWrapper), []).IsTrue, Is.True);
+        });
     }
 
     [Test]
@@ -1319,19 +1557,26 @@ public class HostInteropTests
     public void ManualHostBindingSupportsFastMembersAndReflectionFallback()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
+        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(
+            ManualHostBindingSample.ToJsType(realm)
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = ManualHostBindingSample;
-            const sample = new type();
-            sample.X = 1.5;
-            [
-              sample.X,
-              type.Sin(0),
-              sample.EchoOptional(),
-              Object.getOwnPropertyDescriptor(sample, "X").get !== undefined
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = ManualHostBindingSample;
+                const sample = new type();
+                sample.X = 1.5;
+                [
+                  sample.X,
+                  type.Sin(0),
+                  sample.EchoOptional(),
+                  Object.getOwnPropertyDescriptor(sample, "X").get !== undefined
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1344,12 +1589,21 @@ public class HostInteropTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var sample = new ManualHostBindingSample();
-        realm.Global["sample"] = JsValue.FromObject(ManualHostBindingSample.ToJsObject(realm, sample));
-        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
+        realm.Global["sample"] = JsValue.FromObject(
+            ManualHostBindingSample.ToJsObject(realm, sample)
+        );
+        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(
+            ManualHostBindingSample.ToJsType(realm)
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            sample === ManualHostBindingSample.Bounce(sample);
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                sample === ManualHostBindingSample.Bounce(sample);
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1368,27 +1622,40 @@ public class HostInteropTests
 
         Assert.That(ReferenceEquals(wrapper, wrappedAgain), Is.True);
         Assert.That(
-            ReferenceEquals(typeFunction,
-                realm.WrapHostType(typeof(ManualHostBindingSample), ((IHostBindable)sample).GetHostBinding())),
-            Is.True);
+            ReferenceEquals(
+                typeFunction,
+                realm.WrapHostType(
+                    typeof(ManualHostBindingSample),
+                    ((IHostBindable)sample).GetHostBinding()
+                )
+            ),
+            Is.True
+        );
     }
 
     [Test]
     public void GeneratedHostBindingSupportsGeneratedMembers()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
+        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(
+            GeneratedHostBindingSample.ToJsType(realm)
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const type = GeneratedHostBindingSample;
-            const sample = new type();
-            sample.x = 2.5;
-            [
-              sample.x,
-              sample.echo("ok"),
-              type.sin(0)
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const type = GeneratedHostBindingSample;
+                const sample = new type();
+                sample.x = 2.5;
+                [
+                  sample.x,
+                  sample.echo("ok"),
+                  type.sin(0)
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1400,23 +1667,33 @@ public class HostInteropTests
     public void GeneratedHostBindingSupportsReadOnlySpanArguments()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
+        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(
+            GeneratedHostBindingSample.ToJsType(realm)
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            [
-              GeneratedHostBindingSample.sumNumbers(1, 2, 3, 4),
-              GeneratedHostBindingSample.describeJsValues(1, "x", true),
-              GeneratedHostBindingSample.describeAny(1, "x", true),
-              GeneratedHostBindingSample.pick("x"),
-              GeneratedHostBindingSample.pick(7),
-              GeneratedHostBindingSample.pick(true)
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                [
+                  GeneratedHostBindingSample.sumNumbers(1, 2, 3, 4),
+                  GeneratedHostBindingSample.describeJsValues(1, "x", true),
+                  GeneratedHostBindingSample.describeAny(1, "x", true),
+                  GeneratedHostBindingSample.pick("x"),
+                  GeneratedHostBindingSample.pick(7),
+                  GeneratedHostBindingSample.pick(true)
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsString, Is.True);
-        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("10|1|x|true|1|x|True|string:x|number:7|object:True"));
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("10|1|x|true|1|x|True|string:x|number:7|object:True")
+        );
     }
 
     [Test]
@@ -1431,30 +1708,45 @@ public class HostInteropTests
 
         Assert.That(ReferenceEquals(wrapper, wrappedAgain), Is.True);
         Assert.That(
-            ReferenceEquals(typeFunction,
-                realm.WrapHostType(typeof(GeneratedHostBindingSample),
-                    ((IHostBindable)sample).GetHostBinding())), Is.True);
+            ReferenceEquals(
+                typeFunction,
+                realm.WrapHostType(
+                    typeof(GeneratedHostBindingSample),
+                    ((IHostBindable)sample).GetHostBinding()
+                )
+            ),
+            Is.True
+        );
     }
 
     [Test]
     public void ManualAndGeneratedBindingsWorkWithoutClrAccess()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(ManualHostBindingSample.ToJsType(realm));
-        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(GeneratedHostBindingSample.ToJsType(realm));
+        realm.Global["ManualHostBindingSample"] = JsValue.FromObject(
+            ManualHostBindingSample.ToJsType(realm)
+        );
+        realm.Global["GeneratedHostBindingSample"] = JsValue.FromObject(
+            GeneratedHostBindingSample.ToJsType(realm)
+        );
 
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-            const a = new ManualHostBindingSample();
-            const b = new GeneratedHostBindingSample();
-            a.X = 3.5;
-            b.x = 4.5;
-            [
-              a.X,
-              ManualHostBindingSample.Sin(0),
-              b.x,
-              GeneratedHostBindingSample.sin(0)
-            ].join("|");
-            """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                const a = new ManualHostBindingSample();
+                const b = new GeneratedHostBindingSample();
+                a.X = 3.5;
+                b.x = 4.5;
+                [
+                  a.X,
+                  ManualHostBindingSample.Sin(0),
+                  b.x,
+                  GeneratedHostBindingSample.sin(0)
+                ].join("|");
+                """
+            )
+        );
 
         realm.Execute(script);
 
@@ -1465,21 +1757,25 @@ public class HostInteropTests
     [Test]
     public async Task ClrHostInteropConvertsTaskAndPromise()
     {
-        var engine = JsRuntime.Create(options => options
-            .AllowClrAccess()
-            .AddClrAssembly(typeof(ClrAsyncNamespaceSample).Assembly)
-            .AddClrAssembly(typeof(string).Assembly));
+        var engine = JsRuntime.Create(options =>
+            options
+                .AllowClrAccess()
+                .AddClrAssembly(typeof(ClrAsyncNamespaceSample).Assembly)
+                .AddClrAssembly(typeof(string).Assembly)
+        );
         var realm = engine.DefaultRealm;
         realm.Global["sample"] = realm.WrapHostValue(new ClrAsyncNamespaceSample());
 
-        var value = await realm.EvalAsync("""
-                                          (async () => {
-                                            return [
-                                              await sample.EchoAsync("ok"),
-                                              await clr.Okojo.Tests.ClrAsyncNamespaceSample.AwaitEcho(Promise.resolve("x"))
-                                            ].join("|");
-                                          })()
-                                          """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              return [
+                await sample.EchoAsync("ok"),
+                await clr.Okojo.Tests.ClrAsyncNamespaceSample.AwaitEcho(Promise.resolve("x"))
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("echo:ok|await:x"));
@@ -1489,16 +1785,20 @@ public class HostInteropTests
     public async Task ManualHostBindingConvertsTaskAndPromiseWithoutClrAccess()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["ManualAsyncHostBindingSample"] = JsValue.FromObject(ManualAsyncHostBindingSample.ToJsType(realm));
+        realm.Global["ManualAsyncHostBindingSample"] = JsValue.FromObject(
+            ManualAsyncHostBindingSample.ToJsType(realm)
+        );
 
-        var value = await realm.EvalAsync("""
-                                          (async () => {
-                                            return [
-                                              await ManualAsyncHostBindingSample.EchoAsync("ok"),
-                                              await ManualAsyncHostBindingSample.AwaitEcho(Promise.resolve("x"))
-                                            ].join("|");
-                                          })()
-                                          """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              return [
+                await ManualAsyncHostBindingSample.EchoAsync("ok"),
+                await ManualAsyncHostBindingSample.AwaitEcho(Promise.resolve("x"))
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("manual:ok|manual-await:x"));
@@ -1508,17 +1808,20 @@ public class HostInteropTests
     public async Task GeneratedHostBindingConvertsTaskAndPromiseWithoutClrAccess()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["GeneratedAsyncHostBindingSample"] =
-            JsValue.FromObject(GeneratedAsyncHostBindingSample.ToJsType(realm));
+        realm.Global["GeneratedAsyncHostBindingSample"] = JsValue.FromObject(
+            GeneratedAsyncHostBindingSample.ToJsType(realm)
+        );
 
-        var value = await realm.EvalAsync("""
-                                          (async () => {
-                                            return [
-                                              await GeneratedAsyncHostBindingSample.echoAsync("ok"),
-                                              await GeneratedAsyncHostBindingSample.awaitEcho(Promise.resolve("x"))
-                                            ].join("|");
-                                          })()
-                                          """);
+        var value = await realm.EvalAsync(
+            """
+            (async () => {
+              return [
+                await GeneratedAsyncHostBindingSample.echoAsync("ok"),
+                await GeneratedAsyncHostBindingSample.awaitEcho(Promise.resolve("x"))
+              ].join("|");
+            })()
+            """
+        );
 
         Assert.That(value.IsString, Is.True);
         Assert.That(value.AsString(), Is.EqualTo("generated:ok|generated-await:x"));
@@ -1528,13 +1831,16 @@ public class HostInteropTests
     public async Task CallAsyncAwaitsReturnedPromise()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        realm.Global["GeneratedAsyncHostBindingSample"] =
-            JsValue.FromObject(GeneratedAsyncHostBindingSample.ToJsType(realm));
-        realm.Eval("""
-                   async function runCallAsync() {
-                     return await GeneratedAsyncHostBindingSample.echoAsync("call");
-                   }
-                   """);
+        realm.Global["GeneratedAsyncHostBindingSample"] = JsValue.FromObject(
+            GeneratedAsyncHostBindingSample.ToJsType(realm)
+        );
+        realm.Eval(
+            """
+            async function runCallAsync() {
+              return await GeneratedAsyncHostBindingSample.echoAsync("call");
+            }
+            """
+        );
 
         var fn = realm.Global["runCallAsync"];
         var value = await realm.CallAsync(fn, JsValue.Undefined);
@@ -1547,29 +1853,37 @@ public class HostInteropTests
     public void JsMember_Can_Be_Shared_And_Opted_Out_Per_Surface()
     {
         var sample = new SharedJsMemberSurfaceSample();
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseGlobals(sample.InstallGeneratedGlobals)
             .Build();
         var realm = runtime.MainRealm;
-        realm.Global["SharedJsMemberSurfaceSample"] = JsValue.FromObject(SharedJsMemberSurfaceSample.ToJsType(realm));
+        realm.Global["SharedJsMemberSurfaceSample"] = JsValue.FromObject(
+            SharedJsMemberSurfaceSample.ToJsType(realm)
+        );
 
-        var result = realm.Eval("""
-                                const type = SharedJsMemberSurfaceSample;
-                                const instance = new type();
-                                instance.sharedValue = 5;
-                                [
-                                  sharedAction(),
-                                  typeof objectOnly,
-                                  globalOnly(),
-                                  type.sharedAction(),
-                                  type.objectOnly(),
-                                  typeof type.globalOnly,
-                                  instance.sharedValue
-                                ].join("|");
-                                """);
+        var result = realm.Eval(
+            """
+            const type = SharedJsMemberSurfaceSample;
+            const instance = new type();
+            instance.sharedValue = 5;
+            [
+              sharedAction(),
+              typeof objectOnly,
+              globalOnly(),
+              type.sharedAction(),
+              type.objectOnly(),
+              typeof type.globalOnly,
+              instance.sharedValue
+            ].join("|");
+            """
+        );
 
         Assert.That(result.IsString, Is.True);
-        Assert.That(result.AsString(), Is.EqualTo("shared|undefined|global|shared|object|undefined|5"));
+        Assert.That(
+            result.AsString(),
+            Is.EqualTo("shared|undefined|global|shared|object|undefined|5")
+        );
     }
 
     [Test]
@@ -1577,12 +1891,16 @@ public class HostInteropTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var sample = new PascalCaseJsMemberObjectSample();
-        realm.Global["sample"] = JsValue.FromObject(PascalCaseJsMemberObjectSample.ToJsObject(realm, sample));
+        realm.Global["sample"] = JsValue.FromObject(
+            PascalCaseJsMemberObjectSample.ToJsObject(realm, sample)
+        );
 
-        var result = realm.Eval("""
-                                sample.SampleValue = 9;
-                                [sample.SampleValue, sample.DoThing()].join("|");
-                                """);
+        var result = realm.Eval(
+            """
+            sample.SampleValue = 9;
+            [sample.SampleValue, sample.DoThing()].join("|");
+            """
+        );
 
         Assert.That(result.IsString, Is.True);
         Assert.That(result.AsString(), Is.EqualTo("9|pascal"));
@@ -1592,7 +1910,8 @@ public class HostInteropTests
     public void GenerateJsGlobals_Can_Use_AsDeclared_MemberNaming()
     {
         var sample = new AsDeclaredJsGlobalsSample();
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseGlobals(sample.InstallGeneratedGlobals)
             .Build();
         var realm = runtime.MainRealm;
@@ -1614,15 +1933,35 @@ public class HostInteropTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(HostValueConverter.ConvertFromJsValue<int>(realm, JsValue.FromInt32(12)), Is.EqualTo(12));
-            Assert.That(HostValueConverter.ConvertFromJsValue<double>(realm, new(12.5d)), Is.EqualTo(12.5d));
-            Assert.That(HostValueConverter.ConvertFromJsValue<string>(realm, JsValue.FromInt32(12)), Is.EqualTo("12"));
-            Assert.That(HostValueConverter.ConvertFromJsValue<string?>(realm, JsValue.Null), Is.Null);
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<int>(realm, JsValue.FromInt32(12)),
+                Is.EqualTo(12)
+            );
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<double>(realm, new(12.5d)),
+                Is.EqualTo(12.5d)
+            );
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<string>(realm, JsValue.FromInt32(12)),
+                Is.EqualTo("12")
+            );
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<string?>(realm, JsValue.Null),
+                Is.Null
+            );
             Assert.That(HostValueConverter.ConvertFromJsValue<int?>(realm, JsValue.Null), Is.Null);
-            Assert.That(HostValueConverter.ConvertFromJsValue<object>(realm, JsValue.True), Is.EqualTo(true));
-            Assert.That(HostValueConverter.ConvertFromJsValue<JsObject>(realm, hostValue), Is.SameAs(hostObject));
-            Assert.That(HostValueConverter.ConvertFromJsValue<ManualHostBindingSample>(realm, hostValue),
-                Is.SameAs(host));
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<object>(realm, JsValue.True),
+                Is.EqualTo(true)
+            );
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<JsObject>(realm, hostValue),
+                Is.SameAs(hostObject)
+            );
+            Assert.That(
+                HostValueConverter.ConvertFromJsValue<ManualHostBindingSample>(realm, hostValue),
+                Is.SameAs(host)
+            );
         });
     }
 
@@ -1637,15 +1976,38 @@ public class HostInteropTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(JsValue.FromInt32(12).TryRead<int>(out var intValue) && intValue == 12, Is.True);
-            Assert.That(new JsValue(12.5d).TryRead<double>(out var doubleValue) && doubleValue == 12.5d, Is.True);
-            Assert.That(JsValue.FromString("ok").TryRead<string>(out var stringValue) && stringValue == "ok", Is.True);
+            Assert.That(
+                JsValue.FromInt32(12).TryRead<int>(out var intValue) && intValue == 12,
+                Is.True
+            );
+            Assert.That(
+                new JsValue(12.5d).TryRead<double>(out var doubleValue) && doubleValue == 12.5d,
+                Is.True
+            );
+            Assert.That(
+                JsValue.FromString("ok").TryRead<string>(out var stringValue)
+                    && stringValue == "ok",
+                Is.True
+            );
             Assert.That(JsValue.True.TryRead<bool>(out var boolValue) && boolValue, Is.True);
-            Assert.That(hostValue.TryRead<JsObject>(out var objectValue) && ReferenceEquals(objectValue, hostObject), Is.True);
-            Assert.That(hostValue.TryRead<ManualHostBindingSample>(out var hostData) && ReferenceEquals(hostData, host),
-                Is.True);
-            Assert.That(JsValue.Null.TryRead<string?>(out var nullableString) && nullableString is null, Is.True);
-            Assert.That(JsValue.Null.TryRead<int?>(out var nullableInt) && nullableInt is null, Is.True);
+            Assert.That(
+                hostValue.TryRead<JsObject>(out var objectValue)
+                    && ReferenceEquals(objectValue, hostObject),
+                Is.True
+            );
+            Assert.That(
+                hostValue.TryRead<ManualHostBindingSample>(out var hostData)
+                    && ReferenceEquals(hostData, host),
+                Is.True
+            );
+            Assert.That(
+                JsValue.Null.TryRead<string?>(out var nullableString) && nullableString is null,
+                Is.True
+            );
+            Assert.That(
+                JsValue.Null.TryRead<int?>(out var nullableInt) && nullableInt is null,
+                Is.True
+            );
             Assert.That(JsValue.FromInt32(12).TryRead<string>(out _), Is.False);
         });
     }
@@ -1655,7 +2017,7 @@ public class HostInteropTests
         private readonly string[] items = ["a", "b", "c"];
         public int Count;
 
-        public string Name { get;set; } = "start";
+        public string Name { get; set; } = "start";
 
         public int Length => items.Length;
 
@@ -1776,7 +2138,8 @@ public class HostInteropTests
             }
         }
 
-        private sealed class DisposeTracker(CompilerGeneratedAsyncEnumerableHostSample owner) : IDisposable
+        private sealed class DisposeTracker(CompilerGeneratedAsyncEnumerableHostSample owner)
+            : IDisposable
         {
             public void Dispose()
             {

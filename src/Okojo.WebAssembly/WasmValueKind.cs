@@ -8,5 +8,5 @@ public enum WasmValueKind
     Float64,
     FuncRef,
     ExternRef,
-    V128
+    V128,
 }

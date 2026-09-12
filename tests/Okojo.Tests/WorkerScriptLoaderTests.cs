@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Tests;
 
@@ -40,7 +42,11 @@ public class WorkerScriptLoaderTests
     [Test]
     public void LoadWorkerScript_DefaultFileLoader_ResolvesRelativeToReferrerDirectory()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "OkojoWorkerScriptLoaderTests", Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Combine(
+            Path.GetTempPath(),
+            "OkojoWorkerScriptLoaderTests",
+            Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(tempDir);
         var ownerPath = Path.Combine(tempDir, "owner.js");
         var workerPath = Path.Combine(tempDir, "worker.js");

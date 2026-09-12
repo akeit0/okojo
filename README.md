@@ -1,5 +1,5 @@
 # Okojo
-<img src="./docs/okojo_logo.svg" width="20%">
+<img src="./docs/assets/okojo_logo.svg" width="20%">
 
 
 "Okojo" means "ermine" or "stoat" in Japanese.
@@ -24,43 +24,17 @@ The project is still **prerelease**. Public APIs and package boundaries are bein
 - core language and runtime correctness are the top priority
 - non-legacy, non-staging Test262 baseline coverage is currently passing in the working baseline
 - deprecated and legacy corners are intentionally not a priority unless explicitly re-approved
-- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262-progress-and-compatibility-tracking)
-- Unlike jint, its RegExp implementation is ECMAScript 262 compliant, although its performance is not very good.
+- Except for intentional legacy, direct-eval, and the skipping of with statements, the baseline passes **100%** of test262. [See Test262 Section](#test262)
+- RegExp runs on Okojo's own spec-compatible backtracking engine (`src/Okojo.Text.RegularExpressions`). Engine comparisons pin Jint 4.16.1; see [benchmarks/README.md](benchmarks/README.md).
 - runtime support is currently **.NET 10+**
 - core runtime packages are intended to stay **NativeAOT-friendly by default**
 - browser-facing and Node-facing integration work is active, but not every `src/` project is part of the first public wave
 
 ## Performance
 
-Although it is not as fast as other implementations that are famous for being more than just an interpreter, it is more than **3** times faster than [jint](https://github.com/sebastienros/jint). 
-
-It is expected to become about **1.5** times faster through performance tuning.
-I'd like to emphasize the **low allocation**.
-
-[for-loop-sum.js](benchmarks/Okojo.Benchmarks/scripts/for-loop-sum.js)
-[many-object.js](benchmarks/Okojo.Benchmarks/scripts/many-object.js)
-[pure-function-call.js](benchmarks/Okojo.Benchmarks/scripts/pure-function-call.js)
-![img](./docs/benchmark.png)
-https://chartbenchmark.net/
-
-| Method | Scenario           | Mean       | Error     | StdDev   | Ratio | Gen0     | Allocated | Alloc Ratio |
-|------- |------------------- |-----------:|----------:|---------:|------:|---------:|----------:|------------:|
-| Jint   | for-loop-sum       | 1,503.6 us | 245.87 us | 13.48 us |  1.00 | 142.5781 | 2236280 B |       1.000 |
-| Okojo  | for-loop-sum       |   471.0 us |  37.55 us |  2.06 us |  0.31 |        - |      88 B |       0.000 |
-|        |                    |            |           |          |       |          |           |             |
-| Jint   | many-object        | 1,506.1 us |  68.16 us |  3.74 us |  1.00 | 109.3750 | 1743560 B |        1.00 |
-| Okojo  | many-object        |   452.2 us |  14.31 us |  0.78 us |  0.30 |  27.3438 |  432000 B |        0.25 |
-|        |                    |            |           |          |       |          |           |             |
-| Jint   | pure-function-call | 1,620.5 us | 293.68 us | 16.10 us |  1.00 | 162.1094 | 2561672 B |       1.000 |
-| Okojo  | pure-function-call |   464.0 us |  19.73 us |  1.08 us |  0.29 |        - |     280 B |       0.000 |
-
-Benchmark project:
-
-```powershell
-dotnet run --project benchmarks/Okojo.Benchmarks/Okojo.Benchmarks.csproj -c Release
-```
-
-The benchmark suite uses BenchmarkDotNet and includes compile, promise, async, property-path, global-binding, and Jint comparison scenarios under `benchmarks/Okojo.Benchmarks`.
+Okojo targets low-allocation execution on a register VM. All benchmark detail —
+suites, pinned comparison baseline (currently Jint 4.16.1), how to re-run, and
+the latest measured numbers — lives in [benchmarks/README.md](benchmarks/README.md).
 
 
 ## Public package wave
@@ -69,9 +43,15 @@ These are the `src/` packages currently marked `IsPackable=true` and intended as
 
 | Package | NuGet | Role |
 | --- | --- | --- |
-| `Okojo` | [nuget.org/packages/Okojo](https://www.nuget.org/packages/Okojo) | Core engine, runtime, modules, compiler, embedding API |
+| `Okojo.JavaScript` | [nuget.org/packages/Okojo.JavaScript](https://www.nuget.org/packages/Okojo.JavaScript) | Core engine: parser, compiler, VM, realms, intrinsics |
+| `Okojo.JavaScript.Embedding` | [nuget.org/packages/Okojo.JavaScript.Embedding](https://www.nuget.org/packages/Okojo.JavaScript.Embedding) | Builder-first embedding and host composition API |
 | `Okojo.Hosting` | [nuget.org/packages/Okojo.Hosting](https://www.nuget.org/packages/Okojo.Hosting) | Host queues, schedulers, workers, and runtime helpers |
 | `Okojo.Diagnostics` | [nuget.org/packages/Okojo.Diagnostics](https://www.nuget.org/packages/Okojo.Diagnostics) | Formatting, inspection, and disassembly helpers |
+| `Okojo.Text.RegularExpressions` | [nuget.org/packages/Okojo.Text.RegularExpressions](https://www.nuget.org/packages/Okojo.Text.RegularExpressions) | Engine-independent ECMAScript-compatible RegExp |
+| `Okojo.Text.Unicode` | [nuget.org/packages/Okojo.Text.Unicode](https://www.nuget.org/packages/Okojo.Text.Unicode) | Engine-independent ECMAScript-compatible Unicode utilities |
+| `Okojo.Numerics` | [nuget.org/packages/Okojo.Numerics](https://www.nuget.org/packages/Okojo.Numerics) | Engine-independent ECMAScript-compatible numerics (BigInt, decimal, conversions) |
+| `Okojo.Globalization` | [nuget.org/packages/Okojo.Globalization](https://www.nuget.org/packages/Okojo.Globalization) | Engine-independent ECMAScript-compatible globalization and Intl cores |
+| `Okojo.DotNet.Modules` | [nuget.org/packages/Okojo.DotNet.Modules](https://www.nuget.org/packages/Okojo.DotNet.Modules) | .NET ecosystem module-resolution and cache primitives |
 | `Okojo.Reflection` | [nuget.org/packages/Okojo.Reflection](https://www.nuget.org/packages/Okojo.Reflection) | Reflection-based CLR interop extensions |
 | `Okojo.WebPlatform` | [nuget.org/packages/Okojo.WebPlatform](https://www.nuget.org/packages/Okojo.WebPlatform) | `fetch`, timers, workers, and web host APIs |
 | `Okojo.WebAssembly` | [nuget.org/packages/Okojo.WebAssembly](https://www.nuget.org/packages/Okojo.WebAssembly) | Backend-agnostic WebAssembly integration |
@@ -93,7 +73,7 @@ Not part of the current public package wave:
 ## Quick start
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.CreateBuilder().Build();
 
@@ -135,7 +115,8 @@ The main embedding shape is:
 `JsValue` is the core public value type. It is a compact value container used for primitives, strings, objects, symbols, bigints, and host interop.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.Create();
 var realm = runtime.MainRealm;
@@ -160,6 +141,8 @@ Some commonly useful `JsValue` members:
 ## Execution duration Constraints
 You can set execution duration in instructions level.
 ```cs
+using Okojo.JavaScript.Embedding;
+
 using var rt = JsRuntime.CreateBuilder()
     .UseAgent(agent =>
     {
@@ -174,14 +157,15 @@ realm.Evaluate("while(true){}");
 ```
 
 ```
-Unhandled exception. Okojo.Runtime.JsRuntimeException: Execution limit exceeded
+Unhandled exception. Okojo.JavaScript.Execution.JsRuntimeException: Execution limit exceeded
 ```
 ## Installing host globals
 
 You can install globals directly from the runtime builder without defining a full host object model.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 using var runtime = JsRuntime.CreateBuilder()
     .UseGlobals(globals => globals
@@ -205,7 +189,7 @@ That builder style is the preferred public composition path.
 If you want CLR namespace and type access from JavaScript, add `Okojo.Reflection` explicitly and opt into reflection-backed interop:
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.Reflection;
 
 using var runtime = JsRuntime.CreateBuilder()
@@ -254,7 +238,8 @@ dotnet run --project .\sandbox\OkojoRepl\OkojoRepl.csproj
 Okojo supports ECMAScript modules through the runtime loader surface.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
 
 var loader = new InMemoryModuleLoader(new Dictionary<string, string>
 {
@@ -282,6 +267,8 @@ There are runnable module-focused examples under:
 The host sandbox examples show both browser-like and server-like queue wiring:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var runtime = JsRuntime.CreateBuilder()
     .UseTimeProvider(timeProvider)
     .UseLowLevelHost(host => host.UseTaskScheduler(eventLoop))
@@ -297,6 +284,8 @@ var runtime = JsRuntime.CreateBuilder()
 If you want a smaller default set for timers, delays, and related runtime globals, the examples also use:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var runtime = JsRuntime.CreateBuilder()
     .UseWebRuntimeGlobals()
     .Build();
@@ -361,7 +350,7 @@ Useful references:
 
 - `sandbox/OkojoInkProbe`
 - `src/Okojo.Node.Cli/NodeCliApplication.cs`
-- `docs/OKOJO_NODE_INK_DEBUG_WORKFLOW.md`
+- `docs/integrations/node/OKOJO_NODE_INK_DEBUG_WORKFLOW.md`
 
 ## Source generation with `Okojo.Annotations` and `Okojo.SourceGenerator`
 
@@ -402,6 +391,8 @@ internal sealed partial class SketchGlobals
 Then install the generated globals:
 
 ```csharp
+using Okojo.JavaScript.Embedding;
+
 var globals = new SketchGlobals();
 
 using var runtime = JsRuntime.CreateBuilder()
@@ -419,7 +410,7 @@ Real references:
 `GenerateJsObjectAttribute` is for object-style bindings. Members are opt-in via `[JsMember]`. `DocDeclarationAttribute` and `DocIgnoreAttribute` control declaration output.
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript;
 using Okojo.Annotations;
 using Okojo.DocGenerator.Annotations;
 
@@ -533,27 +524,30 @@ declare namespace OkojoArtSandbox {
 
 The tool entry point lives in `src/Okojo.DocGenerator.Cli/Program.cs`.
 
-## VS Code debugger
+## DAP and VS Code debugger
 
-There is also an in-repo VS Code debugger scaffold under `src/vscode-debug/extension`.
+`src/vscode-debug/extension` contains a shared DAP adapter with both a standalone
+stdio entry and a VS Code extension. It launches `Okojo.DebugServer` and exposes
+source breakpoints, execution controls, call stacks, selected-frame scopes,
+lazy object/array inspection, read-only property-path watches and the existing
+bytecode viewer. Runtime inspection is dispatched on the VM thread.
 
-Current capabilities include:
-
-- debugger contribution and configuration provider
-- inline adapter that launches `src/Okojo.DebugServer`
-- paused stack, locals, and source inspection from debug-server checkpoints
-- source breakpoints by `sourcePath:line`
-- `stopOnEntry` support
-
-Quick local run:
-
-```powershell
+```sh
+dotnet build src/Okojo.DebugServer/Okojo.DebugServer.csproj -c Release
 cd src/vscode-debug/extension
-npm install
+npm ci
 npm run compile
+npm test
 ```
 
-Then open `src/vscode-debug/extension` in VS Code, press `F5`, and use the sample workspace under `samples/okojo-debugger-workspace`.
+Open the extension directory in VS Code and press F5, then select **Okojo: DAP
+inspection** in the sample workspace. For another DAP client, spawn
+`node src/vscode-debug/extension/dist/main.js` from the repository root after
+building the adapter. The debug host's private protocol is not DAP.
+
+See the [extension README](../../src/vscode-debug/extension/README.md) for installation,
+launch.json, supported requests and explicit limits, and
+[docs/dap-debugger/](docs/dap-debugger/) for the implementation and validation record.
 
 ## Useful examples and sandboxes
 
@@ -571,7 +565,7 @@ If you want concrete code before reading internals, start here:
 | `sandbox/OkojoProbeSandbox` | Small probes for script/module execution and namespace inspection |
 | `sandbox/OkojoInkProbe` | Node-like host with Wasmtime-enabled WebAssembly support |
 | `src/Okojo.Node.Cli` | Node-like CLI entry point for scripts, eval, print, inspect, and InkProbe launching |
-| `src/vscode-debug/extension` | VS Code debugger adapter scaffold and sample workspace integration |
+| `src/vscode-debug/extension` | DAP/VS Code debugger and sample workspace integration |
 
 ## `src/` project map
 
@@ -579,9 +573,15 @@ If you want concrete code before reading internals, start here:
 
 | Project | Role | Publication status |
 | --- | --- | --- |
-| `Okojo` | Core engine, runtime, compiler, modules, embedding API | Public package wave |
+| `Okojo.JavaScript` | Core engine: parser, compiler, VM, realms, intrinsics | Public package wave |
+| `Okojo.JavaScript.Embedding` | Builder-first embedding and host composition API | Public package wave |
 | `Okojo.Hosting` | Host queues, scheduling, worker helpers | Public package wave |
 | `Okojo.Diagnostics` | Formatting, inspection, disassembly helpers | Public package wave |
+| `Okojo.Text.RegularExpressions` | Engine-independent ECMAScript-compatible RegExp | Public package wave |
+| `Okojo.Text.Unicode` | Engine-independent ECMAScript-compatible Unicode utilities | Public package wave |
+| `Okojo.Numerics` | Engine-independent ECMAScript-compatible numerics | Public package wave |
+| `Okojo.Globalization` | Engine-independent ECMAScript-compatible globalization and Intl cores | Public package wave |
+| `Okojo.DotNet.Modules` | .NET ecosystem module-resolution and cache primitives | Public package wave |
 | `Okojo.Reflection` | Reflection-backed CLR interop extensions | Public package wave |
 | `Okojo.WebPlatform` | Host-installed web APIs such as fetch, timers, workers | Public package wave |
 | `Okojo.WebAssembly` | Backend-agnostic WebAssembly integration surface | Public package wave |
@@ -597,9 +597,8 @@ If you want concrete code before reading internals, start here:
 | `Okojo.DebugServer` | Debug transport and server host | Internal diagnostics infrastructure |
 | `Okojo.DebugServer.Core` | Shared debug server core types | Internal diagnostics infrastructure |
 | `vscode-debug/extension` | VS Code debugger adapter and launch configuration support | Internal tooling |
-| `Okojo.Compiler.Experimental` | Experimental compiler work | Experimental and internal |
 
-Package/versioning/publishing strategy for the packable projects is documented in [docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
+Package/versioning/publishing strategy for the packable projects is documented in [docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md](docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md).
 
 ## Requirements
 
@@ -629,7 +628,7 @@ Important files:
 | --- | --- |
 | [`TEST262_PROGRESS_INCREMENTAL.md`](TEST262_PROGRESS_INCREMENTAL.md) | Human-readable progress snapshot grouped by category and folder, including passed, failed, and split skip classes |
 | `TEST262_PROGRESS_INCREMENTAL.json` | Machine-readable version of the same incremental progress data (gitignored)|
-| [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
+| [`docs/conformance/TEST262_SKIP_TAXONOMY.md`](docs/conformance/TEST262_SKIP_TAXONOMY.md) | Skip classification policy and grouped skip inventory |
 | `tools/Test262Runner` | Runner and progress generation logic |
 
 ### How to read `TEST262_PROGRESS_INCREMENTAL.md`
@@ -651,8 +650,9 @@ That last column is usually the best single number to use for practical baseline
 ## Key docs
 
 - [`OKOJO_BROWSER_COMPATIBILITY_PLAN.md`](OKOJO_BROWSER_COMPATIBILITY_PLAN.md) - top-level compatibility direction
-- [`docs/TEST262_SKIP_TAXONOMY.md`](docs/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
-- [`docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
+- [`docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`](docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md) - target package, namespace, and ownership boundaries
+- [`docs/conformance/TEST262_SKIP_TAXONOMY.md`](docs/conformance/TEST262_SKIP_TAXONOMY.md) - skip taxonomy and inventory
+- [`docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md`](docs/guides/OKOJO_PACKABLE_PACKAGE_WORKFLOW.md) - packable package versioning and publishing strategy
 
 ## Licensing
 

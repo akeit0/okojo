@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the top-level direction for turning `src/Okojo` into a much more browser-compatible JavaScript engine with stronger ECMA-262 alignment and a cleaner embedding API.
+This document defines the top-level direction for turning Okojo into a browser-compatible JavaScript engine with stronger ECMA-262 alignment and a cleaner embedding API.
 
 Target outcome:
 
@@ -10,9 +10,22 @@ Target outcome:
 - Okojo passes all `test262` tests except:
   - intentionally unsupported legacy coverage
   - staging-only coverage
-- `src/Okojo` exposes a smaller, cleaner, more durable public API focused on embedding and host integration instead of leaking broad runtime internals.
+- `Okojo.JavaScript` exposes a deliberate engine API, with embedding and host policy layered above it.
 
 ## Current status
+
+### Code/instance split implementation (gates green 2026-09-10)
+
+Portable compilation units and function descriptors now separate shared bytecode
+from realm-local atoms, literal layouts, feedback and breakpoint copies. Runtime
+closures are constructed explicitly. Compile-and-link convenience remains; the
+old mutable low-level script constructor and clone API are removed. Module binding
+plans and lazy nested compilation remain separate work. Verified on application:
+warning-free `Okojo.slnx` Release build, all .NET suites green (`Okojo.Tests`
+2244 passed / 4 skipped), full Test262 42618 passed with zero non-staging
+failures, overlapping bytecode snapshots byte-identical. See
+`docs/implementation/CODE_INSTANCE_SPLIT_IMPLEMENTATION.md`.
+
 
 Current baseline:
 
@@ -22,10 +35,10 @@ Current baseline:
 
 Current next-phase priorities:
 
-1. refine the stable embedding and host API shape
+1. refine the stable embedding and host API shape so browser profiles can own their complete event loop
 2. improve runtime performance and allocation behavior on hot paths
 3. add selectively chosen staging features that are worth carrying, such as `Temporal`
-4. complete and adopt the experimental compiler path
+4. extend and optimize the adopted compiler path
 5. improve `Okojo.Node` compatibility against real Node-facing workloads
 6. attempt real HTML/CSS renderer integration to test DOM-manipulation browser compatibility
 
@@ -89,11 +102,11 @@ Because Okojo is heavily influenced by V8:
 
 ## API Split Goal
 
-`src/Okojo` should be refactored toward four clear API layers.
+The package and namespace boundary is defined by [docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md](docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md). This roadmap uses four conceptual API layers; it does not define an alternate assembly graph.
 
 Compiler architecture note:
 
-- see [docs/OKOJO_MULTI_PASS_COMPILER_DESIGN.md](docs\OKOJO_MULTI_PASS_COMPILER_DESIGN.md) for the target multi-pass compiler direction, especially binding collection, capture planning, storage planning, and register allocation cleanup
+- see [docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md](docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md) for the target multi-pass compiler direction, especially binding collection, capture planning, storage planning, and register allocation cleanup
 
 ### 1. Stable Embedding API
 
@@ -133,7 +146,7 @@ Should cover:
 - module resolution/loading
 - worker script loading
 - timers and scheduling
-- microtask/job queue integration
+- independently controlled host-task execution and Promise-job checkpoints
 - host callbacks and host object binding
 - optional host capabilities (filesystem, diagnostics, interop, browser shims)
 
@@ -236,6 +249,10 @@ Browser-grade compatibility needs host-facing seams for:
 
 Core Okojo should not silently hardcode these policies. It should expose explicit hooks or extension points.
 
+The browser profile must own task-source selection, timers, networking, worker delivery, rendering opportunities, microtask-checkpoint timing, waiting, and fairness. Runtime convenience pumps are optional and must be composed from the same low-level operations available to the browser.
+
+This control does not permit observable specification violations. Promise jobs remain FIFO under [ECMA-262](https://tc39.es/ecma262/multipage/executable-code-and-execution-contexts.html#sec-hostenqueuepromisejob), and the browser profile must implement the task and non-reentrant, queue-draining microtask-checkpoint behavior required by the [HTML event loop](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops). No migration stage may carry a warning, known test failure, reordered job, hidden host-task pump, or dropped accepted work as temporary debt.
+
 ### E. Mark Diagnostic APIs Explicitly
 
 Some APIs are very useful for tooling but should not be mistaken for the stable runtime embedding contract.
@@ -304,12 +321,15 @@ Success markers:
 Goals:
 
 - simplify module path while preserving live-binding correctness
-- define host job queue and async integration more cleanly
+- expose Promise checkpoints independently from host-task selection
+- let browser and other host profiles define their complete event-loop policy
 - improve worker/module coordination APIs
 
 Success markers:
 
 - module and async failures are diagnosable through stable host seams rather than ad hoc runtime coupling
+- recursive Promise jobs drain in FIFO order without a nested checkpoint
+- browser tests select a task and invoke the required checkpoint without a hidden runtime pump
 
 ### 6. Host Interop Boundaries
 
@@ -351,24 +371,18 @@ Definition of done for the main compliance goal:
   - legacy exclusions approved by project policy
   - staging exclusions approved by project policy
 
-## Suggested `src/Okojo` Package/Namespace Direction
+## Package and Namespace Direction
 
-This is a direction, not an immediate mandatory rename plan.
+The decided top-level shape is:
 
-Potential future grouping:
+- `Okojo.JavaScript`: ECMAScript engine
+- `Okojo.JavaScript.Embedding`: embedding/container API
+- `Okojo.Hosting`: optional .NET host implementations
+- `Okojo.Diagnostics`: optional engine diagnostics
+- `Okojo.Reflection`: optional CLR reflection binding
+- `Okojo.WebPlatform`, `Okojo.Browser`, and `Okojo.Node`: host profiles
 
-- `Okojo`
-  - stable embedding API
-- `Okojo.Hosting`
-  - module/worker/scheduler/host service contracts
-- `Okojo.Diagnostics`
-  - parser, bytecode, tracing, disassembly
-- `Okojo.Interop`
-  - host/CLR binding surface
-- `Okojo.Internal` or internal-only namespaces
-  - runtime/compiler/object model internals
-
-The main goal is not aesthetic namespace cleanup. The main goal is to make compatibility work safer by reducing accidental public contracts.
+Parser, compiler, bytecode, object model, and VM remain together in `Okojo.JavaScript`. See the library split plan for ownership and migration order.
 
 ## Documentation Rules For This Roadmap
 
@@ -381,11 +395,11 @@ Every substantial feature or compliance slice should still keep its own focused 
 - Test262 completion target
 - stable vs internal Okojo surface policy
 
-Current supporting top-level inventory:
+Current supporting documents:
 
-- `OKOJO_PUBLIC_API_INVENTORY.md`
-- `OKOJO_API_ASSEMBLY_TASK_QUEUE_PLAN.md`
-- `docs/OKOJO_NODE_RUNTIME_PLAN.md`
+- `docs/architecture/OKOJO_LIBRARY_SPLIT_PLAN.md`
+- `docs/architecture/frontend/OKOJO_MULTI_PASS_COMPILER_DESIGN.md`
+- `docs/integrations/node/OKOJO_NODE_RUNTIME_PLAN.md`
 
 ## Licensing Note
 
@@ -398,11 +412,11 @@ Also keep these boundaries explicit:
 
 ## 2026 Execution Priorities
 
-1. finish narrowing the compatibility target to "all non-legacy, non-staging Test262"
-2. split host configuration concerns from stable engine options
-3. define task queue ownership so ECMAScript jobs stay in core and host tasks stay host-driven
-4. define target assembly boundaries for `Okojo`, `Okojo.Hosting`, `Okojo.Diagnostics`, and `Okojo.WebPlatform`
+1. keep all non-legacy, non-staging Test262 coverage passing
+2. remove host queue, worker, and runtime-option coupling from `JsAgent` and `JsRealm` while preserving independently controlled, specification-compliant Promise checkpoints (the broad `IJsRuntimeHost` seam is now removed)
+3. split `Okojo.JavaScript` from `Okojo.JavaScript.Embedding`
+4. migrate host/profile projects to the new dependency graph
 5. tighten module/job/worker host seams for browser-like embedding
 6. continue Proxy/Object/descriptor correctness work
 7. keep shape/dictionary and property hot paths simple while preserving semantics
-8. document stable API vs diagnostics vs internal runtime boundaries as changes land
+8. extend and optimize the adopted compiler path without splitting compiler and VM assemblies

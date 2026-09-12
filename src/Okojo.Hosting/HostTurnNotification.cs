@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -11,4 +13,5 @@ public readonly record struct HostTurnNotification(
     bool RanHostTask,
     HostTaskQueueKey? HostTaskQueueKey,
     int ReadyDelayedCount,
-    int PendingJobCount);
+    int PendingJobCount
+);

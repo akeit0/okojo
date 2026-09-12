@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Okojo.Diagnostics;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Node;
 
@@ -25,8 +27,14 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleFormatSlot, JsValue.FromObject(CreateFormatFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleInspectSlot, JsValue.FromObject(CreateInspectFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleFormatSlot,
+            JsValue.FromObject(CreateFormatFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleInspectSlot,
+            JsValue.FromObject(CreateInspectFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -34,8 +42,16 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomFormat, JsShapePropertyFlags.Open, out var formatInfo);
-        shape = shape.GetOrAddTransition(atomInspect, JsShapePropertyFlags.Open, out var inspectInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomFormat,
+            JsShapePropertyFlags.Open,
+            out var formatInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomInspect,
+            JsShapePropertyFlags.Open,
+            out var inspectInfo
+        );
         Debug.Assert(formatInfo.Slot == ModuleFormatSlot);
         Debug.Assert(inspectInfo.Slot == ModuleInspectSlot);
         return shape;
@@ -54,20 +70,32 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
 
     private static JsHostFunction CreateFormatFunction(JsRealm realm)
     {
-        return new(realm, "format", 1, static (in info) =>
-        {
-            var text = FormatValues(info);
-            return JsValue.FromString(text);
-        }, false);
+        return new(
+            realm,
+            "format",
+            1,
+            static (in info) =>
+            {
+                var text = FormatValues(info);
+                return JsValue.FromString(text);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateInspectFunction(JsRealm realm)
     {
-        return new(realm, "inspect", 1, static (in info) =>
-        {
-            var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-            return JsValue.FromString(FormatInspectable(info.Realm, value));
-        }, false);
+        return new(
+            realm,
+            "inspect",
+            1,
+            static (in info) =>
+            {
+                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                return JsValue.FromString(FormatInspectable(info.Realm, value));
+            },
+            false
+        );
     }
 
     private static string FormatValues(in CallInfo info)
@@ -76,7 +104,8 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
             return string.Empty;
 
         var first = info.Arguments[0];
-        if (!first.IsString) return JoinRenderedValues(info.Realm, info.Arguments);
+        if (!first.IsString)
+            return JoinRenderedValues(info.Realm, info.Arguments);
 
         var format = first.AsString();
         var builder = new StringBuilder(format.Length + 16);
@@ -97,32 +126,45 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
                     builder.Append('%');
                     break;
                 case 's':
-                    builder.Append(argIndex < info.Arguments.Length
-                        ? RenderForString(info.Realm, info.Arguments[argIndex++])
-                        : "%s");
+                    builder.Append(
+                        argIndex < info.Arguments.Length
+                            ? RenderForString(info.Realm, info.Arguments[argIndex++])
+                            : "%s"
+                    );
                     break;
                 case 'd':
                 case 'i':
-                    builder.Append(argIndex < info.Arguments.Length
-                        ? ((long)info.Realm.ToIntegerOrInfinity(info.Arguments[argIndex++])).ToString(CultureInfo
-                            .InvariantCulture)
-                        : "%" + spec);
+                    builder.Append(
+                        argIndex < info.Arguments.Length
+                            ? (
+                                (long)info.Realm.ToIntegerOrInfinity(info.Arguments[argIndex++])
+                            ).ToString(CultureInfo.InvariantCulture)
+                            : "%" + spec
+                    );
                     break;
                 case 'f':
-                    builder.Append(argIndex < info.Arguments.Length
-                        ? info.Realm.ToNumber(info.Arguments[argIndex++]).ToString(CultureInfo.InvariantCulture)
-                        : "%f");
+                    builder.Append(
+                        argIndex < info.Arguments.Length
+                            ? info
+                                .Realm.ToNumber(info.Arguments[argIndex++])
+                                .ToString(CultureInfo.InvariantCulture)
+                            : "%f"
+                    );
                     break;
                 case 'j':
-                    builder.Append(argIndex < info.Arguments.Length
-                        ? RenderForJsonLike(info.Realm, info.Arguments[argIndex++])
-                        : "%j");
+                    builder.Append(
+                        argIndex < info.Arguments.Length
+                            ? RenderForJsonLike(info.Realm, info.Arguments[argIndex++])
+                            : "%j"
+                    );
                     break;
                 case 'o':
                 case 'O':
-                    builder.Append(argIndex < info.Arguments.Length
-                        ? FormatInspectable(info.Realm, info.Arguments[argIndex++])
-                        : "%" + spec);
+                    builder.Append(
+                        argIndex < info.Arguments.Length
+                            ? FormatInspectable(info.Realm, info.Arguments[argIndex++])
+                            : "%" + spec
+                    );
                     break;
                 default:
                     builder.Append('%').Append(spec);
@@ -158,7 +200,7 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
 
     private static string RenderForString(JsRealm realm, in JsValue value)
     {
-        return value.IsString ? value.AsString() : realm.ToJsStringSlowPath(value);
+        return value.IsString ? value.AsString() : realm.ToJsString(value);
     }
 
     private static string RenderForJsonLike(JsRealm realm, in JsValue value)
@@ -174,7 +216,10 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
         {
             var parts = new string[array.Length];
             for (uint i = 0; i < array.Length; i++)
-                parts[i] = array.TryGetProperty(i.ToString(CultureInfo.InvariantCulture), out var element)
+                parts[i] = array.TryGetProperty(
+                    i.ToString(CultureInfo.InvariantCulture),
+                    out var element
+                )
                     ? RenderForJsonLike(realm, element)
                     : "null";
             return "[" + string.Join(",", parts) + "]";
@@ -189,7 +234,10 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
                 builder.Append(',');
             var key = keys[i];
             _ = obj.TryGetProperty(key, out var propertyValue);
-            builder.Append('"').Append(key.Replace("\"", "\\\"", StringComparison.Ordinal)).Append('"');
+            builder
+                .Append('"')
+                .Append(key.Replace("\"", "\\\"", StringComparison.Ordinal))
+                .Append('"');
             builder.Append(':');
             builder.Append(RenderForJsonLike(realm, propertyValue));
         }
@@ -212,8 +260,13 @@ internal sealed class NodeUtilBuiltIn(NodeRuntime runtime)
         var length = realm.GetArrayLikeLengthLong(keysObject);
         var keys = new List<string>((int)Math.Max(0, length));
         for (var i = 0; i < length; i++)
-            if (keysObject.TryGetProperty(i.ToString(CultureInfo.InvariantCulture), out var keyValue))
-                keys.Add(keyValue.IsString ? keyValue.AsString() : realm.ToJsStringSlowPath(keyValue));
+            if (
+                keysObject.TryGetProperty(
+                    i.ToString(CultureInfo.InvariantCulture),
+                    out var keyValue
+                )
+            )
+                keys.Add(keyValue.IsString ? keyValue.AsString() : realm.ToJsString(keyValue));
 
         return keys;
     }

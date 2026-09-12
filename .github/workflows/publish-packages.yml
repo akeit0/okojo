@@ -22,7 +22,8 @@ on:
           - Okojo.SourceGenerator
           - Okojo.DocGenerator.Annotations
           - Okojo.DocGenerator.Cli
-          - Okojo
+          - Okojo.JavaScript
+          - Okojo.JavaScript.Embedding
           - Okojo.Hosting
           - Okojo.Diagnostics
           - Okojo.Reflection
@@ -53,7 +54,8 @@ jobs:
             @{ Id = "Okojo.SourceGenerator"; Project = "src/Okojo.SourceGenerator/Okojo.SourceGenerator.csproj" },
             @{ Id = "Okojo.DocGenerator.Annotations"; Project = "src/Okojo.DocGenerator.Annotations/Okojo.DocGenerator.Annotations.csproj" },
             @{ Id = "Okojo.DocGenerator.Cli"; Project = "src/Okojo.DocGenerator.Cli/Okojo.DocGenerator.Cli.csproj" },
-            @{ Id = "Okojo"; Project = "src/Okojo/Okojo.csproj" },
+            @{ Id = "Okojo.JavaScript"; Project = "src/Okojo.JavaScript/Okojo.JavaScript.csproj" },
+            @{ Id = "Okojo.JavaScript.Embedding"; Project = "src/Okojo.JavaScript.Embedding/Okojo.JavaScript.Embedding.csproj" },
             @{ Id = "Okojo.Hosting"; Project = "src/Okojo.Hosting/Okojo.Hosting.csproj" },
             @{ Id = "Okojo.Diagnostics"; Project = "src/Okojo.Diagnostics/Okojo.Diagnostics.csproj" },
             @{ Id = "Okojo.Reflection"; Project = "src/Okojo.Reflection/Okojo.Reflection.csproj" },

@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Node;
 
@@ -23,8 +25,14 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ExecFileSyncSlot, JsValue.FromObject(CreateExecFileSyncFunction(realm)));
-        module.SetNamedSlotUnchecked(ExecSyncSlot, JsValue.FromObject(CreateExecSyncFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ExecFileSyncSlot,
+            JsValue.FromObject(CreateExecFileSyncFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ExecSyncSlot,
+            JsValue.FromObject(CreateExecSyncFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -32,9 +40,16 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomExecFileSync, JsShapePropertyFlags.Open,
-            out var execFileSyncInfo);
-        shape = shape.GetOrAddTransition(atomExecSync, JsShapePropertyFlags.Open, out var execSyncInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomExecFileSync,
+            JsShapePropertyFlags.Open,
+            out var execFileSyncInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomExecSync,
+            JsShapePropertyFlags.Open,
+            out var execSyncInfo
+        );
         Debug.Assert(execFileSyncInfo.Slot == ExecFileSyncSlot);
         Debug.Assert(execSyncInfo.Slot == ExecSyncSlot);
         return shape;
@@ -53,31 +68,53 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
 
     private static JsHostFunction CreateExecFileSyncFunction(JsRealm realm)
     {
-        return new(realm, "execFileSync", 3, static (in info) =>
-        {
-            var fileName = info.GetArgumentString(0);
-            var args = info.Arguments.Length > 1 ? ReadArgumentList(info.Realm, info.Arguments[1]) : [];
-            var options = info.Arguments.Length > 2
-                ? ReadOptions(info.Realm, info.Arguments[2])
-                : ChildProcessOptions.Default;
-            return ExecuteSync(info.Realm, fileName, args, options);
-        }, false);
+        return new(
+            realm,
+            "execFileSync",
+            3,
+            static (in info) =>
+            {
+                var fileName = info.GetArgumentString(0);
+                var args =
+                    info.Arguments.Length > 1
+                        ? ReadArgumentList(info.Realm, info.Arguments[1])
+                        : [];
+                var options =
+                    info.Arguments.Length > 2
+                        ? ReadOptions(info.Realm, info.Arguments[2])
+                        : ChildProcessOptions.Default;
+                return ExecuteSync(info.Realm, fileName, args, options);
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateExecSyncFunction(JsRealm realm)
     {
-        return new(realm, "execSync", 2, static (in info) =>
-        {
-            var command = info.GetArgumentString(0);
-            var options = info.Arguments.Length > 1
-                ? ReadOptions(info.Realm, info.Arguments[1])
-                : ChildProcessOptions.Default;
-            options = options with { Shell = true };
-            return ExecuteSync(info.Realm, command, [], options);
-        }, false);
+        return new(
+            realm,
+            "execSync",
+            2,
+            static (in info) =>
+            {
+                var command = info.GetArgumentString(0);
+                var options =
+                    info.Arguments.Length > 1
+                        ? ReadOptions(info.Realm, info.Arguments[1])
+                        : ChildProcessOptions.Default;
+                options = options with { Shell = true };
+                return ExecuteSync(info.Realm, command, [], options);
+            },
+            false
+        );
     }
 
-    private static JsValue ExecuteSync(JsRealm realm, string fileName, string[] args, ChildProcessOptions options)
+    private static JsValue ExecuteSync(
+        JsRealm realm,
+        string fileName,
+        string[] args,
+        ChildProcessOptions options
+    )
     {
         using var process = new Process();
         process.StartInfo = CreateStartInfo(fileName, args, options);
@@ -89,23 +126,28 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
             {
                 process.Kill(true);
             }
-            catch
-            {
-            }
+            catch { }
 
             throw new InvalidOperationException(
-                $"child_process command timed out after {options.TimeoutMs} ms: {fileName}");
+                $"child_process command timed out after {options.TimeoutMs} ms: {fileName}"
+            );
         }
 
         var stdoutText = process.StandardOutput.ReadToEnd();
-        if (!string.IsNullOrEmpty(options.Encoding) &&
-            !string.Equals(options.Encoding, "buffer", StringComparison.Ordinal))
+        if (
+            !string.IsNullOrEmpty(options.Encoding)
+            && !string.Equals(options.Encoding, "buffer", StringComparison.Ordinal)
+        )
             return JsValue.FromString(stdoutText);
 
         return JsValue.FromString(stdoutText);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string fileName, string[] args, ChildProcessOptions options)
+    private static ProcessStartInfo CreateStartInfo(
+        string fileName,
+        string[] args,
+        ChildProcessOptions options
+    )
     {
         var startInfo = new ProcessStartInfo
         {
@@ -114,7 +156,7 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
             RedirectStandardError = true,
             RedirectStandardInput = false,
             StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         if (options.Shell)
@@ -179,7 +221,7 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         var args = new string[length];
         for (var i = 0; i < length; i++)
             if (obj.TryGetProperty(i.ToString(), out var element))
-                args[i] = element.IsString ? element.AsString() : realm.ToJsStringSlowPath(element);
+                args[i] = element.IsString ? element.AsString() : realm.ToJsString(element);
             else
                 args[i] = string.Empty;
 
@@ -196,24 +238,40 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         var shell = false;
         Dictionary<string, string>? env = null;
 
-        if (obj.TryGetProperty("encoding", out var encodingValue) && !encodingValue.IsUndefined &&
-            !encodingValue.IsNull)
-            encoding = encodingValue.IsString ? encodingValue.AsString() : realm.ToJsStringSlowPath(encodingValue);
+        if (
+            obj.TryGetProperty("encoding", out var encodingValue)
+            && !encodingValue.IsUndefined
+            && !encodingValue.IsNull
+        )
+            encoding = encodingValue.IsString
+                ? encodingValue.AsString()
+                : realm.ToJsString(encodingValue);
 
         if (obj.TryGetProperty("timeout", out var timeoutValue) && !timeoutValue.IsUndefined)
         {
             var timeoutNumber = realm.ToIntegerOrInfinity(timeoutValue);
-            if (!double.IsNaN(timeoutNumber) && timeoutNumber >= 0 && !double.IsInfinity(timeoutNumber))
+            if (
+                !double.IsNaN(timeoutNumber)
+                && timeoutNumber >= 0
+                && !double.IsInfinity(timeoutNumber)
+            )
                 timeoutMs = (int)Math.Min(int.MaxValue, timeoutNumber);
         }
 
-        if (obj.TryGetProperty("shell", out var shellValue) && !shellValue.IsUndefined && !shellValue.IsNull)
+        if (
+            obj.TryGetProperty("shell", out var shellValue)
+            && !shellValue.IsUndefined
+            && !shellValue.IsNull
+        )
             shell = shellValue.IsTrue || (shellValue.IsString && shellValue.AsString().Length != 0);
 
         if (obj.TryGetProperty("env", out var envValue) && envValue.TryGetObject(out var envObj))
         {
             env = [];
-            var keysValue = realm.InvokeObjectConstructorMethod("keys", [JsValue.FromObject(envObj)]);
+            var keysValue = realm.InvokeObjectConstructorMethod(
+                "keys",
+                [JsValue.FromObject(envObj)]
+            );
             if (keysValue.TryGetObject(out var keysObj))
             {
                 var length = realm.GetArrayLikeLengthLong(keysObj);
@@ -221,12 +279,12 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
                 {
                     if (!keysObj.TryGetProperty(i.ToString(), out var keyValue))
                         continue;
-                    var key = keyValue.IsString ? keyValue.AsString() : realm.ToJsStringSlowPath(keyValue);
+                    var key = keyValue.IsString ? keyValue.AsString() : realm.ToJsString(keyValue);
                     if (!envObj.TryGetProperty(key, out var propertyValue))
                         continue;
                     env[key] = propertyValue.IsString
                         ? propertyValue.AsString()
-                        : realm.ToJsStringSlowPath(propertyValue);
+                        : realm.ToJsString(propertyValue);
                 }
             }
         }
@@ -238,7 +296,8 @@ internal sealed class NodeChildProcessBuiltIn(NodeRuntime runtime)
         string? Encoding,
         int TimeoutMs,
         bool Shell,
-        Dictionary<string, string>? EnvironmentVariables)
+        Dictionary<string, string>? EnvironmentVariables
+    )
     {
         public static ChildProcessOptions Default { get; } =
             new("utf8", Timeout.Infinite, false, null);

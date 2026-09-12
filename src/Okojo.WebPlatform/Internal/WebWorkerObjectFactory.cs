@@ -1,7 +1,8 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.WebPlatform.Internal;
 
@@ -15,15 +16,18 @@ internal static class WebWorkerObjectFactory
         return CacheByRealm.GetValue(realm, static realmValue => new(realmValue));
     }
 
-    private static JsPlainObject GetBackingHandle(JsRealm realm, in JsValue thisValue, int handleAtom)
+    private static JsPlainObject GetBackingHandle(in JsValue thisValue, CachedWorkerApi workerApi)
     {
-        if (!thisValue.TryGetObject(out var wrapper) ||
-            !wrapper.TryGetPropertyAtom(realm, handleAtom, out var handleValue, out _) ||
-            !handleValue.TryGetObject(out var handleObject) ||
-            handleObject is not JsPlainObject handle)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+        if (
+            !thisValue.TryGetObject(out var wrapper)
+            || wrapper is not JsPlainObject wrapperObject
+            || !workerApi.BackingHandles.TryGetValue(wrapperObject, out var handle)
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 "Worker method called on an incompatible receiver",
-                "WORKER_THIS_INVALID");
+                "WORKER_THIS_INVALID"
+            );
 
         return handle;
     }
@@ -31,136 +35,211 @@ internal static class WebWorkerObjectFactory
     private static JsValue CallBackingMethod(
         JsRealm realm,
         JsPlainObject handle,
-        int methodAtom,
-        ReadOnlySpan<JsValue> args)
+        string methodName,
+        ReadOnlySpan<JsValue> args
+    )
     {
-        if (!handle.TryGetPropertyAtom(realm, methodAtom, out var methodValue, out _) ||
-            !methodValue.TryGetObject(out var methodObject) ||
-            methodObject is not JsFunction method)
-            throw new JsRuntimeException(JsErrorKind.TypeError,
+        if (
+            !handle.TryGetProperty(methodName, out var methodValue)
+            || !methodValue.TryGetObject(out var methodObject)
+            || methodObject is not JsFunction method
+        )
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
                 "Worker backing handle is missing a required method",
-                "WORKER_BACKING_METHOD_MISSING");
+                "WORKER_BACKING_METHOD_MISSING"
+            );
 
         return realm.Call(method, JsValue.FromObject(handle), args);
     }
 
-    private static JsValue GetBackingProperty(JsRealm realm, JsPlainObject handle, int atom)
+    private static JsValue GetBackingProperty(JsPlainObject handle, string propertyName)
     {
-        return handle.TryGetPropertyAtom(realm, atom, out var value, out _) ? value : JsValue.Undefined;
+        return handle.TryGetProperty(propertyName, out var value) ? value : JsValue.Undefined;
     }
 
-    private static void SetBackingProperty(JsRealm realm, JsPlainObject handle, int atom, in JsValue value)
+    private static void SetBackingProperty(
+        JsPlainObject handle,
+        string propertyName,
+        in JsValue value
+    )
     {
-        handle.SetPropertyAtom(realm, atom, value, out _);
+        handle.SetProperty(propertyName, value);
     }
 
     internal sealed class CachedWorkerApi
     {
         public CachedWorkerApi(JsRealm realm)
         {
-            HandleAtom = realm.Atoms.InternSymbolString("Okojo.Web.Worker.handle");
-
-            var shape = realm.EmptyShape;
-            shape = shape.GetOrAddTransition(HandleAtom, JsShapePropertyFlags.None, out var handleInfo);
-            Debug.Assert(handleInfo.Slot == HandleSlot);
-            InstanceShape = shape;
-
+            BackingHandles = new();
             PrototypeObject = CreatePrototypeObject(realm);
         }
 
-        public int HandleAtom { get; }
-        public StaticNamedPropertyLayout InstanceShape { get; }
+        public ConditionalWeakTable<JsPlainObject, JsPlainObject> BackingHandles { get; }
         public JsPlainObject PrototypeObject { get; }
 
         public JsPlainObject CreateWorkerObject(JsRealm realm, JsPlainObject workerHandle)
         {
-            var wrapper = new JsPlainObject(InstanceShape, false)
-            {
-                Prototype = PrototypeObject
-            };
-            wrapper.SetNamedSlotUnchecked(HandleSlot, JsValue.FromObject(workerHandle));
+            var wrapper = new JsPlainObject(realm);
+            if (!wrapper.TrySetPrototype(PrototypeObject))
+                throw new InvalidOperationException(
+                    "Worker object prototype could not be assigned."
+                );
+            BackingHandles.Add(wrapper, workerHandle);
             return wrapper;
         }
 
         private JsPlainObject CreatePrototypeObject(JsRealm realm)
         {
-            var prototype = new JsPlainObject(realm, false)
-            {
-                Prototype = realm.ObjectPrototype
-            };
+            var prototype = new JsPlainObject(realm);
 
-            prototype.DefineDataPropertyAtom(realm, AtomTable.IdPostMessage,
-                JsValue.FromObject(new JsHostFunction(realm, static (in info) =>
-                {
-                    var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                        ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                    return CallBackingMethod(info.Realm, thisHandle, AtomTable.IdPostMessage, info.Arguments);
-                }, "postMessage", 1)
-                {
-                    UserData = this
-                }), JsShapePropertyFlags.Configurable);
+            prototype.DefineDataProperty(
+                "postMessage",
+                JsValue.FromObject(
+                    new JsHostFunction(
+                        realm,
+                        static (in info) =>
+                        {
+                            var thisHandle = GetBackingHandle(
+                                info.ThisValue,
+                                (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                            );
+                            return CallBackingMethod(
+                                info.Realm,
+                                thisHandle,
+                                "postMessage",
+                                info.Arguments
+                            );
+                        },
+                        "postMessage",
+                        1
+                    )
+                    {
+                        UserData = this,
+                    }
+                ),
+                JsShapePropertyFlags.Configurable
+            );
 
-            prototype.DefineDataPropertyAtom(realm, AtomTable.IdTerminate,
-                JsValue.FromObject(new JsHostFunction(realm, static (in info) =>
-                {
-                    var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                        ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                    return CallBackingMethod(info.Realm, thisHandle, AtomTable.IdTerminate,
-                        ReadOnlySpan<JsValue>.Empty);
-                }, "terminate", 0)
-                {
-                    UserData = this
-                }), JsShapePropertyFlags.Configurable);
+            prototype.DefineDataProperty(
+                "terminate",
+                JsValue.FromObject(
+                    new JsHostFunction(
+                        realm,
+                        static (in info) =>
+                        {
+                            var thisHandle = GetBackingHandle(
+                                info.ThisValue,
+                                (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                            );
+                            return CallBackingMethod(
+                                info.Realm,
+                                thisHandle,
+                                "terminate",
+                                ReadOnlySpan<JsValue>.Empty
+                            );
+                        },
+                        "terminate",
+                        0
+                    )
+                    {
+                        UserData = this,
+                    }
+                ),
+                JsShapePropertyFlags.Configurable
+            );
 
-            var onMessageGetter = new JsHostFunction(realm, static (in info) =>
+            var onMessageGetter = new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    var thisHandle = GetBackingHandle(
+                        info.ThisValue,
+                        (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                    );
+                    return GetBackingProperty(thisHandle, "onmessage");
+                },
+                "get onmessage",
+                0
+            )
             {
-                var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                    ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                return GetBackingProperty(info.Realm, thisHandle, AtomTable.IdOnmessage);
-            }, "get onmessage", 0)
-            {
-                UserData = this
+                UserData = this,
             };
-            var onMessageSetter = new JsHostFunction(realm, static (in info) =>
+            var onMessageSetter = new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    var thisHandle = GetBackingHandle(
+                        info.ThisValue,
+                        (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                    );
+                    var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                    SetBackingProperty(thisHandle, "onmessage", value);
+                    return JsValue.Undefined;
+                },
+                "set onmessage",
+                1
+            )
             {
-                var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                    ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                SetBackingProperty(info.Realm, thisHandle, AtomTable.IdOnmessage, value);
-                return JsValue.Undefined;
-            }, "set onmessage", 1)
-            {
-                UserData = this
+                UserData = this,
             };
-            prototype.DefineAccessorPropertyAtom(realm, AtomTable.IdOnmessage, onMessageGetter, onMessageSetter,
-                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter | JsShapePropertyFlags.Configurable);
+            prototype.DefineAccessorProperty(
+                "onmessage",
+                onMessageGetter,
+                onMessageSetter,
+                JsShapePropertyFlags.HasGetter
+                    | JsShapePropertyFlags.HasSetter
+                    | JsShapePropertyFlags.Configurable
+            );
 
-            var onMessageErrorGetter = new JsHostFunction(realm, static (in info) =>
+            var onMessageErrorGetter = new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    var thisHandle = GetBackingHandle(
+                        info.ThisValue,
+                        (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                    );
+                    return GetBackingProperty(thisHandle, "onmessageerror");
+                },
+                "get onmessageerror",
+                0
+            )
             {
-                var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                    ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                return GetBackingProperty(info.Realm, thisHandle, AtomTable.IdOnmessageerror);
-            }, "get onmessageerror", 0)
-            {
-                UserData = this
+                UserData = this,
             };
-            var onMessageErrorSetter = new JsHostFunction(realm, static (in info) =>
+            var onMessageErrorSetter = new JsHostFunction(
+                realm,
+                static (in info) =>
+                {
+                    var thisHandle = GetBackingHandle(
+                        info.ThisValue,
+                        (CachedWorkerApi)((JsHostFunction)info.Function).UserData!
+                    );
+                    var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
+                    SetBackingProperty(thisHandle, "onmessageerror", value);
+                    return JsValue.Undefined;
+                },
+                "set onmessageerror",
+                1
+            )
             {
-                var thisHandle = GetBackingHandle(info.Realm, info.ThisValue,
-                    ((CachedWorkerApi)((JsHostFunction)info.Function).UserData!).HandleAtom);
-                var value = info.Arguments.Length == 0 ? JsValue.Undefined : info.Arguments[0];
-                SetBackingProperty(info.Realm, thisHandle, AtomTable.IdOnmessageerror, value);
-                return JsValue.Undefined;
-            }, "set onmessageerror", 1)
-            {
-                UserData = this
+                UserData = this,
             };
-            prototype.DefineAccessorPropertyAtom(realm, AtomTable.IdOnmessageerror, onMessageErrorGetter,
+            prototype.DefineAccessorProperty(
+                "onmessageerror",
+                onMessageErrorGetter,
                 onMessageErrorSetter,
-                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter | JsShapePropertyFlags.Configurable);
+                JsShapePropertyFlags.HasGetter
+                    | JsShapePropertyFlags.HasSetter
+                    | JsShapePropertyFlags.Configurable
+            );
 
-            prototype.DefineDataPropertyAtom(realm, AtomTable.IdSymbolToStringTag, JsValue.FromString("Worker"),
-                JsShapePropertyFlags.Configurable);
+            prototype.DefineDataProperty(
+                realm.ToStringTagSymbol,
+                JsValue.FromString("Worker"),
+                JsShapePropertyFlags.Configurable
+            );
 
             return prototype;
         }

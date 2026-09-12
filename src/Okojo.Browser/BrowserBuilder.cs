@@ -1,7 +1,9 @@
-using Okojo.Hosting;
-using Okojo.Runtime;
-using Okojo.WebPlatform;
 using System.Runtime.CompilerServices;
+using Okojo.Hosting;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.WebPlatform;
 
 namespace Okojo.Browser;
 
@@ -29,10 +31,11 @@ public sealed class BrowserBuilder
         options.UseRealmSetup(realm =>
         {
             new BrowserApiModule(
-                _ => new TimeProviderDelayScheduler(realm.Engine.TimeProvider),
+                _ => new TimeProviderDelayScheduler(realm.TimeProvider),
                 WebTaskQueueKeys.Timers,
                 state.AnimationFrameQueueKey,
-                state.AnimationFrameInterval).Install(realm);
+                state.AnimationFrameInterval
+            ).Install(realm);
         });
 
         return UseFetch(configureFetch);

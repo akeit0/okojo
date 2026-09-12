@@ -1,7 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Diagnostics;
 
@@ -175,7 +176,10 @@ public sealed class ReplFormatter(JsRealm realm, int? indent = null)
 
     private string? TryGetDisplayTag(JsObject obj)
     {
-        if (obj.TryGetPropertyAtom(realm, AtomTable.IdSymbolToStringTag, out var value, out _) && value.IsString)
+        if (
+            obj.TryGetPropertyAtom(realm, AtomTable.IdSymbolToStringTag, out var value, out _)
+            && value.IsString
+        )
             return value.AsString();
         return null;
     }
@@ -191,14 +195,14 @@ public sealed class ReplFormatter(JsRealm realm, int? indent = null)
         sb.Append(open);
         for (var i = 0; i < parts.Count; i++)
         {
-            sb.AppendLine();
+            sb.Append('\n');
             sb.Append(new string(' ', (depth + 1) * size));
             sb.Append(parts[i]);
             if (i != parts.Count - 1)
                 sb.Append(',');
         }
 
-        sb.AppendLine();
+        sb.Append('\n');
         sb.Append(new string(' ', depth * size));
         sb.Append(close);
         return sb.ToString();

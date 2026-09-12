@@ -4,7 +4,8 @@ namespace Okojo.Node;
 
 internal sealed class NodeCommonJsResolver(
     Func<string, string?, string> resolveSpecifier,
-    Func<string, string> loadSource)
+    Func<string, string> loadSource
+)
 {
     private static readonly string[] RequirePathExtensions = [".js"];
     private static readonly string[] RequireIndexCandidates = ["index.js"];
@@ -20,64 +21,88 @@ internal sealed class NodeCommonJsResolver(
     public string ResolveRequire(string specifier, string? referrer)
     {
         if (IsInternalImportsSpecifier(specifier))
-            return ResolvePackageImports(specifier, referrer, RequirePathExtensions, RequireIndexCandidates,
-                       RequireConditions)
-                   ?? throw CreateModuleNotFoundException(specifier, referrer);
+            return ResolvePackageImports(
+                    specifier,
+                    referrer,
+                    RequirePathExtensions,
+                    RequireIndexCandidates,
+                    RequireConditions
+                ) ?? throw CreateModuleNotFoundException(specifier, referrer);
 
         if (IsRelativeOrAbsoluteSpecifier(specifier))
         {
             var resolved = resolveSpecifier(specifier, referrer);
-            return ResolveAsPath(resolved, RequirePathExtensions, RequireIndexCandidates) ??
-                   ResolveRealPathIfPossible(resolved);
+            return ResolveAsPath(resolved, RequirePathExtensions, RequireIndexCandidates)
+                ?? ResolveRealPathIfPossible(resolved);
         }
 
         return ResolveAsPackage(specifier, referrer, RequirePathExtensions, RequireIndexCandidates)
-               ?? throw CreateModuleNotFoundException(specifier, referrer);
+            ?? throw CreateModuleNotFoundException(specifier, referrer);
     }
 
     public string ResolveMain(string specifier, string? referrer)
     {
         if (IsInternalImportsSpecifier(specifier))
-            return ResolvePackageImports(specifier, referrer, MainPathExtensions, MainIndexCandidates,
-                       RequireConditions)
-                   ?? throw CreateModuleNotFoundException(specifier, referrer);
+            return ResolvePackageImports(
+                    specifier,
+                    referrer,
+                    MainPathExtensions,
+                    MainIndexCandidates,
+                    RequireConditions
+                ) ?? throw CreateModuleNotFoundException(specifier, referrer);
 
         if (IsRelativeOrAbsoluteSpecifier(specifier))
         {
             var resolved = resolveSpecifier(specifier, referrer);
-            return ResolveAsPath(resolved, MainPathExtensions, MainIndexCandidates) ??
-                   ResolveRealPathIfPossible(resolved);
+            return ResolveAsPath(resolved, MainPathExtensions, MainIndexCandidates)
+                ?? ResolveRealPathIfPossible(resolved);
         }
 
         return ResolveAsPackage(specifier, referrer, MainPathExtensions, MainIndexCandidates)
-               ?? throw CreateModuleNotFoundException(specifier, referrer);
+            ?? throw CreateModuleNotFoundException(specifier, referrer);
     }
 
     public string ResolveImport(string specifier, string? referrer)
     {
         if (IsInternalImportsSpecifier(specifier))
-            return ResolvePackageImports(specifier, referrer, ImportPathExtensions, ImportIndexCandidates,
-                       ImportConditions)
-                   ?? throw CreateModuleNotFoundException(specifier, referrer);
+            return ResolvePackageImports(
+                    specifier,
+                    referrer,
+                    ImportPathExtensions,
+                    ImportIndexCandidates,
+                    ImportConditions
+                ) ?? throw CreateModuleNotFoundException(specifier, referrer);
 
         if (IsRelativeOrAbsoluteSpecifier(specifier))
         {
             var resolved = resolveSpecifier(specifier, referrer);
-            return ResolveAsPath(resolved, ImportPathExtensions, ImportIndexCandidates) ??
-                   ResolveRealPathIfPossible(resolved);
+            return ResolveAsPath(resolved, ImportPathExtensions, ImportIndexCandidates)
+                ?? ResolveRealPathIfPossible(resolved);
         }
 
-        return ResolveAsPackage(specifier, referrer, ImportPathExtensions, ImportIndexCandidates, ImportConditions)
-               ?? throw CreateModuleNotFoundException(specifier, referrer);
+        return ResolveAsPackage(
+                specifier,
+                referrer,
+                ImportPathExtensions,
+                ImportIndexCandidates,
+                ImportConditions
+            ) ?? throw CreateModuleNotFoundException(specifier, referrer);
     }
 
     private string? ResolveAsPackage(
         string specifier,
         string? referrer,
         ReadOnlySpan<string> pathExtensions,
-        ReadOnlySpan<string> indexCandidates)
+        ReadOnlySpan<string> indexCandidates
+    )
     {
-        return ResolveAsPackage(specifier, referrer, pathExtensions, indexCandidates, RequireConditions);
+        return ResolveAsPackage(
+            specifier,
+            referrer,
+            pathExtensions,
+            indexCandidates,
+            RequireConditions
+        );
     }
 
     private string? ResolveAsPackage(
@@ -85,7 +110,8 @@ internal sealed class NodeCommonJsResolver(
         string? referrer,
         ReadOnlySpan<string> pathExtensions,
         ReadOnlySpan<string> indexCandidates,
-        ReadOnlySpan<string> conditions)
+        ReadOnlySpan<string> conditions
+    )
     {
         var (packageName, packageSubpath) = SplitPackageSpecifier(specifier);
         foreach (var nodeModulesDirectory in EnumerateNodeModulesDirectories(referrer))
@@ -94,9 +120,17 @@ internal sealed class NodeCommonJsResolver(
             var packageJsonPath = CombinePath(packageRoot, "package.json");
             if (TryLoadSource(packageJsonPath, out var packageJsonSource))
             {
-                if (TryResolvePackageExports(packageRoot, packageSubpath, packageJsonSource!, pathExtensions,
-                        indexCandidates, conditions,
-                        out var exportsResolved))
+                if (
+                    TryResolvePackageExports(
+                        packageRoot,
+                        packageSubpath,
+                        packageJsonSource!,
+                        pathExtensions,
+                        indexCandidates,
+                        conditions,
+                        out var exportsResolved
+                    )
+                )
                     return exportsResolved;
 
                 if (HasPackageExports(packageJsonSource!))
@@ -120,13 +154,26 @@ internal sealed class NodeCommonJsResolver(
         string? referrer,
         ReadOnlySpan<string> pathExtensions,
         ReadOnlySpan<string> indexCandidates,
-        ReadOnlySpan<string> conditions)
+        ReadOnlySpan<string> conditions
+    )
     {
-        foreach (var (packageRoot, packageJsonPath, packageJsonSource) in EnumerateContainingPackages(referrer))
+        foreach (
+            var (packageRoot, packageJsonPath, packageJsonSource) in EnumerateContainingPackages(
+                referrer
+            )
+        )
         {
-            if (TryResolvePackageImports(packageRoot, specifier, packageJsonSource, pathExtensions, indexCandidates,
+            if (
+                TryResolvePackageImports(
+                    packageRoot,
+                    specifier,
+                    packageJsonSource,
+                    pathExtensions,
+                    indexCandidates,
                     conditions,
-                    out var resolved))
+                    out var resolved
+                )
+            )
                 return resolved;
 
             if (HasPackageImports(packageJsonSource))
@@ -143,15 +190,18 @@ internal sealed class NodeCommonJsResolver(
         ReadOnlySpan<string> pathExtensions,
         ReadOnlySpan<string> indexCandidates,
         ReadOnlySpan<string> conditions,
-        out string? resolvedPath)
+        out string? resolvedPath
+    )
     {
         resolvedPath = null;
 
         try
         {
             using var document = JsonDocument.Parse(packageJsonSource);
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty("exports", out var exportsElement))
+            if (
+                document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("exports", out var exportsElement)
+            )
                 return false;
 
             var target = ResolveExportsTarget(exportsElement, packageSubpath, conditions);
@@ -175,15 +225,18 @@ internal sealed class NodeCommonJsResolver(
         ReadOnlySpan<string> pathExtensions,
         ReadOnlySpan<string> indexCandidates,
         ReadOnlySpan<string> conditions,
-        out string? resolvedPath)
+        out string? resolvedPath
+    )
     {
         resolvedPath = null;
 
         try
         {
             using var document = JsonDocument.Parse(packageJsonSource);
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty("imports", out var importsElement))
+            if (
+                document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("imports", out var importsElement)
+            )
                 return false;
 
             var target = ResolveImportsTarget(importsElement, specifier, conditions);
@@ -205,8 +258,8 @@ internal sealed class NodeCommonJsResolver(
         try
         {
             using var document = JsonDocument.Parse(packageJsonSource);
-            return document.RootElement.ValueKind == JsonValueKind.Object &&
-                   document.RootElement.TryGetProperty("exports", out _);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("exports", out _);
         }
         catch (JsonException)
         {
@@ -219,8 +272,8 @@ internal sealed class NodeCommonJsResolver(
         try
         {
             using var document = JsonDocument.Parse(packageJsonSource);
-            return document.RootElement.ValueKind == JsonValueKind.Object &&
-                   document.RootElement.TryGetProperty("imports", out _);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("imports", out _);
         }
         catch (JsonException)
         {
@@ -228,8 +281,11 @@ internal sealed class NodeCommonJsResolver(
         }
     }
 
-    private static string? ResolveExportsTarget(JsonElement exportsElement, string? packageSubpath,
-        ReadOnlySpan<string> conditions)
+    private static string? ResolveExportsTarget(
+        JsonElement exportsElement,
+        string? packageSubpath,
+        ReadOnlySpan<string> conditions
+    )
     {
         if (exportsElement.ValueKind == JsonValueKind.String)
             return packageSubpath is null ? exportsElement.GetString() : null;
@@ -238,7 +294,9 @@ internal sealed class NodeCommonJsResolver(
             return null;
 
         if (LooksLikeConditionMap(exportsElement))
-            return packageSubpath is null ? ResolveConditionalTarget(exportsElement, conditions) : null;
+            return packageSubpath is null
+                ? ResolveConditionalTarget(exportsElement, conditions)
+                : null;
 
         var exportKey = packageSubpath is null ? "." : "./" + packageSubpath.Replace('\\', '/');
         if (!exportsElement.TryGetProperty(exportKey, out var subpathEntry))
@@ -247,8 +305,11 @@ internal sealed class NodeCommonJsResolver(
         return ResolveExportsEntry(subpathEntry, conditions);
     }
 
-    private static string? ResolveImportsTarget(JsonElement importsElement, string specifier,
-        ReadOnlySpan<string> conditions)
+    private static string? ResolveImportsTarget(
+        JsonElement importsElement,
+        string specifier,
+        ReadOnlySpan<string> conditions
+    )
     {
         if (importsElement.ValueKind != JsonValueKind.Object)
             return null;
@@ -266,11 +327,14 @@ internal sealed class NodeCommonJsResolver(
             JsonValueKind.String => entry.GetString(),
             JsonValueKind.Array => ResolveTargetArray(entry, conditions),
             JsonValueKind.Object => ResolveConditionalTarget(entry, conditions),
-            _ => null
+            _ => null,
         };
     }
 
-    private static string? ResolveTargetArray(JsonElement entryArray, ReadOnlySpan<string> conditions)
+    private static string? ResolveTargetArray(
+        JsonElement entryArray,
+        ReadOnlySpan<string> conditions
+    )
     {
         foreach (var item in entryArray.EnumerateArray())
         {
@@ -282,7 +346,10 @@ internal sealed class NodeCommonJsResolver(
         return null;
     }
 
-    private static string? ResolveConditionalTarget(JsonElement conditionObject, ReadOnlySpan<string> conditions)
+    private static string? ResolveConditionalTarget(
+        JsonElement conditionObject,
+        ReadOnlySpan<string> conditions
+    )
     {
         foreach (var property in conditionObject.EnumerateObject())
         {
@@ -307,7 +374,8 @@ internal sealed class NodeCommonJsResolver(
     private string? ResolveAsPath(
         string path,
         ReadOnlySpan<string> pathExtensions,
-        ReadOnlySpan<string> indexCandidates)
+        ReadOnlySpan<string> indexCandidates
+    )
     {
         if (TryLoadSource(path))
             return ResolveRealPathIfPossible(path);
@@ -325,7 +393,8 @@ internal sealed class NodeCommonJsResolver(
     private string? ResolveAsDirectory(
         string directoryPath,
         ReadOnlySpan<string> pathExtensions,
-        ReadOnlySpan<string> indexCandidates)
+        ReadOnlySpan<string> indexCandidates
+    )
     {
         var packageJsonPath = CombinePath(directoryPath, "package.json");
         if (TryLoadSource(packageJsonPath, out var packageJsonSource))
@@ -350,7 +419,9 @@ internal sealed class NodeCommonJsResolver(
         return null;
     }
 
-    private static (string PackageName, string? PackageSubpath) SplitPackageSpecifier(string specifier)
+    private static (string PackageName, string? PackageSubpath) SplitPackageSpecifier(
+        string specifier
+    )
     {
         if (specifier.StartsWith('@'))
         {
@@ -372,8 +443,11 @@ internal sealed class NodeCommonJsResolver(
         return (specifier[..slash], specifier[(slash + 1)..]);
     }
 
-    private IEnumerable<(string PackageRoot, string PackageJsonPath, string PackageJsonSource)>
-        EnumerateContainingPackages(string? referrer)
+    private IEnumerable<(
+        string PackageRoot,
+        string PackageJsonPath,
+        string PackageJsonSource
+    )> EnumerateContainingPackages(string? referrer)
     {
         var currentDirectory = GetDirectoryName(ResolveRealPathIfPossible(referrer ?? "/"));
         if (string.IsNullOrEmpty(currentDirectory))
@@ -427,8 +501,14 @@ internal sealed class NodeCommonJsResolver(
             source = loadSource(resolvedId);
             return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or FileNotFoundException
-                                       or DirectoryNotFoundException or UnauthorizedAccessException or IOException)
+        catch (Exception ex)
+            when (ex
+                    is InvalidOperationException
+                        or FileNotFoundException
+                        or DirectoryNotFoundException
+                        or UnauthorizedAccessException
+                        or IOException
+            )
         {
             source = null;
             return false;
@@ -472,17 +552,17 @@ internal sealed class NodeCommonJsResolver(
 
     private static bool IsRelativeOrAbsoluteSpecifier(string specifier)
     {
-        return specifier.StartsWith("./", StringComparison.Ordinal) ||
-               specifier.StartsWith("../", StringComparison.Ordinal) ||
-               specifier.StartsWith("/", StringComparison.Ordinal) ||
-               Path.IsPathRooted(specifier);
+        return specifier.StartsWith("./", StringComparison.Ordinal)
+            || specifier.StartsWith("../", StringComparison.Ordinal)
+            || specifier.StartsWith("/", StringComparison.Ordinal)
+            || Path.IsPathRooted(specifier);
     }
 
     private static bool IsInternalImportsSpecifier(string specifier)
     {
-        return specifier.StartsWith('#') &&
-               !string.Equals(specifier, "#", StringComparison.Ordinal) &&
-               !specifier.StartsWith("#/", StringComparison.Ordinal);
+        return specifier.StartsWith('#')
+            && !string.Equals(specifier, "#", StringComparison.Ordinal)
+            && !specifier.StartsWith("#/", StringComparison.Ordinal);
     }
 
     private static string GetDirectoryName(string path)
@@ -556,13 +636,13 @@ internal sealed class NodeCommonJsResolver(
             if (Directory.Exists(path))
             {
                 var directoryInfo = new DirectoryInfo(path);
-                var resolved = directoryInfo.ResolveLinkTarget(true)?.FullName ?? directoryInfo.FullName;
+                var resolved =
+                    directoryInfo.ResolveLinkTarget(true)?.FullName ?? directoryInfo.FullName;
                 return NormalizePath(resolved);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-        }
+        catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or NotSupportedException) { }
 
         return path;
     }
@@ -601,7 +681,8 @@ internal sealed class NodeCommonJsResolver(
             var suffix = normalized[packageEnd..];
             return NormalizePath(resolvedPackageDirectory.FullName + suffix);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             return path;
         }
@@ -609,10 +690,7 @@ internal sealed class NodeCommonJsResolver(
 
     private static string GetRootPrefix(string path, out bool isAbsolute)
     {
-        if (path.Length >= 3 &&
-            char.IsAsciiLetter(path[0]) &&
-            path[1] == ':' &&
-            path[2] == '/')
+        if (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] == '/')
         {
             isAbsolute = true;
             return path[..3];
@@ -630,28 +708,34 @@ internal sealed class NodeCommonJsResolver(
 
     private static bool IsDriveRoot(string path)
     {
-        return path.Length == 3 &&
-               char.IsAsciiLetter(path[0]) &&
-               path[1] == ':' &&
-               path[2] == '/';
+        return path.Length == 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] == '/';
     }
 
     private static Exception CreateModuleNotFoundException(string specifier, string? referrer)
     {
         return new InvalidOperationException(
-            $"Cannot resolve CommonJS module '{specifier}'" +
-            (referrer is null ? string.Empty : $" from '{referrer}'."));
+            $"Cannot resolve CommonJS module '{specifier}'"
+                + (referrer is null ? string.Empty : $" from '{referrer}'.")
+        );
     }
 
-    private static Exception CreatePackagePathNotExportedException(string specifier, string packageJsonPath)
+    private static Exception CreatePackagePathNotExportedException(
+        string specifier,
+        string packageJsonPath
+    )
     {
         return new InvalidOperationException(
-            $"Package path '{specifier}' is not exported by '{packageJsonPath}'.");
+            $"Package path '{specifier}' is not exported by '{packageJsonPath}'."
+        );
     }
 
-    private static Exception CreatePackageImportNotDefinedException(string specifier, string packageJsonPath)
+    private static Exception CreatePackageImportNotDefinedException(
+        string specifier,
+        string packageJsonPath
+    )
     {
         return new InvalidOperationException(
-            $"Package import specifier '{specifier}' is not defined by '{packageJsonPath}'.");
+            $"Package import specifier '{specifier}' is not defined by '{packageJsonPath}'."
+        );
     }
 }

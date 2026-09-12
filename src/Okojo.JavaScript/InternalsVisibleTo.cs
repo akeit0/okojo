@@ -1,0 +1,21 @@
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Okojo.Tests")]
+[assembly: InternalsVisibleTo("Okojo.JavaScript.Embedding")] // Lockstep CLR provider wiring.
+[assembly: InternalsVisibleTo("Okojo.Compiler.Tests")]
+[assembly: InternalsVisibleTo("Okojo.Benchmarks")]
+[assembly: InternalsVisibleTo("CompilerAllocProbe")]
+[assembly: InternalsVisibleTo("VmLoopProbe")]
+[assembly: InternalsVisibleTo("Okojo.Reflection")] // Lockstep CLR interop ABI and atom-based object overrides.
+[assembly: InternalsVisibleTo("Okojo.Node")] // Lockstep Node profile: CommonJS compilation, nextTick, abstract operations, and dense/typed-array fast paths.
+[assembly: InternalsVisibleTo("okojonode")] // Node CLI evaluation uses the compiler directly.
+[assembly: InternalsVisibleTo("Okojo.Diagnostics")]
+[assembly: InternalsVisibleTo("Okojo.Hosting")] // Host-owned worker/message adapters use engine internals.
+[assembly: InternalsVisibleTo("OkojoBytecodeTool")]
+[assembly: InternalsVisibleTo("V8BytecodeTool")] // Lockstep bytecode inspection.
+[assembly: InternalsVisibleTo("Okojo.DebugServer.Core")]
+[assembly: InternalsVisibleTo("Test262Runner")]
+[assembly: InternalsVisibleTo("Test262OpcodeHistogram")]
+[assembly: InternalsVisibleTo("Okojo.Repl")]
+[assembly: InternalsVisibleTo("OkojoRepl")]
+[assembly: InternalsVisibleTo("OkojoInkProbe")] // Sandbox debug probe uses internal source-map tables.

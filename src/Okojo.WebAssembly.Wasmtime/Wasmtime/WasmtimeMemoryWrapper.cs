@@ -1,5 +1,5 @@
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Wasmtime;
 
 namespace Okojo.WebAssembly.Wasmtime;
@@ -39,16 +39,16 @@ internal sealed class WasmtimeMemoryWrapper(Memory memory, WasmMemoryType type) 
         var backingStore = new JsArrayBufferObject.DelegateExternalBufferBackingStore(
             () => Memory.GetSpan(0, checked((int)Memory.GetLength())),
             () => Memory.GetPointer(),
-            syncRoot);
+            syncRoot
+        );
 
         uint? maxByteLength = Type.MaximumPages.HasValue
             ? checked((uint)(Type.MaximumPages.Value * Memory.PageSize))
             : null;
 
         cachedBuffer = Type.IsShared
-            ? JsArrayBufferObject.CreateExternalShared(realm, backingStore, maxByteLength,
-                realm.SharedArrayBufferPrototype)
-            : JsArrayBufferObject.CreateExternal(realm, backingStore, maxByteLength, realm.ArrayBufferPrototype);
+            ? JsArrayBufferObject.CreateExternalShared(realm, backingStore, maxByteLength)
+            : JsArrayBufferObject.CreateExternal(realm, backingStore, maxByteLength);
 
         return cachedBuffer;
     }

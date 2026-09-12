@@ -1,6 +1,8 @@
-using Okojo.Compiler;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Tests;
 
@@ -9,7 +11,10 @@ public class WhitespaceParserTests
     [Test]
     public void MongolianVowelSeparator_IsNotAcceptedInsideIdentifier()
     {
-        Assert.That(() => JavaScriptParser.ParseScript("var\u180Efoo;"), Throws.InstanceOf<JsParseException>());
+        Assert.That(
+            () => JavaScriptParser.ParseScript("var\u180Efoo;"),
+            Throws.InstanceOf<JsParseException>()
+        );
     }
 
     [Test]
@@ -22,11 +27,16 @@ public class WhitespaceParserTests
     public void DoWhileStatement_AllowsSameLineTerminationWithoutExplicitSemicolon()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(realm, JavaScriptParser.ParseScript("""
-                                                                   var x;
-                                                                   do break; while (0) x = 42;
-                                                                   x;
-                                                                   """));
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                """
+                var x;
+                do break; while (0) x = 42;
+                x;
+                """
+            )
+        );
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.Int32Value, Is.EqualTo(42));

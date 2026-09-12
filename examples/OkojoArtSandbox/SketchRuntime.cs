@@ -1,9 +1,10 @@
 using System.Reflection;
-using Okojo;
 using Okojo.Annotations;
 using Okojo.DocGenerator.Annotations;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using SkiaSharp;
 
 namespace OkojoArtSandbox;
@@ -20,7 +21,11 @@ internal sealed partial class SketchRuntime : IDisposable
     private readonly JsRuntime runtime;
 
     private readonly string scriptPath;
-    private readonly SKPaint strokePaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
+    private readonly SKPaint strokePaint = new()
+    {
+        IsAntialias = true,
+        Style = SKPaintStyle.Stroke,
+    };
     private SKCanvas? currentCanvas;
     private JsFunction? drawFunction;
 
@@ -30,9 +35,7 @@ internal sealed partial class SketchRuntime : IDisposable
     public SketchRuntime(string scriptPath)
     {
         this.scriptPath = scriptPath;
-        runtime = JsRuntime.CreateBuilder()
-            .UseGlobals(InstallGeneratedGlobals)
-            .Build();
+        runtime = JsRuntime.CreateBuilder().UseGlobals(InstallGeneratedGlobals).Build();
         realm = runtime.MainRealm;
     }
 
@@ -109,7 +112,7 @@ internal sealed partial class SketchRuntime : IDisposable
             {
                 Color = SKColors.White,
                 IsAntialias = true,
-                TextSize = 18
+                TextSize = 18,
             };
             canvas.DrawText(ex.Message, 16, 32, paint);
         }
@@ -300,11 +303,7 @@ internal sealed partial class SketchRuntime : IDisposable
     private void Rect(float x, float y, float width, float height)
     {
         EnsureCanvas();
-        var rect = new SKRect(
-            x,
-            y,
-            x + width,
-            y + height);
+        var rect = new SKRect(x, y, x + width, y + height);
 
         if (drawState.FillEnabled)
             currentCanvas!.DrawRect(rect, ConfigureFillPaint());
@@ -352,9 +351,10 @@ internal sealed partial class SketchRuntime : IDisposable
 
     private JsFunction? TryGetGlobalFunction(string name)
     {
-        return realm.Global.TryGetValue(name, out var value) &&
-               value.TryGetObject(out var obj) &&
-               obj is JsFunction fn
+        return
+            realm.Global.TryGetValue(name, out var value)
+            && value.TryGetObject(out var obj)
+            && obj is JsFunction fn
             ? fn
             : null;
     }
@@ -440,7 +440,9 @@ internal sealed partial class SketchRuntime : IDisposable
     private void EnsureCanvas()
     {
         if (currentCanvas is null || !setupRan)
-            throw new InvalidOperationException("Drawing API can only be used inside setup() or draw().");
+            throw new InvalidOperationException(
+                "Drawing API can only be used inside setup() or draw()."
+            );
     }
 
     private sealed class DrawState

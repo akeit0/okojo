@@ -1,6 +1,8 @@
-using Okojo.Bytecode;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
@@ -11,32 +13,36 @@ public class FrameAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var ctorScript = new JsScript(
-            [
-                (byte)JsOpCode.LdaNewTarget,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var ctorCode = new JsFunctionCode(
+            [(byte)JsOpCode.LdaNewTarget, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
-        var ctor = new JsBytecodeFunction(realm, ctorScript, "Ctor");
+        var ctor = new JsFunctionDescriptor(ctorCode, "Ctor").CreateClosure(realm);
         realm.Global["Ctor"] = JsValue.FromObject(ctor);
 
-        var atom = realm.Atoms.InternNoCheck("Ctor");
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.Construct, 0, 0, 0,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.Construct,
+                0,
+                0,
+                0,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Ctor"],
             1,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["Ctor"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -49,32 +55,36 @@ public class FrameAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var ctorScript = new JsScript(
-            [
-                (byte)JsOpCode.LdaSmi, 7,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var ctorCode = new JsFunctionCode(
+            [(byte)JsOpCode.LdaSmi, 7, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
-        var ctor = new JsBytecodeFunction(realm, ctorScript, "Ctor");
+        var ctor = new JsFunctionDescriptor(ctorCode, "Ctor").CreateClosure(realm);
         realm.Global["Ctor"] = JsValue.FromObject(ctor);
 
-        var atom = realm.Atoms.InternNoCheck("Ctor");
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.Construct, 0, 0, 0,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.Construct,
+                0,
+                0,
+                0,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Ctor"],
             1,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["Ctor"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -92,33 +102,47 @@ public class FrameAbiTests
         var observedStackArg = JsValue.Undefined;
         var observedArgOffset = -1;
 
-        var host = new JsHostFunction(realm, (in info) =>
-        {
-            observedKind = info.FrameKind;
-            observedArgCount = info.ArgumentCount;
-            observedFlags = info.Flags;
-            observedArgOffset = info.ArgumentOffset;
-            observedStackArg = info.Arguments[0];
-            return info.Arguments[0];
-        }, "h", 0);
+        var host = new JsHostFunction(
+            realm,
+            (in info) =>
+            {
+                observedKind = info.FrameKind;
+                observedArgCount = info.ArgumentCount;
+                observedFlags = info.Flags;
+                observedArgOffset = info.ArgumentOffset;
+                observedStackArg = info.Arguments[0];
+                return info.Arguments[0];
+            },
+            "h",
+            0
+        );
 
         realm.Global["h"] = JsValue.FromObject(host);
-        var atom = realm.Atoms.InternNoCheck("h");
 
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.LdaSmi, 5,
-                (byte)JsOpCode.Star, 1,
-                (byte)JsOpCode.CallUndefinedReceiver, 0, 1, 1,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaSmi,
+                5,
+                (byte)JsOpCode.Star,
+                1,
+                (byte)JsOpCode.CallUndefinedReceiver,
+                0,
+                1,
+                1,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["h"],
             2,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["h"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -138,29 +162,42 @@ public class FrameAbiTests
         var observedNewTargetIsObject = false;
         var observedKind = CallFrameKind.ScriptFrame;
 
-        var ctor = new JsHostFunction(realm, (in info) =>
-        {
-            observedKind = info.FrameKind;
-            observedFlag = info.Flags;
-            observedNewTargetIsObject = info.NewTarget.IsObject;
-            return info.ThisValue;
-        }, "HostCtor", 0, true);
+        var ctor = new JsHostFunction(
+            realm,
+            (in info) =>
+            {
+                observedKind = info.FrameKind;
+                observedFlag = info.Flags;
+                observedNewTargetIsObject = info.NewTarget.IsObject;
+                return info.ThisValue;
+            },
+            "HostCtor",
+            0,
+            true
+        );
 
         realm.Global["HostCtor"] = JsValue.FromObject(ctor);
-        var atom = realm.Atoms.InternNoCheck("HostCtor");
 
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.Construct, 0, 0, 0,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.Construct,
+                0,
+                0,
+                0,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["HostCtor"],
             1,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["HostCtor"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -174,16 +211,14 @@ public class FrameAbiTests
     public void LdaNewTarget_OutsideConstruct_IsUndefined()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = new JsScript(
-            [
-                (byte)JsOpCode.LdaNewTarget,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var code = new JsFunctionCode(
+            [(byte)JsOpCode.LdaNewTarget, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         realm.Execute(script);
 
@@ -195,32 +230,40 @@ public class FrameAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var derivedScript = new JsScript(
-            [
-                (byte)JsOpCode.LdaThis,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var derivedCode = new JsFunctionCode(
+            [(byte)JsOpCode.LdaThis, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
-        var derived = new JsBytecodeFunction(realm, derivedScript, "Derived", isDerivedConstructor: true);
+        var derived = new JsFunctionDescriptor(
+            derivedCode,
+            "Derived",
+            isDerivedConstructor: true
+        ).CreateClosure(realm);
         realm.Global["Derived"] = JsValue.FromObject(derived);
-        var atom = realm.Atoms.InternNoCheck("Derived");
 
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.Construct, 0, 0, 0,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.Construct,
+                0,
+                0,
+                0,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Derived"],
             1,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["Derived"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
         Assert.That(ex!.Message, Does.Contain("Must call super constructor"));
@@ -231,57 +274,70 @@ public class FrameAbiTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
 
-        var derivedScript = new JsScript(
-            [
-                (byte)JsOpCode.LdaSmi, 1,
-                (byte)JsOpCode.Return
-            ],
-            Array.Empty<double>(),
+        var derivedCode = new JsFunctionCode(
+            [(byte)JsOpCode.LdaSmi, 1, (byte)JsOpCode.Return],
+            Array.Empty<ulong>(),
             Array.Empty<object>(),
             0,
-            Array.Empty<int>()
+            []
         );
-        var derived = new JsBytecodeFunction(realm, derivedScript, "Derived", isDerivedConstructor: true);
+        var derived = new JsFunctionDescriptor(
+            derivedCode,
+            "Derived",
+            isDerivedConstructor: true
+        ).CreateClosure(realm);
         realm.Global["Derived"] = JsValue.FromObject(derived);
-        var atom = realm.Atoms.InternNoCheck("Derived");
 
-        var script = new JsScript(
+        var code = new JsFunctionCode(
             [
-                (byte)JsOpCode.LdaGlobal, 0, 0,
-                (byte)JsOpCode.Star, 0,
-                (byte)JsOpCode.Construct, 0, 0, 0,
-                (byte)JsOpCode.Return
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.Construct,
+                0,
+                0,
+                0,
+                (byte)JsOpCode.Return,
             ],
-            Array.Empty<double>(),
+            Array.Empty<ulong>(),
             ["Derived"],
             1,
-            [atom], GlobalBindingIcEntries: new GlobalBindingIcEntry[1]
+            ["Derived"],
+            globalBindingSlotCount: 1
         );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
 
         var ex = Assert.Throws<JsRuntimeException>(() => realm.Execute(script));
-        Assert.That(ex!.Message, Does.Contain("Derived constructors may only return object or undefined"));
+        Assert.That(
+            ex!.Message,
+            Does.Contain("Derived constructors may only return object or undefined")
+        );
     }
 
     [Test]
     public void DerivedConstructor_ReturnPrimitiveAfterSuper_Throws()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var result = realm.Eval("""
-                                class Base {}
-                                class Derived extends Base {
-                                  constructor() {
-                                    super();
-                                    return 1;
-                                  }
-                                }
+        var result = realm.Eval(
+            """
+            class Base {}
+            class Derived extends Base {
+              constructor() {
+                super();
+                return 1;
+              }
+            }
 
-                                try {
-                                  new Derived();
-                                  false;
-                                } catch (e) {
-                                  e && e.name === "TypeError";
-                                }
-                                """);
+            try {
+              new Derived();
+              false;
+            } catch (e) {
+              e && e.name === "TypeError";
+            }
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -290,19 +346,21 @@ public class FrameAbiTests
     public void DerivedConstructor_ReturnUndefinedAfterSuper_ReturnsThis()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var result = realm.Eval("""
-                                class Base {
-                                  constructor() { this.v = 1; }
-                                }
-                                class Derived extends Base {
-                                  constructor() {
-                                    super();
-                                    return;
-                                  }
-                                }
-                                var o = new Derived();
-                                o.v === 1 && o instanceof Derived && o instanceof Base;
-                                """);
+        var result = realm.Eval(
+            """
+            class Base {
+              constructor() { this.v = 1; }
+            }
+            class Derived extends Base {
+              constructor() {
+                super();
+                return;
+              }
+            }
+            var o = new Derived();
+            o.v === 1 && o instanceof Derived && o instanceof Base;
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }

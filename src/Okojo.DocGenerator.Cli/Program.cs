@@ -10,11 +10,15 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase) ||
-            args.Contains("-h", StringComparer.OrdinalIgnoreCase))
+        if (
+            args.Length == 0
+            || args.Contains("--help", StringComparer.OrdinalIgnoreCase)
+            || args.Contains("-h", StringComparer.OrdinalIgnoreCase)
+        )
         {
             Console.WriteLine(
-                "Usage: Okojo.DocGenerator.Cli --project <path.csproj> [--type <Full.Type.Name>] --out <path-or-directory> [--per-type]");
+                "Usage: Okojo.DocGenerator.Cli --project <path.csproj> [--type <Full.Type.Name>] --out <path-or-directory> [--per-type]"
+            );
             return 1;
         }
 
@@ -67,9 +71,11 @@ internal static class Program
 
         if (globalModels.Count == 0 && objectModels.Count == 0)
         {
-            Console.Error.WriteLine(typeName is null
-                ? "No [GenerateJsGlobals] or [GenerateJsObject] types were found."
-                : $"Type '{typeName}' with [GenerateJsGlobals] or [GenerateJsObject] was not found.");
+            Console.Error.WriteLine(
+                typeName is null
+                    ? "No [GenerateJsGlobals] or [GenerateJsObject] types were found."
+                    : $"Type '{typeName}' with [GenerateJsGlobals] or [GenerateJsObject] was not found."
+            );
             return 4;
         }
 
@@ -82,8 +88,10 @@ internal static class Program
                 var directory = Path.GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(directory))
                     Directory.CreateDirectory(directory);
-                await File.WriteAllTextAsync(filePath,
-                    TypeScriptDeclarationEmitter.Emit(group.GlobalModels, group.ObjectModels));
+                await File.WriteAllTextAsync(
+                    filePath,
+                    TypeScriptDeclarationEmitter.Emit(group.GlobalModels, group.ObjectModels)
+                );
                 Console.WriteLine($"Wrote {filePath}");
             }
 
@@ -94,21 +102,29 @@ internal static class Program
         if (!string.IsNullOrEmpty(outputDirectory))
             Directory.CreateDirectory(outputDirectory);
 
-        await File.WriteAllTextAsync(outputPath, TypeScriptDeclarationEmitter.Emit(globalModels, objectModels));
+        await File.WriteAllTextAsync(
+            outputPath,
+            TypeScriptDeclarationEmitter.Emit(globalModels, objectModels)
+        );
         Console.WriteLine($"Wrote {outputPath}");
         return 0;
     }
 
     private static IReadOnlyList<DeclarationOutputGroup> CreateOutputGroups(
         IReadOnlyList<GlobalTypeModel> globalModels,
-        IReadOnlyList<JsObjectTypeModel> objectModels)
+        IReadOnlyList<JsObjectTypeModel> objectModels
+    )
     {
-        var groups = new Dictionary<string, DeclarationOutputGroup>(StringComparer.OrdinalIgnoreCase);
+        var groups = new Dictionary<string, DeclarationOutputGroup>(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         foreach (var model in globalModels)
         {
-            var fileName = DeclarationFileNameHelper.GetFileName(model.Symbol,
-                DocAttributeReader.ReadDeclarationInfo(model.Symbol).FileName);
+            var fileName = DeclarationFileNameHelper.GetFileName(
+                model.Symbol,
+                DocAttributeReader.ReadDeclarationInfo(model.Symbol).FileName
+            );
             if (!groups.TryGetValue(fileName, out var group))
             {
                 group = new() { RelativeFilePath = fileName };
@@ -120,8 +136,10 @@ internal static class Program
 
         foreach (var model in objectModels)
         {
-            var fileName = DeclarationFileNameHelper.GetFileName(model.Symbol,
-                DocAttributeReader.ReadDeclarationInfo(model.Symbol).FileName);
+            var fileName = DeclarationFileNameHelper.GetFileName(
+                model.Symbol,
+                DocAttributeReader.ReadDeclarationInfo(model.Symbol).FileName
+            );
             if (!groups.TryGetValue(fileName, out var group))
             {
                 group = new() { RelativeFilePath = fileName };
@@ -131,14 +149,17 @@ internal static class Program
             group.ObjectModels.Add(model);
         }
 
-        return groups.Values.OrderBy(static x => x.RelativeFilePath, StringComparer.OrdinalIgnoreCase).ToArray();
+        return groups
+            .Values.OrderBy(static x => x.RelativeFilePath, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static void CollectTypes(
         INamespaceSymbol ns,
         List<GlobalTypeModel> globalResults,
         List<JsObjectTypeModel> objectResults,
-        string? typeName)
+        string? typeName
+    )
     {
         foreach (var memberNamespace in ns.GetNamespaceMembers())
             CollectTypes(memberNamespace, globalResults, objectResults, typeName);
@@ -151,9 +172,13 @@ internal static class Program
         INamedTypeSymbol type,
         List<GlobalTypeModel> globalResults,
         List<JsObjectTypeModel> objectResults,
-        string? typeName)
+        string? typeName
+    )
     {
-        if (typeName is null || string.Equals(type.ToDisplayString(), typeName, StringComparison.Ordinal))
+        if (
+            typeName is null
+            || string.Equals(type.ToDisplayString(), typeName, StringComparison.Ordinal)
+        )
         {
             var globalModel = DocAttributeReader.Filter(GlobalExportCollector.Collect(type));
             if (globalModel is not null)

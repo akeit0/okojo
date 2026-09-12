@@ -2,7 +2,12 @@ using System.Text;
 
 namespace Okojo.Repl;
 
-public readonly record struct ReplConsoleLayout(string Text, int CursorRow, int CursorColumn, int TotalRows)
+public readonly record struct ReplConsoleLayout(
+    string Text,
+    int CursorRow,
+    int CursorColumn,
+    int TotalRows
+)
 {
     private const string ConsoleNewLine = "\r\n";
 
@@ -11,7 +16,8 @@ public readonly record struct ReplConsoleLayout(string Text, int CursorRow, int 
         int cursorIndex,
         int width,
         string primaryPrompt = "> ",
-        string continuationPrompt = "| ")
+        string continuationPrompt = "| "
+    )
     {
         width = Math.Max(20, width);
         var builder = new StringBuilder();
@@ -53,7 +59,13 @@ public readonly record struct ReplConsoleLayout(string Text, int CursorRow, int 
         return new(builder.ToString(), cursorRow ?? row, cursorColumn ?? col, row + 1);
     }
 
-    private static void AppendPrompt(StringBuilder builder, ref int row, ref int col, string prompt, int width)
+    private static void AppendPrompt(
+        StringBuilder builder,
+        ref int row,
+        ref int col,
+        string prompt,
+        int width
+    )
     {
         builder.Append(prompt);
         Advance(ref row, ref col, prompt.Length, width);

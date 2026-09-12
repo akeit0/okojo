@@ -1,0 +1,1488 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
+
+namespace Okojo.JavaScript.Bytecode;
+
+public sealed class BytecodeBuilder : IDisposable
+{
+    private const int ConstantDedupDictionaryThreshold = 32;
+    private readonly List<int> activeTemporaryRegisters;
+    private readonly List<string> atomizedStringSymbols;
+    private readonly Dictionary<int, string> callSiteDebugNames;
+    private readonly List<byte> code;
+    private readonly Dictionary<int, int> debugSourceOffsets;
+    private readonly List<int> freeTemporaryRegisters;
+    private readonly List<int> generatorSwitchTargets;
+    private readonly Dictionary<string, int> globalBindingFeedbackSlotByName;
+    private readonly List<JumpInfo> jumps16ToPatch;
+    private readonly Dictionary<int, int> labelPositions;
+    private readonly List<JsLocalDebugInfo> localDebugInfos;
+    private readonly List<double> numericConstants;
+    private readonly List<object> objectConstants;
+    private Dictionary<ulong, int>? numericConstantIndices;
+    private Dictionary<object, int>? objectConstantIndices;
+    private Dictionary<string, int>? atomizedStringSymbolIndices;
+    private readonly Dictionary<long, string> privateFieldDebugNames;
+    private readonly CompileCollectionPool pool;
+    private readonly JsRealm? targetRealm;
+    private readonly Dictionary<int, string> runtimeCallDebugNames;
+    private readonly List<int> switchOnSmiTargets;
+    private readonly List<SwitchOnSmiPatchInfo> switchOnSmiToPatch;
+    private readonly Dictionary<int, string> tdzReadDebugNames;
+    private int globalBindingFeedbackSlotCount;
+    private int lastEmittedLength;
+    private JsOpCode? lastEmittedOp;
+    private byte lastEmittedOp1;
+    private byte lastEmittedOp2;
+    private int lastEmittedPc = -1;
+    private ushort lastEmittedRegisterOperand0;
+    private ushort lastEmittedRegisterOperand1;
+    private int namedPropertyFeedbackSlotCount;
+    private int pendingSourceOffset = -1;
+    private bool returnedToPool;
+    private string? sourceText;
+    private bool strictDeclared;
+
+    public BytecodeBuilder(JsRealm realm)
+        : this(realm.CompilationPool)
+    {
+        targetRealm = realm;
+    }
+
+    public BytecodeBuilder()
+        : this(new CompileCollectionPool()) { }
+
+    internal BytecodeBuilder(CompileCollectionPool pool)
+    {
+        this.pool = pool;
+        code = pool.RentCompileList<byte>(256);
+        numericConstants = pool.RentCompileList<double>(32);
+        objectConstants = pool.RentCompileList<object>(64);
+        atomizedStringSymbols = pool.RentCompileList<string>(64);
+        callSiteDebugNames = pool.RentCompileDictionary<int, string>(32);
+        generatorSwitchTargets = pool.RentCompileList<int>(16);
+        switchOnSmiTargets = pool.RentCompileList<int>(32);
+        jumps16ToPatch = pool.RentCompileList<JumpInfo>(64);
+        switchOnSmiToPatch = pool.RentCompileList<SwitchOnSmiPatchInfo>(16);
+        labelPositions = pool.RentCompileDictionary<int, int>(64);
+        globalBindingFeedbackSlotByName = pool.RentCompileDictionary<string, int>(32);
+        runtimeCallDebugNames = pool.RentCompileDictionary<int, string>(16);
+        tdzReadDebugNames = pool.RentCompileDictionary<int, string>(32);
+        privateFieldDebugNames = pool.RentCompileDictionary<long, string>(8);
+        localDebugInfos = pool.RentCompileList<JsLocalDebugInfo>(32);
+        debugSourceOffsets = pool.RentCompileDictionary<int, int>(128);
+        freeTemporaryRegisters = pool.RentCompileList<int>(32);
+        activeTemporaryRegisters = pool.RentCompileList<int>(64);
+#if DEBUG
+        freeTemporaryRegisterSet = pool.RentCompileHashSet<int>(32);
+        reportedSuspiciousAccumulatorCopies = pool.RentCompileHashSet<long>(32);
+#endif
+    }
+
+    public int RegisterCount { get; private set; }
+
+    public int CodeLength => code.Count;
+    public int ObjectConstantCount => objectConstants.Count;
+
+    public int GeneratorSwitchTargetCount => generatorSwitchTargets.Count;
+    public int SwitchOnSmiTargetCount => switchOnSmiTargets.Count;
+
+    public void Dispose()
+    {
+        ReturnPooledCollections();
+    }
+
+    public Label CreateLabel()
+    {
+        return Label.Create();
+    }
+
+    public void BindLabel(Label label)
+    {
+        labelPositions[label.Id] = code.Count;
+        InvalidateJumpTestSpecialization();
+    }
+
+    public void EmitJump(JsOpCode op, Label target)
+    {
+        jumps16ToPatch.Add(new(code.Count, target));
+        Emit(op, 0, 0); // Placeholder for 16-bit offset
+    }
+
+    public void EmitJumpIfTruethy(JsOpCode op, Label target)
+    {
+        if (lastEmittedOp is { } o && IsTestOpcode(o))
+            op = JsOpCode.JumpIfTrue;
+        jumps16ToPatch.Add(new(code.Count, target));
+        Emit(op, 0, 0); // Placeholder for 16-bit offset
+    }
+
+    public void EmitJumpIfFalsy(JsOpCode op, Label target)
+    {
+        if (lastEmittedOp is { } o && IsTestOpcode(o))
+            op = JsOpCode.JumpIfFalse;
+        jumps16ToPatch.Add(new(code.Count, target));
+        Emit(op, 0, 0); // Placeholder for 16-bit offset
+    }
+
+    public void InvalidateJumpTestSpecialization()
+    {
+        lastEmittedOp = null;
+        lastEmittedLength = 0;
+        lastEmittedPc = -1;
+        lastEmittedOp1 = 0;
+        lastEmittedOp2 = 0;
+        lastEmittedRegisterOperand0 = 0;
+        lastEmittedRegisterOperand1 = 0;
+    }
+
+    private static bool IsTestOpcode(JsOpCode op)
+    {
+        return op
+            is JsOpCode.TestEqual
+                or JsOpCode.TestEqualStrict
+                or JsOpCode.TestNotEqual
+                or JsOpCode.TestLessThan
+                or JsOpCode.TestLessThanOrEqual
+                or JsOpCode.TestLessThanOrEqualSmi
+                or JsOpCode.TestIn
+                or JsOpCode.TestGreaterThan
+                or JsOpCode.TestGreaterThanSmi
+                or JsOpCode.TestGreaterThanOrEqual
+                or JsOpCode.TestGreaterThanOrEqualSmi
+                or JsOpCode.TestInstanceOf;
+    }
+
+    public void EmitJump(Label target)
+    {
+        EmitJump(JsOpCode.Jump, target);
+    }
+
+    public void EmitSwitchOnSmi(IReadOnlyList<Label> targets)
+    {
+        if (targets.Count > byte.MaxValue)
+            throw new InvalidOperationException(
+                "SwitchOnSmi target count exceeds byte operand capacity."
+            );
+        var copied = new Label[targets.Count];
+        for (var i = 0; i < targets.Count; i++)
+            copied[i] = targets[i];
+        switchOnSmiToPatch.Add(new(code.Count, copied));
+        Emit(JsOpCode.SwitchOnSmi, 0, (byte)targets.Count);
+    }
+
+    public int AllocateRegister()
+    {
+        return AllocateTemporaryRegister();
+    }
+
+    public int AllocatePinnedRegister()
+    {
+        return RegisterCount++;
+    }
+
+    public int AllocateTemporaryRegister()
+    {
+        int reg;
+        if (freeTemporaryRegisters.Count != 0)
+        {
+            var idx = freeTemporaryRegisters.Count - 1;
+            reg = freeTemporaryRegisters[idx];
+            freeTemporaryRegisters.RemoveAt(idx);
+#if DEBUG
+            freeTemporaryRegisterSet.Remove(reg);
+#endif
+        }
+        else
+        {
+            reg = RegisterCount++;
+        }
+
+        activeTemporaryRegisters.Add(reg);
+        return reg;
+    }
+
+    public int AllocateTemporaryRegisterBlock(int count)
+    {
+        if (count < 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        if (count == 0)
+            return -1;
+        if (count == 1)
+            return AllocateTemporaryRegister();
+
+        if (TryAllocateContiguousFreeRegisterBlock(count, out var start))
+            return start;
+
+        start = RegisterCount;
+        for (var i = 0; i < count; i++)
+            activeTemporaryRegisters.Add(start + i);
+        RegisterCount += count;
+        return start;
+    }
+
+    private bool TryAllocateContiguousFreeRegisterBlock(int count, out int start)
+    {
+        for (var i = 0; i < freeTemporaryRegisters.Count; i++)
+        {
+            var candidate = freeTemporaryRegisters[i];
+            if (candidate > int.MaxValue - count + 1)
+                continue;
+
+            var contiguous = true;
+            for (var offset = 1; offset < count; offset++)
+                if (!freeTemporaryRegisters.Contains(candidate + offset))
+                {
+                    contiguous = false;
+                    break;
+                }
+            if (!contiguous)
+                continue;
+
+            for (var offset = 0; offset < count; offset++)
+            {
+                freeTemporaryRegisters.Remove(candidate + offset);
+#if DEBUG
+                freeTemporaryRegisterSet.Remove(candidate + offset);
+#endif
+                activeTemporaryRegisters.Add(candidate + offset);
+            }
+
+            start = candidate;
+            return true;
+        }
+
+        start = -1;
+        return false;
+    }
+
+    public void ReleaseTemporaryRegister(int register)
+    {
+        if ((uint)register >= (uint)RegisterCount)
+            throw new ArgumentOutOfRangeException(nameof(register));
+        var activeIndex = FindActiveTemporaryRegisterIndex(register);
+        if (activeIndex < 0)
+            throw new InvalidOperationException(
+                $"Temporary register r{register} is not currently active."
+            );
+        activeTemporaryRegisters.RemoveAt(activeIndex);
+#if DEBUG
+        if (!freeTemporaryRegisterSet.Add(register))
+            throw new InvalidOperationException(
+                $"Temporary register r{register} released more than once."
+            );
+#endif
+        freeTemporaryRegisters.Add(register);
+    }
+
+    public int GetTemporaryRegisterScopeMarker()
+    {
+        return activeTemporaryRegisters.Count;
+    }
+
+    public bool TryGetActiveTemporaryRegisterRange(out int minRegister, out int maxRegister)
+    {
+        minRegister = int.MaxValue;
+        maxRegister = -1;
+        for (var i = 0; i < activeTemporaryRegisters.Count; i++)
+        {
+            var reg = activeTemporaryRegisters[i];
+            if (reg < minRegister)
+                minRegister = reg;
+            if (reg > maxRegister)
+                maxRegister = reg;
+        }
+
+        return maxRegister >= 0;
+    }
+
+    public void ReleaseTemporaryRegistersToMarker(int marker)
+    {
+        if ((uint)marker > (uint)activeTemporaryRegisters.Count)
+            throw new ArgumentOutOfRangeException(nameof(marker));
+        while (activeTemporaryRegisters.Count > marker)
+        {
+            var idx = activeTemporaryRegisters.Count - 1;
+            var reg = activeTemporaryRegisters[idx];
+            activeTemporaryRegisters.RemoveAt(idx);
+#if DEBUG
+            if (!freeTemporaryRegisterSet.Add(reg))
+                throw new InvalidOperationException(
+                    $"Temporary register r{reg} released more than once."
+                );
+#endif
+            freeTemporaryRegisters.Add(reg);
+        }
+    }
+
+    public int AllocateFeedbackSlot()
+    {
+        if (namedPropertyFeedbackSlotCount == ushort.MaxValue)
+            throw new InvalidOperationException(
+                "Named-property feedback slot count exceeds ushort operand capacity."
+            );
+        return namedPropertyFeedbackSlotCount++;
+    }
+
+    public int AllocateGlobalBindingFeedbackSlot()
+    {
+        if (globalBindingFeedbackSlotCount == ushort.MaxValue)
+            throw new InvalidOperationException(
+                "Global-binding feedback slot count exceeds ushort operand capacity."
+            );
+        return globalBindingFeedbackSlotCount++;
+    }
+
+    public int GetOrAllocateGlobalBindingFeedbackSlot(string name)
+    {
+        if (globalBindingFeedbackSlotByName.TryGetValue(name, out var existing))
+            return existing;
+
+        var slot = AllocateGlobalBindingFeedbackSlot();
+        globalBindingFeedbackSlotByName[name] = slot;
+        return slot;
+    }
+
+    internal void EmitCallUndefinedReceiver(
+        int functionRegister,
+        int argumentStart,
+        int argumentCount
+    ) =>
+        EmitScaledOperands(
+            JsOpCode.CallUndefinedReceiver,
+            [functionRegister, argumentStart, argumentCount]
+        );
+
+    internal void EmitCallProperty(
+        int functionRegister,
+        int objectRegister,
+        int argumentStart,
+        int argumentCount
+    ) =>
+        EmitScaledOperands(
+            JsOpCode.CallProperty,
+            [functionRegister, objectRegister, argumentStart, argumentCount]
+        );
+
+    internal void EmitCallRuntime(int runtimeId, int argumentStart, int argumentCount) =>
+        EmitScaledOperands(JsOpCode.CallRuntime, [runtimeId, argumentStart, argumentCount]);
+
+    internal void EmitConstruct(int functionRegister, int argumentStart, int argumentCount) =>
+        EmitScaledOperands(JsOpCode.Construct, [functionRegister, argumentStart, argumentCount]);
+
+    internal void EmitLdaKeyedProperty(int objectRegister) =>
+        EmitScaledOperands(JsOpCode.LdaKeyedProperty, [objectRegister]);
+
+    internal void EmitLdaNamedProperty(int objectRegister, int nameIndex, int feedbackSlot)
+    {
+        if (
+            (uint)objectRegister <= byte.MaxValue
+            && (uint)nameIndex <= byte.MaxValue
+            && (uint)feedbackSlot <= byte.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.LdaNamedProperty,
+                (byte)objectRegister,
+                (byte)nameIndex,
+                (byte)feedbackSlot
+            );
+            return;
+        }
+        if (
+            (uint)objectRegister <= ushort.MaxValue
+            && (uint)nameIndex <= ushort.MaxValue
+            && (uint)feedbackSlot <= ushort.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.LdaNamedPropertyWide,
+                (byte)objectRegister,
+                (byte)(objectRegister >> 8),
+                (byte)nameIndex,
+                (byte)(nameIndex >> 8),
+                (byte)feedbackSlot,
+                (byte)(feedbackSlot >> 8)
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "Named property operands exceed ushort operand capacity."
+        );
+    }
+
+    internal void EmitStaNamedProperty(int objectRegister, int nameIndex, int feedbackSlot)
+    {
+        if (
+            (uint)objectRegister <= byte.MaxValue
+            && (uint)nameIndex <= byte.MaxValue
+            && (uint)feedbackSlot <= byte.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.StaNamedProperty,
+                (byte)objectRegister,
+                (byte)nameIndex,
+                (byte)feedbackSlot
+            );
+            return;
+        }
+        if (
+            (uint)objectRegister <= ushort.MaxValue
+            && (uint)nameIndex <= ushort.MaxValue
+            && (uint)feedbackSlot <= ushort.MaxValue
+        )
+        {
+            Emit(
+                JsOpCode.StaNamedPropertyWide,
+                (byte)objectRegister,
+                (byte)(objectRegister >> 8),
+                (byte)nameIndex,
+                (byte)(nameIndex >> 8),
+                (byte)feedbackSlot,
+                (byte)(feedbackSlot >> 8)
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "Named property operands exceed ushort operand capacity."
+        );
+    }
+
+    internal void EmitStaKeyedProperty(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.StaKeyedProperty, [objectRegister, keyRegister]);
+
+    internal void EmitCreateArrayLiteral(int constantIndex)
+    {
+        if ((uint)constantIndex > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "CreateArrayLiteral constant index exceeds ushort operand capacity."
+            );
+        Emit(JsOpCode.CreateArrayLiteral, (byte)constantIndex, (byte)(constantIndex >> 8));
+    }
+
+    internal void EmitCreateArrayLiteralWithLength(int length)
+    {
+        if ((uint)length > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "CreateArrayLiteral length exceeds ushort operand capacity."
+            );
+        Emit(JsOpCode.CreateArrayLiteralWithLength, (byte)length, (byte)(length >> 8));
+    }
+
+    internal void EmitInitializeArrayElement(int objectRegister, int index)
+    {
+        if ((uint)objectRegister > ushort.MaxValue || (uint)index > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "InitializeArrayElement operands exceed ushort operand capacity."
+            );
+        Emit(
+            JsOpCode.InitializeArrayElement,
+            (byte)objectRegister,
+            (byte)(objectRegister >> 8),
+            (byte)index,
+            (byte)(index >> 8)
+        );
+    }
+
+    internal void EmitCreateObjectLiteral(int constantIndex, byte flags = 0)
+    {
+        if ((uint)constantIndex <= byte.MaxValue)
+        {
+            Emit(JsOpCode.CreateObjectLiteral, (byte)constantIndex, flags);
+            return;
+        }
+        if ((uint)constantIndex <= ushort.MaxValue)
+        {
+            Emit(
+                JsOpCode.CreateObjectLiteralWide,
+                (byte)constantIndex,
+                (byte)(constantIndex >> 8),
+                flags
+            );
+            return;
+        }
+        throw new InvalidOperationException(
+            "CreateObjectLiteral operands exceed ushort operand capacity."
+        );
+    }
+
+    internal void EmitInitializeNamedProperty(int objectRegister, int slot)
+    {
+        if ((uint)objectRegister > ushort.MaxValue || (uint)slot > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "InitializeNamedProperty operands exceed ushort operand capacity."
+            );
+        Emit(
+            JsOpCode.InitializeNamedProperty,
+            (byte)objectRegister,
+            (byte)(objectRegister >> 8),
+            (byte)slot,
+            (byte)(slot >> 8)
+        );
+    }
+
+    internal void EmitDefineOwnKeyedProperty(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.DefineOwnKeyedProperty, [objectRegister, keyRegister]);
+
+    internal void EmitDefineOwnKeyedPropertyNoName(int objectRegister, int keyRegister) =>
+        EmitScaledOperands(JsOpCode.DefineOwnKeyedPropertyNoName, [objectRegister, keyRegister]);
+
+    private void EmitScaledOperands(JsOpCode op, ReadOnlySpan<int> operands)
+    {
+        var max = 0;
+        for (var i = 0; i < operands.Length; i++)
+        {
+            if (operands[i] < 0 || operands[i] > ushort.MaxValue)
+                throw new InvalidOperationException($"{op} operand exceeds ushort capacity.");
+            max = Math.Max(max, operands[i]);
+        }
+
+        var wide = max > byte.MaxValue;
+        if (wide)
+            Emit(BytecodeInfo.GetOperandScalePrefix(BytecodeInfo.OperandScale.Wide));
+        Span<byte> encoded = stackalloc byte[operands.Length * (wide ? 2 : 1)];
+        var cursor = 0;
+        for (var i = 0; i < operands.Length; i++)
+        {
+            encoded[cursor++] = (byte)operands[i];
+            if (wide)
+                encoded[cursor++] = (byte)(operands[i] >> 8);
+        }
+        Emit(op, encoded);
+    }
+
+    private ulong[] ToNumericConstantBits()
+    {
+        var bits = new ulong[numericConstants.Count];
+        for (var i = 0; i < bits.Length; i++)
+            bits[i] = BitConverter.DoubleToUInt64Bits(numericConstants[i]);
+        return bits;
+    }
+
+    public int AddNumericConstant(double value)
+    {
+        var key = BitConverter.DoubleToUInt64Bits(value);
+        if ((key & 0x7FFFFFFFFFFFFFFFUL) > 0x7FF0000000000000UL)
+        {
+            // Canonicalize NaN to the engine's JsNan pattern: the constant
+            // table stores raw JsValue.U bits and the LdaNumericConstant arms
+            // load them without a per-execution check, so a NaN whose top 16
+            // bits equal BoxHdr (which would alias a tagged value) must never
+            // enter the table.
+            key = JsValue.JsNan;
+            value = Unsafe.BitCast<ulong, double>(key);
+        }
+        if (numericConstantIndices is null)
+        {
+            for (var i = 0; i < numericConstants.Count; i++)
+                if (BitConverter.DoubleToUInt64Bits(numericConstants[i]) == key)
+                    return i;
+
+            if (numericConstants.Count < ConstantDedupDictionaryThreshold)
+            {
+                numericConstants.Add(value);
+                return numericConstants.Count - 1;
+            }
+
+            numericConstantIndices = pool.RentCompileDictionary<ulong, int>(
+                numericConstants.Count + 1
+            );
+            for (var i = 0; i < numericConstants.Count; i++)
+                numericConstantIndices.Add(BitConverter.DoubleToUInt64Bits(numericConstants[i]), i);
+        }
+
+        if (numericConstantIndices.TryGetValue(key, out var existing))
+            return existing;
+
+        numericConstants.Add(value);
+        var index = numericConstants.Count - 1;
+        numericConstantIndices.Add(key, index);
+        return index;
+    }
+
+    public int AddObjectConstant(object value)
+    {
+        if (objectConstantIndices is null)
+        {
+            for (var i = 0; i < objectConstants.Count; i++)
+                if (ReferenceEquals(objectConstants[i], value))
+                    return i;
+
+            if (objectConstants.Count < ConstantDedupDictionaryThreshold)
+            {
+                objectConstants.Add(value);
+                return objectConstants.Count - 1;
+            }
+
+            objectConstantIndices = pool.RentCompileDictionary<object, int>(
+                objectConstants.Count + 1,
+                ReferenceEqualityComparer.Instance
+            );
+            for (var i = 0; i < objectConstants.Count; i++)
+                objectConstantIndices.Add(objectConstants[i], i);
+        }
+
+        if (objectConstantIndices.TryGetValue(value, out var existing))
+            return existing;
+
+        objectConstants.Add(value);
+        var index = objectConstants.Count - 1;
+        objectConstantIndices.Add(value, index);
+        return index;
+    }
+
+    public int AddAtomizedStringConstant(string value)
+    {
+        if (TryGetArrayIndexFromCanonicalString(value, out _))
+            throw new InvalidOperationException(
+                $"Atomized string constant cannot be a canonical array index: '{value}'."
+            );
+
+        // Recorded symbolically: interning against the realm atom table
+        // happens once per distinct name at realm linking, so emission itself
+        // no longer depends on realm atom state. Dedup by string is
+        // equivalent to the old dedup by atom (1:1 per realm, both Ordinal).
+        if (atomizedStringSymbolIndices is null)
+        {
+            for (var i = 0; i < atomizedStringSymbols.Count; i++)
+                if (atomizedStringSymbols[i] == value)
+                    return i;
+
+            if (atomizedStringSymbols.Count < ConstantDedupDictionaryThreshold)
+            {
+                atomizedStringSymbols.Add(value);
+                return atomizedStringSymbols.Count - 1;
+            }
+
+            atomizedStringSymbolIndices = pool.RentCompileDictionary<string, int>(
+                atomizedStringSymbols.Count + 1,
+                StringComparer.Ordinal
+            );
+            for (var i = 0; i < atomizedStringSymbols.Count; i++)
+                atomizedStringSymbolIndices.Add(atomizedStringSymbols[i], i);
+        }
+
+        if (atomizedStringSymbolIndices.TryGetValue(value, out var existing))
+            return existing;
+
+        atomizedStringSymbols.Add(value);
+        var index = atomizedStringSymbols.Count - 1;
+        atomizedStringSymbolIndices.Add(value, index);
+        return index;
+    }
+
+    public int AddGeneratorSwitchTarget(int targetPc)
+    {
+        generatorSwitchTargets.Add(targetPc);
+        return generatorSwitchTargets.Count - 1;
+    }
+
+    public void PatchByte(int codeIndex, byte value)
+    {
+        if ((uint)codeIndex >= (uint)code.Count)
+            throw new ArgumentOutOfRangeException(nameof(codeIndex));
+        code[codeIndex] = value;
+    }
+
+    public void Emit(JsOpCode op)
+    {
+        EmitCore(op);
+    }
+
+    public void EmitLda(JsOpCode op)
+    {
+        EmitLdaCore(op);
+    }
+
+    public void Emit(JsOpCode op, byte operand)
+    {
+        EmitCore(op, operand);
+    }
+
+    public void EmitLda(JsOpCode op, byte operand)
+    {
+        EmitLdaCore(op, operand);
+    }
+
+    public void Emit(JsOpCode op, byte op1, byte op2)
+    {
+        EmitCore(op, op1, op2);
+    }
+
+    public void EmitLda(JsOpCode op, byte op1, byte op2)
+    {
+        EmitLdaCore(op, op1, op2);
+    }
+
+    public void Emit(JsOpCode op, byte op1, byte op2, byte op3)
+    {
+        EmitCore(op, op1, op2, op3);
+    }
+
+    public void EmitLda(JsOpCode op, byte op1, byte op2, byte op3)
+    {
+        EmitLdaCore(op, op1, op2, op3);
+    }
+
+    public void Emit(JsOpCode op, byte op1, byte op2, byte op3, byte op4)
+    {
+        EmitCore(op, op1, op2, op3, op4);
+    }
+
+    public void EmitLda(JsOpCode op, byte op1, byte op2, byte op3, byte op4)
+    {
+        EmitLdaCore(op, op1, op2, op3, op4);
+    }
+
+    public void Emit(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5)
+    {
+        EmitCore(op, op1, op2, op3, op4, op5);
+    }
+
+    public void EmitLda(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5)
+    {
+        EmitLdaCore(op, op1, op2, op3, op4, op5);
+    }
+
+    public void Emit(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5, byte op6)
+    {
+        EmitCore(op, op1, op2, op3, op4, op5, op6);
+    }
+
+    public void EmitLda(JsOpCode op, byte op1, byte op2, byte op3, byte op4, byte op5, byte op6)
+    {
+        EmitLdaCore(op, op1, op2, op3, op4, op5, op6);
+    }
+
+    public void Emit(
+        JsOpCode op,
+        byte op1,
+        byte op2,
+        byte op3,
+        byte op4,
+        byte op5,
+        byte op6,
+        byte op7
+    )
+    {
+        EmitCore(op, op1, op2, op3, op4, op5, op6, op7);
+    }
+
+    internal void Emit(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        EmitCore(op, operands);
+    }
+
+    public void EmitLda(
+        JsOpCode op,
+        byte op1,
+        byte op2,
+        byte op3,
+        byte op4,
+        byte op5,
+        byte op6,
+        byte op7
+    )
+    {
+        EmitLdaCore(op, op1, op2, op3, op4, op5, op6, op7);
+    }
+
+    private void EmitCore(JsOpCode op, params ReadOnlySpan<byte> operands)
+    {
+#if DEBUG
+        ValidateEmit(op, operands);
+#endif
+        EmitUncheckedCore(op, operands);
+    }
+
+    private void EmitLdaCore(JsOpCode op, params ReadOnlySpan<byte> operands)
+    {
+        if (TryOmitRedundantAccumulatorLoad(op, operands))
+            return;
+
+#if DEBUG
+        ValidateEmit(op, operands);
+#endif
+        TryReplacePreviousPureAccumulatorLoad(op, operands);
+        EmitUncheckedCore(op, operands);
+    }
+
+    private void EmitUncheckedCore(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        var instructionPc = code.Count;
+        code.Add((byte)op);
+        for (var i = 0; i < operands.Length; i++)
+            code.Add(operands[i]);
+        if (pendingSourceOffset >= 0)
+        {
+            debugSourceOffsets[instructionPc] = pendingSourceOffset;
+            pendingSourceOffset = -1;
+        }
+
+        RememberLastEmit(op, operands);
+    }
+
+    private bool TryOmitRedundantAccumulatorLoad(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        return (op == JsOpCode.Ldar || op == JsOpCode.LdarWide)
+            && TryDecodeRegisterOperands(op, operands, out var loadReg0, out _)
+            && (lastEmittedOp == JsOpCode.Star || lastEmittedOp == JsOpCode.StarWide)
+            && lastEmittedRegisterOperand0 == loadReg0
+            && !IsPositionAnchored(code.Count);
+    }
+
+    private void TryReplacePreviousPureAccumulatorLoad(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        if (!BytecodeInfo.IsPureAccumulatorLoad(op))
+            return;
+        if (lastEmittedOp is null || !BytecodeInfo.IsPureAccumulatorLoad(lastEmittedOp.Value))
+            return;
+        if (lastEmittedPc < 0 || lastEmittedLength <= 0)
+            return;
+        if (IsPositionAnchored(lastEmittedPc) || IsPositionAnchored(code.Count))
+            return;
+
+        code.RemoveRange(lastEmittedPc, lastEmittedLength);
+    }
+
+    private bool IsPositionAnchored(int pc)
+    {
+        if (
+            debugSourceOffsets.ContainsKey(pc)
+            || callSiteDebugNames.ContainsKey(pc)
+            || runtimeCallDebugNames.ContainsKey(pc)
+            || tdzReadDebugNames.ContainsKey(pc)
+        )
+            return true;
+
+        foreach (var boundPc in labelPositions.Values)
+            if (boundPc == pc)
+                return true;
+
+        return false;
+    }
+
+    public void AddRuntimeCallDebugName(int instructionPc, string name)
+    {
+        runtimeCallDebugNames[instructionPc] = name;
+    }
+
+    public void AddCallSiteDebugNameToLastInstruction(string? name)
+    {
+        if (lastEmittedPc >= 0 && !string.IsNullOrEmpty(name))
+            callSiteDebugNames[lastEmittedPc] = name;
+    }
+
+    public void AddTdzReadDebugName(int instructionPc, string name)
+    {
+        tdzReadDebugNames[instructionPc] = name;
+    }
+
+    public void AddPrivateFieldDebugName(long key, string name)
+    {
+        privateFieldDebugNames[key] = name;
+    }
+
+    public void AddLocalDebugInfo(JsLocalDebugInfo info)
+    {
+        localDebugInfos.Add(info);
+    }
+
+    public void SetSourceText(string? sourceText)
+    {
+        this.sourceText = sourceText;
+    }
+
+    public void SetStrictDeclared(bool strictDeclared)
+    {
+        this.strictDeclared = strictDeclared;
+    }
+
+    public void SetPendingSourceOffset(int sourceOffset)
+    {
+        pendingSourceOffset = sourceOffset;
+    }
+
+    public void ClearPendingSourceOffset()
+    {
+        pendingSourceOffset = -1;
+    }
+
+    public void AddDebugSourceOffset(int instructionPc, int sourceOffset)
+    {
+        debugSourceOffsets[instructionPc] = sourceOffset;
+    }
+
+    public JsCompilationUnit ToCompilationUnit() => new(new(ToCode(), isStrict: strictDeclared));
+
+    public JsScript ToScript() =>
+        ToCompilationUnit()
+            .Link(
+                targetRealm
+                    ?? throw new InvalidOperationException("Use ToCompilationUnit().Link(realm).")
+            );
+
+    internal JsScript ToScript(
+        SourceCode? sourceCode,
+        FunctionSourceTextSegment functionSourceText = default
+    ) =>
+        new JsCompilationUnit(
+            new(ToCode(sourceCode, functionSourceText), isStrict: strictDeclared)
+        ).Link(targetRealm ?? throw new InvalidOperationException("A target realm is required."));
+
+    internal JsFunctionCode ToCode(
+        SourceCode? sourceCode = null,
+        FunctionSourceTextSegment functionSourceText = default,
+        string[]? topLevelLexicalNames = null,
+        int[]? topLevelLexicalSlots = null,
+        bool[]? topLevelLexicalConstFlags = null,
+        bool suppressTopLevelLexicalRegistration = false,
+        JsGlobalDeclarationPlan? declarations = null
+    )
+    {
+        sourceCode ??= sourceText is null ? null : new SourceCode(sourceText, null);
+        foreach (var jump in jumps16ToPatch)
+            if (labelPositions.TryGetValue(jump.Target.Id, out var targetPos))
+            {
+                var offset = targetPos - (jump.InstructionPos + 3); // +3 for op and 2-byte operand
+                if (offset < short.MinValue || offset > short.MaxValue)
+                    throw new InvalidOperationException(
+                        "Jump16 offset out of range for 16-bit operand."
+                    );
+
+                var s = (short)offset;
+                code[jump.InstructionPos + 1] = (byte)(s & 0xFF);
+                code[jump.InstructionPos + 2] = (byte)((s >> 8) & 0xFF);
+            }
+            else
+            {
+                throw new InvalidOperationException("Label not bound.");
+            }
+
+        foreach (var switchPatch in switchOnSmiToPatch)
+        {
+            var tableStart = switchOnSmiTargets.Count;
+            if (tableStart > byte.MaxValue)
+                throw new InvalidOperationException(
+                    "SwitchOnSmi table start exceeds byte operand capacity."
+                );
+
+            code[switchPatch.InstructionPos + 1] = (byte)tableStart;
+            for (var i = 0; i < switchPatch.Targets.Length; i++)
+            {
+                if (!labelPositions.TryGetValue(switchPatch.Targets[i].Id, out var targetPos))
+                    throw new InvalidOperationException("SwitchOnSmi label not bound.");
+                switchOnSmiTargets.Add(targetPos);
+            }
+        }
+
+        int[]? debugPcOffsets = null;
+        int[]? debugSourceOffsets = null;
+        if (this.debugSourceOffsets.Count != 0)
+            CopySortedIntMap(this.debugSourceOffsets, out debugPcOffsets, out debugSourceOffsets);
+
+        string[]? debugNames = null;
+        int[]? callSiteDebugPcs = null;
+        int[]? callSiteDebugNameIndices = null;
+        int[]? runtimeCallDebugPcs = null;
+        int[]? runtimeCallDebugNameIndices = null;
+        int[]? tdzReadDebugPcs = null;
+        int[]? tdzReadDebugNameIndices = null;
+        long[]? privateFieldDebugKeys = null;
+        int[]? privateFieldDebugNameIndices = null;
+        if (
+            callSiteDebugNames.Count != 0
+            || runtimeCallDebugNames.Count != 0
+            || tdzReadDebugNames.Count != 0
+            || privateFieldDebugNames.Count != 0
+        )
+        {
+            var nameIndexByText = pool.RentCompileDictionary<string, int>();
+            var names = pool.RentCompileList<string>();
+            try
+            {
+                if (callSiteDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        callSiteDebugNames,
+                        nameIndexByText,
+                        names,
+                        out callSiteDebugPcs,
+                        out callSiteDebugNameIndices
+                    );
+
+                if (runtimeCallDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        runtimeCallDebugNames,
+                        nameIndexByText,
+                        names,
+                        out runtimeCallDebugPcs,
+                        out runtimeCallDebugNameIndices
+                    );
+
+                if (tdzReadDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        tdzReadDebugNames,
+                        nameIndexByText,
+                        names,
+                        out tdzReadDebugPcs,
+                        out tdzReadDebugNameIndices
+                    );
+
+                if (privateFieldDebugNames.Count != 0)
+                    BuildSortedDebugNameTable(
+                        privateFieldDebugNames,
+                        nameIndexByText,
+                        names,
+                        out privateFieldDebugKeys,
+                        out privateFieldDebugNameIndices
+                    );
+
+                debugNames = names.ToArray();
+            }
+            finally
+            {
+                pool.ReturnCompileDictionary(nameIndexByText);
+                pool.ReturnCompileList(names);
+            }
+        }
+
+        JsFunctionDebugInfo? debugInfo = null;
+        if (debugNames is not null || debugPcOffsets is not null || localDebugInfos.Count != 0)
+            debugInfo = new()
+            {
+                Names = debugNames,
+                CallSitePcs = callSiteDebugPcs,
+                CallSiteNameIndices = callSiteDebugNameIndices,
+                RuntimeCallPcs = runtimeCallDebugPcs,
+                RuntimeCallNameIndices = runtimeCallDebugNameIndices,
+                TdzReadPcs = tdzReadDebugPcs,
+                TdzReadNameIndices = tdzReadDebugNameIndices,
+                PcOffsets = debugPcOffsets,
+                SourceOffsets = debugSourceOffsets,
+                PrivateFieldKeys = privateFieldDebugKeys,
+                PrivateFieldNameIndices = privateFieldDebugNameIndices,
+                Locals = localDebugInfos.Count == 0 ? null : localDebugInfos.ToArray(),
+            };
+
+        return new(
+            code.ToArray(),
+            ToNumericConstantBits(),
+            SnapshotPortableConstants(),
+            RegisterCount,
+            atomizedStringSymbols.ToArray(),
+            strictDeclared,
+            namedPropertyFeedbackSlotCount,
+            globalBindingFeedbackSlotCount,
+            debugInfo,
+            sourceCode,
+            functionSourceText,
+            generatorSwitchTargets.Count == 0 ? null : generatorSwitchTargets.ToArray(),
+            switchOnSmiTargets.Count == 0 ? null : switchOnSmiTargets.ToArray(),
+            declarations,
+            topLevelLexicalNames is null
+                ? null
+                : new JsTopLevelLexicalPlan(
+                    topLevelLexicalNames,
+                    topLevelLexicalSlots!,
+                    topLevelLexicalConstFlags!
+                ),
+            suppressTopLevelLexicalRegistration
+        );
+    }
+
+    private object[] SnapshotPortableConstants()
+    {
+        var constants = objectConstants.ToArray();
+        for (var i = 0; i < constants.Length; i++)
+            if (constants[i] is int[] values)
+                constants[i] = (int[])values.Clone();
+        return constants;
+    }
+
+    private void ReturnPooledCollections()
+    {
+        if (returnedToPool)
+            return;
+
+        returnedToPool = true;
+        pool.ReturnCompileList(code);
+        pool.ReturnCompileList(numericConstants);
+        pool.ReturnCompileList(objectConstants);
+        pool.ReturnCompileList(atomizedStringSymbols);
+        pool.ReturnCompileList(generatorSwitchTargets);
+        pool.ReturnCompileList(switchOnSmiTargets);
+        pool.ReturnCompileList(jumps16ToPatch);
+        pool.ReturnCompileList(switchOnSmiToPatch);
+        pool.ReturnCompileDictionary(labelPositions);
+        pool.ReturnCompileDictionary(globalBindingFeedbackSlotByName);
+        pool.ReturnCompileDictionary(callSiteDebugNames);
+        pool.ReturnCompileDictionary(runtimeCallDebugNames);
+        pool.ReturnCompileDictionary(tdzReadDebugNames);
+        pool.ReturnCompileDictionary(privateFieldDebugNames);
+        pool.ReturnCompileList(localDebugInfos);
+        pool.ReturnCompileDictionary(debugSourceOffsets);
+        pool.ReturnCompileDictionary(numericConstantIndices);
+        pool.ReturnCompileDictionary(objectConstantIndices);
+        pool.ReturnCompileDictionary(atomizedStringSymbolIndices);
+        pool.ReturnCompileList(freeTemporaryRegisters);
+        pool.ReturnCompileList(activeTemporaryRegisters);
+#if DEBUG
+        pool.ReturnCompileHashSet(freeTemporaryRegisterSet);
+        pool.ReturnCompileHashSet(reportedSuspiciousAccumulatorCopies);
+#endif
+    }
+
+    private int FindActiveTemporaryRegisterIndex(int register)
+    {
+        for (var i = activeTemporaryRegisters.Count - 1; i >= 0; i--)
+            if (activeTemporaryRegisters[i] == register)
+                return i;
+
+        return -1;
+    }
+
+    private static void CopySortedIntMap(
+        Dictionary<int, int> source,
+        out int[] keys,
+        out int[] values
+    )
+    {
+        keys = new int[source.Count];
+        values = new int[source.Count];
+        var cursor = 0;
+        foreach (var key in source.Keys)
+            keys[cursor++] = key;
+
+        Array.Sort(keys);
+        for (var i = 0; i < keys.Length; i++)
+            values[i] = source[keys[i]];
+    }
+
+    private static void BuildSortedDebugNameTable(
+        Dictionary<int, string> source,
+        Dictionary<string, int> nameIndexByText,
+        List<string> names,
+        out int[] keys,
+        out int[] nameIndices
+    )
+    {
+        keys = new int[source.Count];
+        nameIndices = new int[source.Count];
+        var cursor = 0;
+        foreach (var key in source.Keys)
+            keys[cursor++] = key;
+
+        Array.Sort(keys);
+        for (var i = 0; i < keys.Length; i++)
+            nameIndices[i] = InternDebugName(source[keys[i]], nameIndexByText, names);
+    }
+
+    private static void BuildSortedDebugNameTable(
+        Dictionary<long, string> source,
+        Dictionary<string, int> nameIndexByText,
+        List<string> names,
+        out long[] keys,
+        out int[] nameIndices
+    )
+    {
+        keys = new long[source.Count];
+        nameIndices = new int[source.Count];
+        var cursor = 0;
+        foreach (var key in source.Keys)
+            keys[cursor++] = key;
+
+        Array.Sort(keys);
+        for (var i = 0; i < keys.Length; i++)
+            nameIndices[i] = InternDebugName(source[keys[i]], nameIndexByText, names);
+    }
+
+    private static int InternDebugName(
+        string name,
+        Dictionary<string, int> nameIndexByText,
+        List<string> names
+    )
+    {
+        if (nameIndexByText.TryGetValue(name, out var existing))
+            return existing;
+        var index = names.Count;
+        names.Add(name);
+        nameIndexByText.Add(name, index);
+        return index;
+    }
+
+    private void RememberLastEmit(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        lastEmittedOp = op;
+        lastEmittedOp1 = operands.Length > 0 ? operands[0] : (byte)0;
+        lastEmittedOp2 = operands.Length > 1 ? operands[1] : (byte)0;
+        if (
+            TryDecodeRegisterOperands(
+                op,
+                operands,
+                out var registerOperand0,
+                out var registerOperand1
+            )
+        )
+        {
+            lastEmittedRegisterOperand0 = (ushort)registerOperand0;
+            lastEmittedRegisterOperand1 = (ushort)registerOperand1;
+        }
+        else
+        {
+            lastEmittedRegisterOperand0 = 0;
+            lastEmittedRegisterOperand1 = 0;
+        }
+
+        lastEmittedPc = code.Count - (operands.Length + 1);
+        lastEmittedLength = operands.Length + 1;
+    }
+
+    private static bool TryDecodeRegisterOperands(
+        JsOpCode op,
+        ReadOnlySpan<byte> operands,
+        out int register0,
+        out int register1
+    )
+    {
+        return TryDecodeRegisterOperands(
+            op,
+            BytecodeInfo.OperandScale.Single,
+            operands,
+            out register0,
+            out register1
+        );
+    }
+
+    private static bool TryDecodeRegisterOperands(
+        JsOpCode op,
+        BytecodeInfo.OperandScale scale,
+        ReadOnlySpan<byte> operands,
+        out int register0,
+        out int register1
+    )
+    {
+        register0 = -1;
+        register1 = -1;
+        switch (op)
+        {
+            case JsOpCode.Ldar:
+            case JsOpCode.LdaLexicalLocal:
+            case JsOpCode.Star:
+            case JsOpCode.StaLexicalLocal:
+            case JsOpCode.PushContext:
+            case JsOpCode.ForInEnumerate:
+            case JsOpCode.ForInNext:
+            case JsOpCode.ForInStep:
+            case JsOpCode.LdaNamedProperty:
+            case JsOpCode.LdaKeyedProperty:
+            case JsOpCode.StaNamedProperty:
+            case JsOpCode.CreateBlockContext:
+            case JsOpCode.CreateRestParameter:
+            case JsOpCode.CreateFunctionContext:
+            case JsOpCode.CreateFunctionContextWithCells:
+                if (operands.Length < (int)scale)
+                    return false;
+                register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);
+                return true;
+            case JsOpCode.LdarWide:
+            case JsOpCode.LdaLexicalLocalWide:
+            case JsOpCode.StarWide:
+            case JsOpCode.StaLexicalLocalWide:
+                if (operands.Length < 2)
+                    return false;
+                register0 = operands[0] | (operands[1] << 8);
+                return true;
+            case JsOpCode.Mov:
+                if (operands.Length < 2)
+                    return false;
+                register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);
+                register1 = BytecodeInfo.ReadUnsignedOperand(operands, 1, scale);
+                return true;
+            case JsOpCode.MovWide:
+                if (operands.Length < 4)
+                    return false;
+                register0 = operands[0] | (operands[1] << 8);
+                register1 = operands[2] | (operands[3] << 8);
+                return true;
+            case JsOpCode.LdaNamedPropertyWide:
+            case JsOpCode.StaNamedPropertyWide:
+            case JsOpCode.InitializeNamedProperty:
+            case JsOpCode.CreateFunctionContextWithCellsWide:
+                if (operands.Length < 2)
+                    return false;
+                register0 = operands[0] | (operands[1] << 8);
+                return true;
+            case JsOpCode.StaKeyedProperty:
+            case JsOpCode.DefineOwnKeyedProperty:
+            case JsOpCode.DefineOwnKeyedPropertyNoName:
+                if (operands.Length < 2 * (int)scale)
+                    return false;
+                register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);
+                register1 = BytecodeInfo.ReadUnsignedOperand(operands, 1, scale);
+                return true;
+            case JsOpCode.CallAny:
+            case JsOpCode.CallUndefinedReceiver:
+            case JsOpCode.Construct:
+                if (operands.Length < 3 * (int)scale)
+                    return false;
+                register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);
+                register1 = BytecodeInfo.ReadUnsignedOperand(operands, 1, scale);
+                return true;
+            case JsOpCode.CallProperty:
+                if (operands.Length < 4 * (int)scale)
+                    return false;
+                register0 = BytecodeInfo.ReadUnsignedOperand(operands, 0, scale);
+                register1 = BytecodeInfo.ReadUnsignedOperand(operands, 1, scale);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public readonly record struct Label
+    {
+        private static int nextId = 1;
+        public readonly int Id;
+
+        private Label(int id)
+        {
+            Id = id;
+        }
+
+        public bool IsInitialized => Id != 0;
+
+        public static Label Create()
+        {
+            var id = Interlocked.Increment(ref nextId);
+            if (id == 0)
+                id = Interlocked.Increment(ref nextId);
+            return new(id);
+        }
+    }
+
+    private readonly record struct JumpInfo(int InstructionPos, Label Target);
+
+    private readonly record struct SwitchOnSmiPatchInfo(int InstructionPos, Label[] Targets);
+
+#if DEBUG
+    private readonly HashSet<int> freeTemporaryRegisterSet;
+    private readonly HashSet<long> reportedSuspiciousAccumulatorCopies;
+#endif
+
+#if DEBUG
+    private void ValidateEmit(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        ValidateRegisterOperands(op, operands);
+        ValidateSuspiciousAccumulatorCopy(op, operands);
+    }
+
+    private void ValidateRegisterOperands(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        switch (op)
+        {
+            case JsOpCode.Ldar:
+            case JsOpCode.LdarWide:
+            case JsOpCode.LdaLexicalLocal:
+            case JsOpCode.LdaLexicalLocalWide:
+            case JsOpCode.Star:
+            case JsOpCode.StarWide:
+            case JsOpCode.StaLexicalLocal:
+            case JsOpCode.StaLexicalLocalWide:
+            case JsOpCode.PushContext:
+            case JsOpCode.ForInEnumerate:
+            case JsOpCode.ForInNext:
+            case JsOpCode.ForInStep:
+            case JsOpCode.LdaNamedProperty:
+            case JsOpCode.LdaNamedPropertyWide:
+            case JsOpCode.LdaKeyedProperty:
+            case JsOpCode.StaNamedProperty:
+            case JsOpCode.StaNamedPropertyWide:
+            case JsOpCode.InitializeNamedProperty:
+            case JsOpCode.CreateBlockContext:
+            case JsOpCode.CreateRestParameter:
+            case JsOpCode.CreateFunctionContext:
+            case JsOpCode.CreateFunctionContextWithCells:
+                ValidateRegisterOperand(operands[0], op, 0);
+                break;
+
+            case JsOpCode.Mov:
+            case JsOpCode.MovWide:
+                if (TryDecodeRegisterOperands(op, operands, out var reg0, out var reg1))
+                {
+                    ValidateRegisterOperand(reg0, op, 0);
+                    ValidateRegisterOperand(reg1, op, 1);
+                }
+
+                break;
+        }
+    }
+
+    private void ValidateRegisterOperand(int register, JsOpCode op, int operandIndex)
+    {
+        // if (register >= registerCount)
+        // {
+        //     throw new InvalidOperationException(
+        //         $"Emit validation failed for {op}: operand {operandIndex} references r{register}, but register count is {registerCount}.");
+        // }
+    }
+
+    private void ValidateSuspiciousAccumulatorCopy(JsOpCode op, ReadOnlySpan<byte> operands)
+    {
+        if (op is not JsOpCode.Star and not JsOpCode.StarWide)
+            return;
+        if (lastEmittedOp is not JsOpCode.Ldar and not JsOpCode.LdarWide)
+            return;
+        if (!TryDecodeRegisterOperands(op, operands, out var destReg, out _))
+            return;
+
+        int sourceReg = lastEmittedRegisterOperand0;
+        if (sourceReg == destReg)
+            return;
+
+        var key = ((long)sourceReg << 32) | (uint)destReg;
+        if (reportedSuspiciousAccumulatorCopies.Add(key))
+            Debug.WriteLine(
+                $"[OkojoBytecodeBuilder] suspicious accumulator copy at pc {lastEmittedPc}: "
+                    + $"Ldar r{sourceReg} -> Star r{destReg}. Prefer Mov when accumulator preservation is not required."
+            );
+    }
+
+#endif
+}
+
+public struct OkojoNamedPropertyIcEntry
+{
+    public StaticNamedPropertyLayout? Shape;
+    public SlotInfo SlotInfo;
+    public int NameAtom;
+}
+
+public struct OkojoPrototypeNamedPropertyIcEntry
+{
+    public StaticNamedPropertyLayout? ReceiverShape;
+    public SlotInfo SlotInfo;
+    public int NameAtom;
+    public JsObject? Holder;
+    public StaticNamedPropertyLayout? HolderShape;
+}
+
+public enum GlobalBindingIcKind : byte
+{
+    Uninitialized = 0,
+    Lexical = 1,
+    LexicalConst = 2,
+    NonLexical = 3,
+}
+
+public struct GlobalBindingIcEntry
+{
+    public GlobalBindingIcKind Kind;
+    public JsContext? LexicalContext;
+    public int Slot;
+    public int Version;
+    public int NameAtom;
+}

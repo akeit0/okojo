@@ -1,6 +1,6 @@
 <Project>
-     <PropertyGroup>
-        <Version>0.1.0-preview.1</Version>
+    <PropertyGroup>
+        <Version>0.2.0-preview.1</Version>
     </PropertyGroup>
     <Import Project="eng\PackageVersions.props" Condition="Exists('eng\PackageVersions.props')" />
     <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src'))">

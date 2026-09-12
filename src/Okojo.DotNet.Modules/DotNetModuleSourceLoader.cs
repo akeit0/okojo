@@ -1,9 +1,13 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.DotNet.Modules;
 
-internal sealed class DotNetModuleSourceLoader(IModuleSourceLoader inner, DotNetModuleImportBridge bridge)
-    : IModuleSourceLoader
+internal sealed class DotNetModuleSourceLoader(
+    IModuleSourceLoader inner,
+    DotNetModuleImportBridge bridge
+) : IModuleSourceLoader
 {
     public string ResolveSpecifier(string specifier, string? referrer)
     {

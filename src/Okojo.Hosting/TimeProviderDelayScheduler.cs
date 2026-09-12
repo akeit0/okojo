@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -12,7 +14,11 @@ public sealed class TimeProviderDelayScheduler : IHostDelayScheduler
         this.timeProvider = timeProvider;
     }
 
-    public IHostDelayedOperation ScheduleDelayed(TimeSpan delay, Action<object?> callback, object? state)
+    public IHostDelayedOperation ScheduleDelayed(
+        TimeSpan delay,
+        Action<object?> callback,
+        object? state
+    )
     {
         ArgumentNullException.ThrowIfNull(callback);
         return ScheduledOperation.Create(timeProvider, delay, callback, state);
@@ -49,17 +55,17 @@ public sealed class TimeProviderDelayScheduler : IHostDelayScheduler
             TimeProvider timeProvider,
             TimeSpan delay,
             Action<object?> callback,
-            object? state)
+            object? state
+        )
         {
             var operation = new ScheduledOperation(callback, state);
             var dueTime = delay <= TimeSpan.Zero ? TimeSpan.FromTicks(1) : delay;
-            operation.timer = timeProvider is ITimerFactory timerFactory
-                ? timerFactory.CreateJsTimer(static opState => ((ScheduledOperation)opState!).OnReady(), operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan)
-                : timeProvider.CreateTimer(static opState => ((ScheduledOperation)opState!).OnReady(), operation,
-                    dueTime,
-                    Timeout.InfiniteTimeSpan);
+            operation.timer = timeProvider.CreateTimer(
+                static opState => ((ScheduledOperation)opState!).OnReady(),
+                operation,
+                dueTime,
+                Timeout.InfiniteTimeSpan
+            );
             return operation;
         }
 

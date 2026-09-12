@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>14</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IsPackable>true</IsPackable>
+        <AssemblyName>Okojo.JavaScript</AssemblyName>
+        <PackageId>Okojo.JavaScript</PackageId>
+        <PackageVersion>$(OkojoPackageVersion_Okojo_JavaScript)</PackageVersion>
+        <Description>ECMAScript engine for .NET with parser, compiler, VM, realms, and intrinsics.</Description>
+        <PackageTags>javascript;ecmascript;engine;runtime;dotnet</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(OkojoVmProfile)' == 'true'">
+        <DefineConstants>$(DefineConstants);OKOJO_VM_PROFILE</DefineConstants>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Okojo.Numerics\Okojo.Numerics.csproj" />
+        <ProjectReference Include="..\Okojo.Text.Unicode\Okojo.Text.Unicode.csproj" />
+        <ProjectReference Include="..\Okojo.Text.RegularExpressions\Okojo.Text.RegularExpressions.csproj" />
+        <ProjectReference Include="..\Okojo.Globalization\Okojo.Globalization.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+</Project>

@@ -11,7 +11,7 @@ It provides:
 ## Typical use
 
 ```csharp
-using Okojo;
+using Okojo.JavaScript.Embedding;
 using Okojo.WebAssembly;
 
 using var runtime = JsRuntime.CreateBuilder()

@@ -1,6 +1,8 @@
 using Okojo.Annotations;
 using Okojo.DocGenerator.Annotations;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Tests;
 
@@ -10,7 +12,8 @@ internal sealed partial class GeneratedGlobalInstallerSample
 {
     public int WidthValue { get; set; } = 320;
 
-    [JsMember] public int Width => WidthValue;
+    [JsMember]
+    public int Width => WidthValue;
 
     [JsMember]
     [JsGlobalProperty(Writable = true)]
@@ -86,7 +89,8 @@ public class GeneratedGlobalInstallerTests
     public void Generated_Global_Installer_Exposes_Typed_Function_And_Properties()
     {
         var sample = new GeneratedGlobalInstallerSample();
-        using var runtime = JsRuntime.CreateBuilder()
+        using var runtime = JsRuntime
+            .CreateBuilder()
             .UseGlobals(sample.InstallGeneratedGlobals)
             .Build();
         var realm = runtime.MainRealm;

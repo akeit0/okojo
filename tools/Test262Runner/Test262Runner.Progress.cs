@@ -15,22 +15,29 @@ internal static partial class Program
         IReadOnlyCollection<string> passedCache,
         ConcurrentBag<string> passed,
         ConcurrentBag<(string Path, string Message)> failed,
-        ConcurrentBag<(string Path, string Reason)> skipped)
+        ConcurrentBag<(string Path, string Reason)> skipped
+    )
     {
         var now = DateTimeOffset.Now;
         var selected = files
             .Select(candidate => new ProgressItem(
                 NormalizeCachePath(candidate.Path),
                 Path.GetRelativePath(resolvedRoot, candidate.Path).Replace('\\', '/'),
-                candidate.Metadata.Features.ToArray()))
+                candidate.Metadata.Features.ToArray()
+            ))
             .ToArray();
-        var updatedAtByPath =
-            selected.ToDictionary(static item => item.Path, _ => now, StringComparer.OrdinalIgnoreCase);
+        var updatedAtByPath = selected.ToDictionary(
+            static item => item.Path,
+            _ => now,
+            StringComparer.OrdinalIgnoreCase
+        );
 
-        var selectedSet = selected.Select(static item => item.Path)
+        var selectedSet = selected
+            .Select(static item => item.Path)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var passedSet = passed.Select(NormalizeCachePath)
+        var passedSet = passed
+            .Select(NormalizeCachePath)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         if (options.SkipPassed)
@@ -38,13 +45,14 @@ internal static partial class Program
                 if (selectedSet.Contains(item))
                     passedSet.Add(item);
 
-        var failedSet = failed.Select(static item => NormalizeCachePath(item.Path))
+        var failedSet = failed
+            .Select(static item => NormalizeCachePath(item.Path))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var skipInfoByPath = BuildSkipInfoByPath(skipped, NormalizeCachePath);
 
-        var reasonGroups = skipInfoByPath.Values
-            .Select(static info => info.Reason)
+        var reasonGroups = skipInfoByPath
+            .Values.Select(static info => info.Reason)
             .GroupBy(static reason => reason, StringComparer.Ordinal)
             .OrderByDescending(static group => group.Count())
             .ThenBy(static group => group.Key, StringComparer.Ordinal)
@@ -60,22 +68,47 @@ internal static partial class Program
             options.Filter ?? "(none)",
             options.Categories.Count == 0
                 ? ["(all)"]
-                : options.Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.Features.Count == 0
                 ? ["(all)"]
-                : options.Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.ExcludedFeatures.Count == 0
                 ? ["(none)"]
-                : options.ExcludedFeatures.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .ExcludedFeatures.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.MaxTests,
             options.SkipPassed,
-            BuildProgressRows(selected, static item => GetCategoryKey(item.RelativePath), passedSet, failedSet,
-                skipInfoByPath, updatedAtByPath),
-            BuildProgressRows(selected, static item => GetFolderKey(item.RelativePath), passedSet, failedSet,
-                skipInfoByPath, updatedAtByPath),
-            BuildFeatureProgressRows(selected, static item => item.Features, passedSet, failedSet, skipInfoByPath,
-                updatedAtByPath),
-            reasonGroups.Length == 0 ? [new("(none)", 0)] : reasonGroups);
+            BuildProgressRows(
+                selected,
+                static item => GetCategoryKey(item.RelativePath),
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            BuildProgressRows(
+                selected,
+                static item => GetFolderKey(item.RelativePath),
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            BuildFeatureProgressRows(
+                selected,
+                static item => item.Features,
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            reasonGroups.Length == 0 ? [new("(none)", 0)] : reasonGroups
+        );
     }
 
     private static IncrementalBuildResult BuildIncrementalProgressSnapshot(
@@ -89,24 +122,42 @@ internal static partial class Program
         ConcurrentBag<string> passed,
         ConcurrentBag<(string Path, string Message)> failed,
         ConcurrentBag<(string Path, string Reason)> skipped,
-        string incrementalJsonPath)
+        string incrementalJsonPath
+    )
     {
         var universe = allCandidates
             .Where(candidate => IsProgressTrackedTestPath(candidate.Path, resolvedRoot))
             .Select(candidate => new ProgressItem(
                 GetProgressRelativePath(candidate.Path, resolvedRoot),
                 GetProgressRelativePath(candidate.Path, resolvedRoot),
-                candidate.Metadata.Features.ToArray()))
+                candidate.Metadata.Features.ToArray()
+            ))
             .ToArray();
 
         var entryByPath = LoadIncrementalEntries(incrementalJsonPath, resolvedRoot);
         foreach (var item in universe)
             if (!entryByPath.ContainsKey(item.Path))
-                entryByPath[item.Path] = new(item.Path, item.RelativePath, item.Features.ToArray(), "not-yet", null,
-                    null, null, DateTimeOffset.MinValue);
+                entryByPath[item.Path] = new(
+                    item.Path,
+                    item.RelativePath,
+                    item.Features.ToArray(),
+                    "not-yet",
+                    null,
+                    null,
+                    null,
+                    DateTimeOffset.MinValue
+                );
 
-        var currentStatuses = BuildCurrentStatusMap(files, runnable, skipped, passedCache, passed, failed,
-            options.SkipPassed, resolvedRoot);
+        var currentStatuses = BuildCurrentStatusMap(
+            files,
+            runnable,
+            skipped,
+            passedCache,
+            passed,
+            failed,
+            options.SkipPassed,
+            resolvedRoot
+        );
         var now = DateTimeOffset.Now;
         foreach (var (path, status) in currentStatuses)
         {
@@ -121,28 +172,40 @@ internal static partial class Program
                 status.SkipReason,
                 status.FailureReason,
                 status.SkipSpecStatus,
-                now);
+                now
+            );
         }
 
         var entries = entryByPath.Values.ToArray();
-        var updatedAtByPath = entries.ToDictionary(static x => x.Path, static x => x.LastUpdated,
-            StringComparer.OrdinalIgnoreCase);
-        var passedSet = entries.Where(static x => string.Equals(x.Status, "passed", StringComparison.Ordinal))
-            .Select(static x => x.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var failedSet = entries.Where(static x => string.Equals(x.Status, "failed", StringComparison.Ordinal))
-            .Select(static x => x.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var updatedAtByPath = entries.ToDictionary(
+            static x => x.Path,
+            static x => x.LastUpdated,
+            StringComparer.OrdinalIgnoreCase
+        );
+        var passedSet = entries
+            .Where(static x => string.Equals(x.Status, "passed", StringComparison.Ordinal))
+            .Select(static x => x.Path)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var failedSet = entries
+            .Where(static x => string.Equals(x.Status, "failed", StringComparison.Ordinal))
+            .Select(static x => x.Path)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var skipInfoByPath = entries
-            .Where(static x => string.Equals(x.Status, "skipped", StringComparison.Ordinal) &&
-                                !string.IsNullOrWhiteSpace(x.SkipReason))
+            .Where(static x =>
+                string.Equals(x.Status, "skipped", StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(x.SkipReason)
+            )
             .ToDictionary(
                 static x => x.Path,
                 static x => new SkipProgressInfo(
                     x.SkipReason!,
                     ParseSkipClassification(x.SkipReason!),
-                    x.SkipSpecStatus),
-                StringComparer.OrdinalIgnoreCase);
-        var reasonGroups = skipInfoByPath.Values
-            .Select(static info => info.Reason)
+                    x.SkipSpecStatus
+                ),
+                StringComparer.OrdinalIgnoreCase
+            );
+        var reasonGroups = skipInfoByPath
+            .Values.Select(static info => info.Reason)
             .GroupBy(static reason => reason, StringComparer.Ordinal)
             .OrderByDescending(static group => group.Count())
             .ThenBy(static group => group.Key, StringComparer.Ordinal)
@@ -158,22 +221,47 @@ internal static partial class Program
             options.Filter ?? "(none)",
             options.Categories.Count == 0
                 ? ["(all)"]
-                : options.Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .Categories.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.Features.Count == 0
                 ? ["(all)"]
-                : options.Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .Features.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.ExcludedFeatures.Count == 0
                 ? ["(none)"]
-                : options.ExcludedFeatures.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToArray(),
+                : options
+                    .ExcludedFeatures.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
             options.MaxTests,
             options.SkipPassed,
-            BuildProgressRows(universe, static item => GetCategoryKey(item.RelativePath), passedSet, failedSet,
-                skipInfoByPath, updatedAtByPath),
-            BuildProgressRows(universe, static item => GetFolderKey(item.RelativePath), passedSet, failedSet,
-                skipInfoByPath, updatedAtByPath),
-            BuildFeatureProgressRows(universe, static item => item.Features, passedSet, failedSet, skipInfoByPath,
-                updatedAtByPath),
-            reasonGroups.Length == 0 ? [new("(none)", 0)] : reasonGroups);
+            BuildProgressRows(
+                universe,
+                static item => GetCategoryKey(item.RelativePath),
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            BuildProgressRows(
+                universe,
+                static item => GetFolderKey(item.RelativePath),
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            BuildFeatureProgressRows(
+                universe,
+                static item => item.Features,
+                passedSet,
+                failedSet,
+                skipInfoByPath,
+                updatedAtByPath
+            ),
+            reasonGroups.Length == 0 ? [new("(none)", 0)] : reasonGroups
+        );
         return new(snapshot, new(entries));
     }
 
@@ -185,10 +273,14 @@ internal static partial class Program
         ConcurrentBag<string> passed,
         ConcurrentBag<(string Path, string Message)> failed,
         bool skipPassed,
-        string resolvedRoot)
+        string resolvedRoot
+    )
     {
-        var statuses = new Dictionary<string, CurrentProgressStatus>(StringComparer.OrdinalIgnoreCase);
-        var runnableSet = runnable.Select(x => GetProgressRelativePath(x.Path, resolvedRoot))
+        var statuses = new Dictionary<string, CurrentProgressStatus>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        var runnableSet = runnable
+            .Select(x => GetProgressRelativePath(x.Path, resolvedRoot))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var passedCacheSet = passedCache
             .Select(path => NormalizeExistingProgressPath(path, resolvedRoot))
@@ -205,7 +297,12 @@ internal static partial class Program
             statuses[GetProgressRelativePath(path, resolvedRoot)] = new("passed", null, null, null);
 
         foreach (var (path, message) in failed)
-            statuses[GetProgressRelativePath(path, resolvedRoot)] = new("failed", null, message, null);
+            statuses[GetProgressRelativePath(path, resolvedRoot)] = new(
+                "failed",
+                null,
+                message,
+                null
+            );
 
         foreach (var (path, reason) in skipped)
         {
@@ -223,8 +320,10 @@ internal static partial class Program
         return statuses;
     }
 
-    private static Dictionary<string, IncrementalProgressEntry> LoadIncrementalEntries(string incrementalJsonPath,
-        string resolvedRoot)
+    private static Dictionary<string, IncrementalProgressEntry> LoadIncrementalEntries(
+        string incrementalJsonPath,
+        string resolvedRoot
+    )
     {
         if (!File.Exists(incrementalJsonPath))
             return new(StringComparer.OrdinalIgnoreCase);
@@ -252,29 +351,74 @@ internal static partial class Program
         IReadOnlySet<string> passedSet,
         IReadOnlySet<string> failedSet,
         IReadOnlyDictionary<string, SkipProgressInfo> skipInfoByPath,
-        IReadOnlyDictionary<string, DateTimeOffset> updatedAtByPath)
+        IReadOnlyDictionary<string, DateTimeOffset> updatedAtByPath
+    )
     {
-        return items.GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
+        return items
+            .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var total = group.Count();
                 var passed = group.Count(item => passedSet.Contains(item.Path));
                 var failed = group.Count(item => failedSet.Contains(item.Path));
-                var skippedStandard = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Standard));
-                var skippedLegacy = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Legacy));
-                var skippedAnnexB = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.AnnexB));
-                var skippedProposal = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Proposal));
-                var skippedFinishedProposalNotInBaseline = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.FinishedProposalNotInBaseline));
-                var skippedOther = group.Count(item => HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Other));
-                var skipped = skippedStandard + skippedLegacy + skippedAnnexB + skippedProposal + skippedFinishedProposalNotInBaseline + skippedOther;
-                var baselineTotal = total - skippedLegacy - skippedAnnexB - skippedProposal - skippedFinishedProposalNotInBaseline - skippedOther;
+                var skippedStandard = group.Count(item =>
+                    HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Standard)
+                );
+                var skippedLegacy = group.Count(item =>
+                    HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Legacy)
+                );
+                var skippedAnnexB = group.Count(item =>
+                    HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.AnnexB)
+                );
+                var skippedProposal = group.Count(item =>
+                    HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Proposal)
+                );
+                var skippedFinishedProposalNotInBaseline = group.Count(item =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        item.Path,
+                        SkipList.SkipSpecStatus.FinishedProposalNotInBaseline
+                    )
+                );
+                var skippedOther = group.Count(item =>
+                    HasSkipSpecStatus(skipInfoByPath, item.Path, SkipList.SkipSpecStatus.Other)
+                );
+                var skipped =
+                    skippedStandard
+                    + skippedLegacy
+                    + skippedAnnexB
+                    + skippedProposal
+                    + skippedFinishedProposalNotInBaseline
+                    + skippedOther;
+                var baselineTotal =
+                    total
+                    - skippedLegacy
+                    - skippedAnnexB
+                    - skippedProposal
+                    - skippedFinishedProposalNotInBaseline
+                    - skippedOther;
                 var notYet = total - passed - failed - skipped;
                 var lastUpdated = group
-                    .Select(item => updatedAtByPath.GetValueOrDefault(item.Path, DateTimeOffset.MinValue))
+                    .Select(item =>
+                        updatedAtByPath.GetValueOrDefault(item.Path, DateTimeOffset.MinValue)
+                    )
                     .Max();
-                return new ProgressRow(group.Key, total, passed, failed, skippedStandard, skippedLegacy, skippedAnnexB, skippedProposal,
-                    skippedFinishedProposalNotInBaseline, skippedOther, skipped, notYet, baselineTotal,
-                    lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated);
+                return new ProgressRow(
+                    group.Key,
+                    total,
+                    passed,
+                    failed,
+                    skippedStandard,
+                    skippedLegacy,
+                    skippedAnnexB,
+                    skippedProposal,
+                    skippedFinishedProposalNotInBaseline,
+                    skippedOther,
+                    skipped,
+                    notYet,
+                    baselineTotal,
+                    lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated
+                );
             })
             .OrderBy(static row => row.Scope, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -286,33 +430,100 @@ internal static partial class Program
         IReadOnlySet<string> passedSet,
         IReadOnlySet<string> failedSet,
         IReadOnlyDictionary<string, SkipProgressInfo> skipInfoByPath,
-        IReadOnlyDictionary<string, DateTimeOffset> updatedAtByPath)
+        IReadOnlyDictionary<string, DateTimeOffset> updatedAtByPath
+    )
     {
         return items
-            .SelectMany(item => keysSelector(item).Count == 0
-                ? [new("(none)", item)]
-                : keysSelector(item).Select(key => new KeyValuePair<string, ProgressItem>(key, item)))
+            .SelectMany(item =>
+                keysSelector(item).Count == 0
+                    ? [new("(none)", item)]
+                    : keysSelector(item)
+                        .Select(key => new KeyValuePair<string, ProgressItem>(key, item))
+            )
             .GroupBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var total = group.Count();
                 var passed = group.Count(pair => passedSet.Contains(pair.Value.Path));
                 var failed = group.Count(pair => failedSet.Contains(pair.Value.Path));
-                var skippedStandard = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.Standard));
-                var skippedLegacy = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.Legacy));
-                var skippedAnnexB = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.AnnexB));
-                var skippedProposal = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.Proposal));
-                var skippedFinishedProposalNotInBaseline = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.FinishedProposalNotInBaseline));
-                var skippedOther = group.Count(pair => HasSkipSpecStatus(skipInfoByPath, pair.Value.Path, SkipList.SkipSpecStatus.Other));
-                var skipped = skippedStandard + skippedLegacy + skippedAnnexB + skippedProposal + skippedFinishedProposalNotInBaseline + skippedOther;
-                var baselineTotal = total - skippedLegacy - skippedAnnexB - skippedProposal - skippedFinishedProposalNotInBaseline - skippedOther;
+                var skippedStandard = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.Standard
+                    )
+                );
+                var skippedLegacy = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.Legacy
+                    )
+                );
+                var skippedAnnexB = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.AnnexB
+                    )
+                );
+                var skippedProposal = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.Proposal
+                    )
+                );
+                var skippedFinishedProposalNotInBaseline = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.FinishedProposalNotInBaseline
+                    )
+                );
+                var skippedOther = group.Count(pair =>
+                    HasSkipSpecStatus(
+                        skipInfoByPath,
+                        pair.Value.Path,
+                        SkipList.SkipSpecStatus.Other
+                    )
+                );
+                var skipped =
+                    skippedStandard
+                    + skippedLegacy
+                    + skippedAnnexB
+                    + skippedProposal
+                    + skippedFinishedProposalNotInBaseline
+                    + skippedOther;
+                var baselineTotal =
+                    total
+                    - skippedLegacy
+                    - skippedAnnexB
+                    - skippedProposal
+                    - skippedFinishedProposalNotInBaseline
+                    - skippedOther;
                 var notYet = total - passed - failed - skipped;
                 var lastUpdated = group
-                    .Select(pair => updatedAtByPath.GetValueOrDefault(pair.Value.Path, DateTimeOffset.MinValue))
+                    .Select(pair =>
+                        updatedAtByPath.GetValueOrDefault(pair.Value.Path, DateTimeOffset.MinValue)
+                    )
                     .Max();
-                return new ProgressRow(group.Key, total, passed, failed, skippedStandard, skippedLegacy, skippedAnnexB, skippedProposal,
-                    skippedFinishedProposalNotInBaseline, skippedOther, skipped, notYet, baselineTotal,
-                    lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated);
+                return new ProgressRow(
+                    group.Key,
+                    total,
+                    passed,
+                    failed,
+                    skippedStandard,
+                    skippedLegacy,
+                    skippedAnnexB,
+                    skippedProposal,
+                    skippedFinishedProposalNotInBaseline,
+                    skippedOther,
+                    skipped,
+                    notYet,
+                    baselineTotal,
+                    lastUpdated == DateTimeOffset.MinValue ? null : lastUpdated
+                );
             })
             .OrderBy(static row => row.Scope, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -333,7 +544,9 @@ internal static partial class Program
             builder.AppendLine($"Filter: `{snapshot.Filter}`");
             builder.AppendLine($"Categories: `{string.Join(", ", snapshot.Categories)}`");
             builder.AppendLine($"Features: `{string.Join(", ", snapshot.Features)}`");
-            builder.AppendLine($"Excluded features: `{string.Join(", ", snapshot.ExcludedFeatures)}`");
+            builder.AppendLine(
+                $"Excluded features: `{string.Join(", ", snapshot.ExcludedFeatures)}`"
+            );
             if (snapshot.MaxTests.HasValue)
                 builder.AppendLine($"Max tests: `{snapshot.MaxTests.Value}`");
             if (snapshot.SkipPassedCache)
@@ -360,35 +573,50 @@ internal static partial class Program
     private static void WriteProgressJson(string outputPath, ProgressSnapshot snapshot)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-        var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(
+            snapshot,
+            new JsonSerializerOptions { WriteIndented = true }
+        );
         File.WriteAllText(outputPath, json, new UTF8Encoding(false));
     }
 
-    private static void WriteIncrementalProgressJson(string outputPath, IncrementalProgressSnapshot snapshot)
+    private static void WriteIncrementalProgressJson(
+        string outputPath,
+        IncrementalProgressSnapshot snapshot
+    )
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         var json = IncrementalProgressStoreCodec.Serialize(snapshot);
         File.WriteAllText(outputPath, json, new UTF8Encoding(false));
     }
 
-    private static void AppendProgressTable(StringBuilder builder, string title, IReadOnlyList<ProgressRow> rows)
+    private static void AppendProgressTable(
+        StringBuilder builder,
+        string title,
+        IReadOnlyList<ProgressRow> rows
+    )
     {
         builder.AppendLine($"## {title}");
         builder.AppendLine();
         builder.AppendLine(
-            "| Scope | Last Updated | Total | Passed | Failed | Skip Std | Skip Legacy | Skip Annex B | Skip Proposal | Skip Finished | Skip Other | Skipped | Not Yet | Passed % | Failed % | Skipped % | Not Yet % | Baseline Passed % |");
-        builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+            "| Scope | Last Updated | Total | Passed | Failed | Skip Std | Skip Legacy | Skip Annex B | Skip Proposal | Skip Finished | Skip Other | Skipped | Not Yet | Passed % | Failed % | Skipped % | Not Yet % | Baseline Passed % |"
+        );
+        builder.AppendLine(
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+        );
 
         foreach (var row in rows)
             builder.AppendLine(
-                $"| {EscapeMd(row.Scope)} | {FormatTimestamp(row.LastUpdated)} | {row.Total} | {row.Passed} | {row.Failed} | {row.SkippedStandard} | {row.SkippedLegacy} | {row.SkippedAnnexB} | {row.SkippedProposal} | {row.SkippedFinishedProposalNotInBaseline} | {row.SkippedOther} | {row.Skipped} | {row.NotYet} | {FormatPercent(row.Passed, row.Total)} | {FormatPercent(row.Failed, row.Total)} | {FormatPercent(row.Skipped, row.Total)} | {FormatPercent(row.NotYet, row.Total)} | {FormatPercent(row.Passed, row.BaselineTotal)} |");
+                $"| {EscapeMd(row.Scope)} | {FormatTimestamp(row.LastUpdated)} | {row.Total} | {row.Passed} | {row.Failed} | {row.SkippedStandard} | {row.SkippedLegacy} | {row.SkippedAnnexB} | {row.SkippedProposal} | {row.SkippedFinishedProposalNotInBaseline} | {row.SkippedOther} | {row.Skipped} | {row.NotYet} | {FormatPercent(row.Passed, row.Total)} | {FormatPercent(row.Failed, row.Total)} | {FormatPercent(row.Skipped, row.Total)} | {FormatPercent(row.NotYet, row.Total)} | {FormatPercent(row.Passed, row.BaselineTotal)} |"
+            );
 
         builder.AppendLine();
     }
 
     private static Dictionary<string, SkipProgressInfo> BuildSkipInfoByPath(
         IEnumerable<(string Path, string Reason)> skipped,
-        Func<string, string> normalizePath)
+        Func<string, string> normalizePath
+    )
     {
         var result = new Dictionary<string, SkipProgressInfo>(StringComparer.OrdinalIgnoreCase);
         foreach (var (path, reason) in skipped)
@@ -415,10 +643,11 @@ internal static partial class Program
     private static bool HasSkipSpecStatus(
         IReadOnlyDictionary<string, SkipProgressInfo> skipInfoByPath,
         string path,
-        SkipList.SkipSpecStatus status)
+        SkipList.SkipSpecStatus status
+    )
     {
-        return skipInfoByPath.TryGetValue(path, out var info) &&
-               string.Equals(info.SpecStatus, status.ToString(), StringComparison.Ordinal);
+        return skipInfoByPath.TryGetValue(path, out var info)
+            && string.Equals(info.SpecStatus, status.ToString(), StringComparison.Ordinal);
     }
 
     private static string GetCategoryKey(string normalizedPath)
@@ -476,10 +705,11 @@ internal static partial class Program
         return text.Replace("|", "\\|");
     }
 
-
     private sealed class RunnerProgressState(int totalFiles, int selectedFiles, int skipped)
     {
-        private readonly ConcurrentDictionary<string, DateTimeOffset> working = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, DateTimeOffset> working = new(
+            StringComparer.OrdinalIgnoreCase
+        );
         private long compileTicks;
         private int completed;
         private int executed;
@@ -497,7 +727,8 @@ internal static partial class Program
         public int Passed => Volatile.Read(ref passed);
         public int Failed => Volatile.Read(ref failed);
         public TimeSpan ParseDuration => TimestampDeltaToTimeSpan(Volatile.Read(ref parseTicks));
-        public TimeSpan CompileDuration => TimestampDeltaToTimeSpan(Volatile.Read(ref compileTicks));
+        public TimeSpan CompileDuration =>
+            TimestampDeltaToTimeSpan(Volatile.Read(ref compileTicks));
         public TimeSpan RunDuration => TimestampDeltaToTimeSpan(Volatile.Read(ref runTicks));
         public TimeSpan TotalDuration => ParseDuration + CompileDuration + RunDuration;
 
@@ -596,16 +827,16 @@ internal static partial class Program
     private sealed record ProgressItem(
         string Path,
         string RelativePath,
-        IReadOnlyList<string> Features);
+        IReadOnlyList<string> Features
+    );
 
-    private sealed record ProgressReasonRow(
-        string Reason,
-        int Count);
+    private sealed record ProgressReasonRow(string Reason, int Count);
 
     private sealed record SkipProgressInfo(
         string Reason,
         SkipList.SkipClassification Classification,
-        string? SpecStatus);
+        string? SpecStatus
+    );
 
     private sealed record ProgressRow(
         string Scope,
@@ -621,7 +852,8 @@ internal static partial class Program
         int Skipped,
         int NotYet,
         int BaselineTotal,
-        DateTimeOffset? LastUpdated);
+        DateTimeOffset? LastUpdated
+    );
 
     private sealed record ProgressSnapshot(
         DateTimeOffset TestDate,
@@ -638,21 +870,25 @@ internal static partial class Program
         IReadOnlyList<ProgressRow> ByCategory,
         IReadOnlyList<ProgressRow> ByFolder,
         IReadOnlyList<ProgressRow> ByFeature,
-        IReadOnlyList<ProgressReasonRow> SkipReasons);
+        IReadOnlyList<ProgressReasonRow> SkipReasons
+    );
 
     private sealed record ProgressOutput(
         string? DocPath,
         string? JsonPath,
         bool IsFullScope,
-        string ScopeLabel);
+        string ScopeLabel
+    );
 
     private sealed record CurrentProgressStatus(
         string Status,
         string? SkipReason,
         string? FailureReason,
-        string? SkipSpecStatus);
+        string? SkipSpecStatus
+    );
 
     private sealed record IncrementalBuildResult(
         ProgressSnapshot Snapshot,
-        IncrementalProgressSnapshot Store);
+        IncrementalProgressSnapshot Store
+    );
 }

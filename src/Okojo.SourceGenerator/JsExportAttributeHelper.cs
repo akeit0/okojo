@@ -6,7 +6,7 @@ internal enum JsMemberNamingPolicy
 {
     LowerCamelCase = 0,
     PascalCase = 1,
-    AsDeclared = 2
+    AsDeclared = 2,
 }
 
 internal static class JsExportAttributeHelper
@@ -25,7 +25,11 @@ internal static class JsExportAttributeHelper
         return null;
     }
 
-    public static string GetMemberName(ISymbol symbol, JsMemberNamingPolicy naming, params AttributeData?[] attributes)
+    public static string GetMemberName(
+        ISymbol symbol,
+        JsMemberNamingPolicy naming,
+        params AttributeData?[] attributes
+    )
     {
         for (var i = 0; i < attributes.Length; i++)
         {
@@ -33,7 +37,8 @@ internal static class JsExportAttributeHelper
             if (attribute is null)
                 continue;
 
-            var explicitName = GetConstructorString(attribute, 0) ?? GetNamedString(attribute, "Name");
+            var explicitName =
+                GetConstructorString(attribute, 0) ?? GetNamedString(attribute, "Name");
             if (explicitName is not null)
                 return explicitName;
         }
@@ -52,7 +57,7 @@ internal static class JsExportAttributeHelper
                 {
                     1 => JsMemberNamingPolicy.PascalCase,
                     2 => JsMemberNamingPolicy.AsDeclared,
-                    _ => JsMemberNamingPolicy.LowerCamelCase
+                    _ => JsMemberNamingPolicy.LowerCamelCase,
                 };
 
         return JsMemberNamingPolicy.LowerCamelCase;
@@ -108,7 +113,7 @@ internal static class JsExportAttributeHelper
         {
             JsMemberNamingPolicy.PascalCase => ToPascalCase(name),
             JsMemberNamingPolicy.AsDeclared => name,
-            _ => ToLowerCamelCase(name)
+            _ => ToLowerCamelCase(name),
         };
     }
 

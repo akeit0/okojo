@@ -1,0 +1,49 @@
+namespace Okojo.Globalization;
+
+/// <summary>
+///     Provides access to CLDR likely subtags data for locale maximize/minimize operations.
+///     Data is lazy-loaded from embedded text resource (key=value format).
+/// </summary>
+public static class LikelySubtagsData
+{
+    private static Dictionary<string, string>? likelySubtags;
+
+    private static Dictionary<string, string> LikelySubtags => likelySubtags ??= Load();
+
+    /// <summary>Looks up a likely-subtags key (e.g. <c>"zh"</c>) and returns its maximized value.</summary>
+    public static bool TryResolve(string key, out string value)
+    {
+        return LikelySubtags.TryGetValue(key, out value!);
+    }
+
+    private static Dictionary<string, string> Load()
+    {
+        var assembly = typeof(LikelySubtagsData).Assembly;
+        const string resourceName = "Okojo.Globalization.Data.LikelySubtags.txt";
+        using var stream =
+            assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException(
+                "Could not load embedded Intl likely-subtags data."
+            );
+
+        using var reader = new StreamReader(stream);
+        var data = new Dictionary<string, string>(8000, StringComparer.Ordinal);
+
+        string? line;
+        while ((line = reader.ReadLine()) != null)
+        {
+            if (line.Length == 0)
+                continue;
+
+            var eqIndex = line.IndexOf('=');
+            if (eqIndex > 0)
+            {
+                var key = line.Substring(0, eqIndex);
+                var value = line.Substring(eqIndex + 1);
+                data[key] = value;
+            }
+        }
+
+        return data;
+    }
+}

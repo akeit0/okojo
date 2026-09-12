@@ -1,5 +1,7 @@
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
 
 namespace Okojo.Tests;
 
@@ -11,12 +13,14 @@ public class TaskInteropTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.MainRealm;
 
-        var promise = realm.Eval("""
-                                 globalThis.resolvePending = undefined;
-                                 new Promise(resolve => {
-                                   globalThis.resolvePending = resolve;
-                                 });
-                                 """);
+        var promise = realm.Eval(
+            """
+            globalThis.resolvePending = undefined;
+            new Promise(resolve => {
+              globalThis.resolvePending = resolve;
+            });
+            """
+        );
 
         var task = realm.ToValueTask<int>(promise);
         Assert.That(task.IsCompleted, Is.False);
@@ -34,11 +38,13 @@ public class TaskInteropTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.MainRealm;
 
-        var promise = realm.Eval("""
-                                 new Promise(resolve => {
-                                   Promise.resolve().then(() => resolve(9));
-                                 });
-                                 """);
+        var promise = realm.Eval(
+            """
+            new Promise(resolve => {
+              Promise.resolve().then(() => resolve(9));
+            });
+            """
+        );
 
         var task = realm.ToPumpedValueTask<int>(promise);
         var result = await task;
@@ -52,6 +58,34 @@ public class TaskInteropTests
         var result = await runtime.MainRealm.EvaluateAsync("await Promise.resolve(8)");
 
         Assert.That(result.Int32Value, Is.EqualTo(8));
+    }
+
+    [Test]
+    public async Task EvaluateAsyncWithHostPump_RunsHostTaskBeforeResumingAwait()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.MainRealm;
+        var hostTasks = 0;
+
+        var result = await realm.EvaluateAsyncWithHostPump(
+            """
+            globalThis.resolvePending = undefined;
+            const pending = new Promise(resolve => {
+              globalThis.resolvePending = resolve;
+            });
+            await pending;
+            11;
+            """,
+            _ =>
+            {
+                hostTasks++;
+                realm.Call(realm.Global["resolvePending"], JsValue.Undefined, 11);
+                return ValueTask.CompletedTask;
+            }
+        );
+
+        Assert.That(result.Int32Value, Is.EqualTo(11));
+        Assert.That(hostTasks, Is.EqualTo(1));
     }
 
     [Test]

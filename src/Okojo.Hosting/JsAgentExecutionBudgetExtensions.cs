@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -9,7 +11,8 @@ public static class JsAgentExecutionBudgetExtensions
         ulong maxInstructions,
         TimeSpan? executionTimeout = null,
         ulong? checkInterval = null,
-        CancellationToken executionCancellationToken = default)
+        CancellationToken executionCancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -35,7 +38,8 @@ public static class JsAgentExecutionBudgetExtensions
         ulong maxInstructions,
         TimeSpan? executionTimeout = null,
         ulong? checkInterval = null,
-        CancellationToken executionCancellationToken = default)
+        CancellationToken executionCancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(agent);
 
@@ -60,7 +64,8 @@ public static class JsAgentExecutionBudgetExtensions
         this JsAgent agent,
         ulong maxInstructions,
         TimeSpan? executionTimeout = null,
-        CancellationToken executionCancellationToken = default)
+        CancellationToken executionCancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(agent);
 

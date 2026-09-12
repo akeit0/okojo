@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -8,4 +10,5 @@ namespace Okojo.Hosting;
 /// </summary>
 public readonly record struct HostTaskQueueSnapshot(
     HostTaskQueueKey QueueKey,
-    int PendingTaskCount);
+    int PendingTaskCount
+);

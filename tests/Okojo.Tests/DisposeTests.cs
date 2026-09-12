@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Tests;
 
@@ -31,8 +33,14 @@ public class DisposeTests
         {
             Assert.That(() => engine.Execute("1 + 1"), Throws.TypeOf<ObjectDisposedException>());
             Assert.That(() => engine.Evaluate("1 + 1"), Throws.TypeOf<ObjectDisposedException>());
-            Assert.That(() => engine.LoadModule("/mods/a.js"), Throws.TypeOf<ObjectDisposedException>());
-            Assert.That(() => engine.LoadWorkerScript("/workers/a.js"), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(
+                () => engine.LoadModule("/mods/a.js"),
+                Throws.TypeOf<ObjectDisposedException>()
+            );
+            Assert.That(
+                () => engine.LoadWorkerScript("/workers/a.js"),
+                Throws.TypeOf<ObjectDisposedException>()
+            );
             Assert.That(() => _ = engine.MainRealm, Throws.TypeOf<ObjectDisposedException>());
             Assert.That(() => _ = engine.DefaultRealm, Throws.TypeOf<ObjectDisposedException>());
             Assert.That(() => _ = engine.Agents, Throws.TypeOf<ObjectDisposedException>());

@@ -1,19 +1,24 @@
 namespace Okojo.DotNet.Modules;
 
-public readonly record struct DotNetFileBasedAppCacheLayout(string GlobalPackagesRoot, string RunFileCacheRoot)
+public readonly record struct DotNetFileBasedAppCacheLayout(
+    string GlobalPackagesRoot,
+    string RunFileCacheRoot
+)
 {
     public static DotNetFileBasedAppCacheLayout Detect()
     {
         return Create(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Path.GetTempPath(),
-            Environment.GetEnvironmentVariable("NUGET_PACKAGES"));
+            Environment.GetEnvironmentVariable("NUGET_PACKAGES")
+        );
     }
 
     public static DotNetFileBasedAppCacheLayout Create(
         string userProfilePath,
         string tempPath,
-        string? nugetPackagesPath = null)
+        string? nugetPackagesPath = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userProfilePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(tempPath);

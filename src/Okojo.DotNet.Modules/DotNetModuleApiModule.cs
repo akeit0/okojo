@@ -1,5 +1,7 @@
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.DotNet.Modules;
 
@@ -13,14 +15,21 @@ internal sealed class DotNetModuleApiModule(DotNetModuleImportBridge bridge) : I
             return;
 
         realm.Global[DotNetModuleImportBridge.GlobalBridgeFunctionName] = JsValue.FromObject(
-            new JsHostFunction(realm, DotNetModuleImportBridge.GlobalBridgeFunctionName, 1, static (in info) =>
+            new JsHostFunction(
+                realm,
+                DotNetModuleImportBridge.GlobalBridgeFunctionName,
+                1,
+                static (in info) =>
+                {
+                    var importBridge = (DotNetModuleImportBridge)
+                        ((JsHostFunction)info.Function).UserData!;
+                    var resolvedId = info.GetArgumentOrDefault(0, JsValue.Undefined).AsString();
+                    return importBridge.Import(info.Realm, resolvedId);
+                }
+            )
             {
-                var importBridge = (DotNetModuleImportBridge)((JsHostFunction)info.Function).UserData!;
-                var resolvedId = info.GetArgumentOrDefault(0, JsValue.Undefined).AsString();
-                return importBridge.Import(info.Realm, resolvedId);
-            })
-            {
-                UserData = bridge
-            });
+                UserData = bridge,
+            }
+        );
     }
 }

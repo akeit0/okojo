@@ -1,7 +1,8 @@
-using Okojo;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.WebPlatform;
 
 namespace OkojoHostEventLoopSandbox;
@@ -36,7 +37,8 @@ internal sealed class ServerThreadPoolHost : IDisposable
 
         var moduleLoader = new DemoModuleLoader(assets);
         var httpClient = new HttpClient(new DemoFetchHandler(assets.FetchPayloads));
-        var runtime = JsRuntime.CreateBuilder()
+        var runtime = JsRuntime
+            .CreateBuilder()
             .UseServerHost(server =>
             {
                 server.ModuleSourceLoader = moduleLoader;
@@ -47,8 +49,16 @@ internal sealed class ServerThreadPoolHost : IDisposable
                         return;
 
                     var hostObject = new JsPlainObject(realm);
-                    hostObject.DefineDataProperty("name", JsValue.FromString("server"), JsShapePropertyFlags.Open);
-                    hostObject.DefineDataProperty("platform", JsValue.FromString(".NET"), JsShapePropertyFlags.Open);
+                    hostObject.DefineDataProperty(
+                        "name",
+                        JsValue.FromString("server"),
+                        JsShapePropertyFlags.Open
+                    );
+                    hostObject.DefineDataProperty(
+                        "platform",
+                        JsValue.FromString(".NET"),
+                        JsShapePropertyFlags.Open
+                    );
                     realm.Global["host"] = JsValue.FromObject(hostObject);
                 });
             })

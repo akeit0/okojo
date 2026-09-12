@@ -8,8 +8,10 @@ namespace Okojo.DocGenerator.Cli;
 
 internal static class TypeScriptDeclarationEmitter
 {
-    public static string Emit(IReadOnlyList<GlobalTypeModel> globalModels,
-        IReadOnlyList<JsObjectTypeModel> objectModels)
+    public static string Emit(
+        IReadOnlyList<GlobalTypeModel> globalModels,
+        IReadOnlyList<JsObjectTypeModel> objectModels
+    )
     {
         var sb = new StringBuilder();
         var first = true;
@@ -46,8 +48,12 @@ internal static class TypeScriptDeclarationEmitter
             if (!first)
                 sb.AppendLine();
             first = false;
-            AppendDocComment(sb, indent, XmlDocCommentReader.Read(function.Symbol),
-                function.Parameters.Select(static x => x.Name).ToArray());
+            AppendDocComment(
+                sb,
+                indent,
+                XmlDocCommentReader.Read(function.Symbol),
+                function.Parameters.Select(static x => x.Name).ToArray()
+            );
             sb.Append(indent)
                 .Append(ns is null ? "declare function " : "function ")
                 .Append(function.Name)
@@ -63,7 +69,12 @@ internal static class TypeScriptDeclarationEmitter
             if (!first)
                 sb.AppendLine();
             first = false;
-            AppendDocComment(sb, indent, XmlDocCommentReader.Read(property.Symbol), Array.Empty<string>());
+            AppendDocComment(
+                sb,
+                indent,
+                XmlDocCommentReader.Read(property.Symbol),
+                Array.Empty<string>()
+            );
             sb.Append(indent)
                 .Append(ns is null ? "declare " : string.Empty)
                 .Append(property.Writable ? "let " : "const ")
@@ -103,10 +114,18 @@ internal static class TypeScriptDeclarationEmitter
             sb.AppendLine("}");
     }
 
-    private static void AppendObjectMember(StringBuilder sb, JsObjectMemberModel member, string indent)
+    private static void AppendObjectMember(
+        StringBuilder sb,
+        JsObjectMemberModel member,
+        string indent
+    )
     {
-        AppendDocComment(sb, indent, XmlDocCommentReader.Read(member.Symbol),
-            member.Parameters.Select(static x => x.Name).ToArray());
+        AppendDocComment(
+            sb,
+            indent,
+            XmlDocCommentReader.Read(member.Symbol),
+            member.Parameters.Select(static x => x.Name).ToArray()
+        );
         sb.Append(indent);
         if (member.IsStatic)
             sb.Append("static ");
@@ -125,10 +144,7 @@ internal static class TypeScriptDeclarationEmitter
         if (member.CanRead && !member.CanWrite)
             sb.Append("readonly ");
 
-        sb.Append(member.Name)
-            .Append(": ")
-            .Append(MapType(member.Type))
-            .AppendLine(";");
+        sb.Append(member.Name).Append(": ").Append(MapType(member.Type)).AppendLine(";");
     }
 
     private static string FormatParameter(GlobalParameterModel parameter)
@@ -148,9 +164,11 @@ internal static class TypeScriptDeclarationEmitter
 
     private static string MapType(ITypeSymbol type)
     {
-        if (type is INamedTypeSymbol nullableType &&
-            nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
-            nullableType.TypeArguments.Length == 1)
+        if (
+            type is INamedTypeSymbol nullableType
+            && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
+            && nullableType.TypeArguments.Length == 1
+        )
             return MapType(nullableType.TypeArguments[0]);
 
         if (type.SpecialType == SpecialType.System_Void)
@@ -159,19 +177,30 @@ internal static class TypeScriptDeclarationEmitter
             return "boolean";
         if (type.SpecialType == SpecialType.System_String)
             return "string";
-        if (type.SpecialType is SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_Int16 or
-            SpecialType.System_UInt16 or SpecialType.System_Int32 or SpecialType.System_UInt32
-            or SpecialType.System_Int64 or
-            SpecialType.System_UInt64 or SpecialType.System_Single or SpecialType.System_Double
-            or SpecialType.System_Decimal)
+        if (
+            type.SpecialType
+            is SpecialType.System_Byte
+                or SpecialType.System_SByte
+                or SpecialType.System_Int16
+                or SpecialType.System_UInt16
+                or SpecialType.System_Int32
+                or SpecialType.System_UInt32
+                or SpecialType.System_Int64
+                or SpecialType.System_UInt64
+                or SpecialType.System_Single
+                or SpecialType.System_Double
+                or SpecialType.System_Decimal
+        )
             return "number";
         if (type is IArrayTypeSymbol arrayType)
             return $"{MapType(arrayType.ElementType)}[]";
         if (ParameterTypeSupport.TryGetReadOnlySpanElementType(type, out var spanElementType))
             return $"{MapType(spanElementType)}[]";
-        if (type is INamedTypeSymbol namedType &&
-            namedType.ContainingNamespace.ToDisplayString() == "System.Threading.Tasks" &&
-            (namedType.Name == "Task" || namedType.Name == "ValueTask"))
+        if (
+            type is INamedTypeSymbol namedType
+            && namedType.ContainingNamespace.ToDisplayString() == "System.Threading.Tasks"
+            && (namedType.Name == "Task" || namedType.Name == "ValueTask")
+        )
         {
             if (namedType.TypeArguments.Length == 1)
                 return $"Promise<{MapType(namedType.TypeArguments[0])}>";
@@ -188,11 +217,19 @@ internal static class TypeScriptDeclarationEmitter
         return "any";
     }
 
-    private static void AppendDocComment(StringBuilder sb, string indent, XmlDocComment docs,
-        IReadOnlyCollection<string> parameterNames)
+    private static void AppendDocComment(
+        StringBuilder sb,
+        string indent,
+        XmlDocComment docs,
+        IReadOnlyCollection<string> parameterNames
+    )
     {
-        if (docs.Summary.Length == 0 && docs.Remarks.Length == 0 && docs.Returns.Length == 0 &&
-            docs.Parameters.Count == 0)
+        if (
+            docs.Summary.Length == 0
+            && docs.Remarks.Length == 0
+            && docs.Returns.Length == 0
+            && docs.Parameters.Count == 0
+        )
             return;
 
         sb.Append(indent).AppendLine("/**");
@@ -204,7 +241,11 @@ internal static class TypeScriptDeclarationEmitter
         {
             if (!parameterNames.Contains(parameter.Name, StringComparer.Ordinal))
                 continue;
-            sb.Append(indent).Append(" * @param ").Append(parameter.Name).Append(' ').AppendLine(parameter.Text);
+            sb.Append(indent)
+                .Append(" * @param ")
+                .Append(parameter.Name)
+                .Append(' ')
+                .AppendLine(parameter.Text);
         }
 
         if (docs.Returns.Length != 0)
@@ -234,7 +275,10 @@ internal static class TypeScriptDeclarationEmitter
     private static bool HasGenerateJsObjectAttribute(INamedTypeSymbol symbol)
     {
         foreach (var attribute in symbol.GetAttributes())
-            if (attribute.AttributeClass?.ToDisplayString() == "Okojo.Annotations.GenerateJsObjectAttribute")
+            if (
+                attribute.AttributeClass?.ToDisplayString()
+                == "Okojo.Annotations.GenerateJsObjectAttribute"
+            )
                 return true;
 
         return false;

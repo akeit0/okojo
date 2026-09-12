@@ -1,17 +1,23 @@
-using Okojo.Runtime;
-using Okojo.SourceMaps;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.SourceMaps;
 using Okojo.WebAssembly.Wasmtime;
 
 namespace Okojo.Node.Cli;
 
 internal static class NodeCliRuntimeFactory
 {
-    public static NodeRuntime CreateRuntime(IHostTaskScheduler hostTaskScheduler, bool enableSourceMaps)
+    public static NodeRuntime CreateRuntime(
+        IHostTaskScheduler hostTaskScheduler,
+        bool enableSourceMaps
+    )
     {
         ArgumentNullException.ThrowIfNull(hostTaskScheduler);
 
         var sourceMapRegistry = enableSourceMaps ? new SourceMapRegistry() : null;
-        return NodeRuntime.CreateBuilder()
+        return NodeRuntime
+            .CreateBuilder()
             .ConfigureRuntime(builder =>
             {
                 builder.UseLowLevelHost(host => host.UseTaskScheduler(hostTaskScheduler));
@@ -37,9 +43,9 @@ internal static class NodeCliRuntimeFactory
                     terminal.StderrRows = Console.WindowHeight;
                 }
             })
-            .UseWebAssembly(wasm => wasm
-                .UseBackend(static () => new WasmtimeBackend())
-                .InstallGlobals())
+            .UseWebAssembly(wasm =>
+                wasm.UseBackend(static () => new WasmtimeBackend()).InstallGlobals()
+            )
             .Build();
     }
 }

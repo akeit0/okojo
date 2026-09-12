@@ -1,9 +1,11 @@
-using Okojo.Compiler;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo.SourceMaps;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
+using Okojo.JavaScript.SourceMaps;
 using Okojo.WebPlatform;
 
 namespace Okojo.Node;
@@ -13,8 +15,9 @@ public sealed class NodeRuntime : IDisposable
     private const string NodeHostImportBridgeTempName = "_nodeHostImport";
     private const string NodeHostImportBridgeSymbolKey = "node.host.import";
 
-    private readonly Dictionary<string, CommonJsModuleRecord> commonJsCache =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CommonJsModuleRecord> commonJsCache = new(
+        StringComparer.Ordinal
+    );
 
     private readonly NodeCommonJsResolver commonJsResolver;
     private readonly NodeModuleFormatResolver moduleFormatResolver;
@@ -28,18 +31,20 @@ public sealed class NodeRuntime : IDisposable
         JsRuntime runtime,
         NodeModuleSourceLoader moduleLoader,
         NodeTerminalOptions? terminalOptions = null,
-        bool installNodeGlobals = true)
+        bool installNodeGlobals = true
+    )
     {
         Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.moduleLoader = moduleLoader ?? throw new ArgumentNullException(nameof(moduleLoader));
         this.terminalOptions = terminalOptions?.Clone() ?? new NodeTerminalOptions();
-        commonJsResolver = new(
-            this.moduleLoader.ResolveSpecifier,
-            this.moduleLoader.LoadRawSource);
+        commonJsResolver = new(this.moduleLoader.ResolveSpecifier, this.moduleLoader.LoadRawSource);
         BuiltIns = new(this, this.terminalOptions);
         moduleFormatResolver = new(this.moduleLoader.LoadRawSource);
         requireCacheObject = new(MainRealm);
-        webRuntimeApiModule = CreateWebRuntimeApiModule(Runtime.Options.LowLevelHost.HostTaskScheduler);
+        var hostTaskScheduler =
+            Runtime.Options.LowLevelHost.HostTaskScheduler
+            ?? throw new InvalidOperationException("Node runtime requires a host task scheduler.");
+        webRuntimeApiModule = CreateWebRuntimeApiModule(hostTaskScheduler);
         if (installNodeGlobals)
             InstallNodeGlobals(MainRealm);
     }
@@ -73,8 +78,8 @@ public sealed class NodeRuntime : IDisposable
         return moduleFormatResolver.DetermineFormat(resolvedId) switch
         {
             NodeModuleFormat.CommonJs => LoadCommonJsModule(resolvedId),
-            NodeModuleFormat.EsModule => Runtime.MainAgent.EvaluateModule(MainRealm, resolvedId),
-            _ => throw new InvalidOperationException("Unsupported Node module format.")
+            NodeModuleFormat.EsModule => Runtime.MainAgent.Modules.Evaluate(MainRealm, resolvedId),
+            _ => throw new InvalidOperationException("Unsupported Node module format."),
         };
     }
 
@@ -106,8 +111,10 @@ public sealed class NodeRuntime : IDisposable
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(specifier);
 
-        if (!specifier.StartsWith("node:", StringComparison.Ordinal) &&
-            TryGetRequireCacheExports(specifier, out var cachedExports))
+        if (
+            !specifier.StartsWith("node:", StringComparison.Ordinal)
+            && TryGetRequireCacheExports(specifier, out var cachedExports)
+        )
             return cachedExports;
 
         if (BuiltIns.TryGetBuiltInModule(specifier, out var builtInExports))
@@ -124,7 +131,7 @@ public sealed class NodeRuntime : IDisposable
         {
             NodeModuleFormat.CommonJs => LoadCommonJsModule(resolvedId),
             NodeModuleFormat.EsModule => LoadRequiredEsModule(resolvedId),
-            _ => throw new InvalidOperationException("Unsupported Node module format.")
+            _ => throw new InvalidOperationException("Unsupported Node module format."),
         };
     }
 
@@ -144,9 +151,14 @@ public sealed class NodeRuntime : IDisposable
                 JsValue.FromObject(record.RequireFunction!),
                 JsValue.FromObject(record.ModuleObject),
                 JsValue.FromString(resolvedId),
-                JsValue.FromString(GetDirectoryName(resolvedId)));
+                JsValue.FromString(GetDirectoryName(resolvedId))
+            );
 
-            record.ModuleObject.DefineDataProperty("loaded", JsValue.True, JsShapePropertyFlags.Open);
+            record.ModuleObject.DefineDataProperty(
+                "loaded",
+                JsValue.True,
+                JsShapePropertyFlags.Open
+            );
             record.IsLoaded = true;
             return GetModuleExports(record.ModuleObject);
         }
@@ -169,7 +181,11 @@ public sealed class NodeRuntime : IDisposable
         var moduleObject = CreateModuleObject(realm, resolvedId, exportsObject);
         var record = new CommonJsModuleRecord(resolvedId, moduleObject);
         commonJsCache.Add(resolvedId, record);
-        requireCacheObject.DefineDataProperty(resolvedId, JsValue.FromObject(moduleObject), JsShapePropertyFlags.Open);
+        requireCacheObject.DefineDataProperty(
+            resolvedId,
+            JsValue.FromObject(moduleObject),
+            JsShapePropertyFlags.Open
+        );
 
         try
         {
@@ -197,12 +213,15 @@ public sealed class NodeRuntime : IDisposable
     {
         var module = Runtime.LoadModule(resolvedId);
         var completion = FinalizeModuleLoad(module);
-        if (completion.TryGetObject(out var completionObject) &&
-            ReferenceEquals(completionObject, module.Object))
+        if (
+            completion.TryGetObject(out var completionObject)
+            && ReferenceEquals(completionObject, module.Object)
+        )
             return JsValue.FromObject(module.Object);
 
         throw new InvalidOperationException(
-            $"Cannot require async ECMAScript module '{resolvedId}' because it has not completed evaluation.");
+            $"Cannot require async ECMAScript module '{resolvedId}' because it has not completed evaluation."
+        );
     }
 
     private JsValue FinalizeModuleLoad(JsModuleLoadResult module)
@@ -210,14 +229,16 @@ public sealed class NodeRuntime : IDisposable
         if (module.IsCompleted)
             return module.CompletionValue;
 
-        if (module.CompletionValue.TryGetObject(out var completionObject) &&
-            completionObject is JsPromiseObject promise &&
-            promise.State == JsPromiseObject.PromiseState.Pending)
+        if (
+            module.CompletionValue.TryGetObject(out var completionObject)
+            && completionObject is JsPromiseObject promise
+            && promise.IsPending
+        )
         {
-            for (var i = 0; i < 16 && promise.State == JsPromiseObject.PromiseState.Pending; i++)
+            for (var i = 0; i < 16 && promise.IsPending; i++)
                 MainRealm.PumpJobs();
 
-            if (promise.State == JsPromiseObject.PromiseState.Fulfilled)
+            if (promise.IsFulfilled)
                 return JsValue.FromObject(module.Object);
         }
 
@@ -235,18 +256,28 @@ public sealed class NodeRuntime : IDisposable
         realm.Global["performance"] = JsValue.FromObject(BuiltIns.GetPerformanceObject());
         realm.Global["process"] = JsValue.FromObject(BuiltIns.GetProcessObject());
         realm.Global["Buffer"] = JsValue.FromObject(BuiltIns.GetBufferObject());
-        realm.Global["setImmediate"] = JsValue.FromObject(BuiltIns.CreateSetImmediateFunction(realm));
-        realm.Global["clearImmediate"] = JsValue.FromObject(BuiltIns.CreateClearImmediateFunction(realm));
-        realm.Global[NodeHostImportBridgeTempName] = JsValue.FromObject(CreateNodeHostImportBridge(realm));
-        _ = realm.Eval($$"""
-                         globalThis[Symbol.for("{{NodeHostImportBridgeSymbolKey}}")] = globalThis.{{NodeHostImportBridgeTempName}};
-                         delete globalThis.{{NodeHostImportBridgeTempName}};
-                         """);
+        realm.Global["setImmediate"] = JsValue.FromObject(
+            BuiltIns.CreateSetImmediateFunction(realm)
+        );
+        realm.Global["clearImmediate"] = JsValue.FromObject(
+            BuiltIns.CreateClearImmediateFunction(realm)
+        );
+        realm.Global[NodeHostImportBridgeTempName] = JsValue.FromObject(
+            CreateNodeHostImportBridge(realm)
+        );
+        _ = realm.Eval(
+            $$"""
+            globalThis[Symbol.for("{{NodeHostImportBridgeSymbolKey}}")] = globalThis.{{NodeHostImportBridgeTempName}};
+            delete globalThis.{{NodeHostImportBridgeTempName}};
+            """
+        );
         if (!realm.GlobalObject.TryGetProperty("console", out _))
             realm.Global["console"] = JsValue.FromObject(BuiltIns.GetConsoleObject());
     }
 
-    private static WebRuntimeApiModule CreateWebRuntimeApiModule(IHostTaskScheduler hostTaskScheduler)
+    private static WebRuntimeApiModule CreateWebRuntimeApiModule(
+        IHostTaskScheduler hostTaskScheduler
+    )
     {
         ArgumentNullException.ThrowIfNull(hostTaskScheduler);
         if (hostTaskScheduler is not IQueuedHostDelayScheduler queuedDelayScheduler)
@@ -257,69 +288,117 @@ public sealed class NodeRuntime : IDisposable
 
     private JsFunction CompileCommonJsWrapper(JsRealm realm, string source, string resolvedId)
     {
-        const string wrapperPrefix = "(function (exports, require, module, __filename, __dirname) {\n";
+        const string wrapperPrefix =
+            "(function (exports, require, module, __filename, __dirname) {";
         const string wrapperSuffix = "\n})";
         var wrappedSource = wrapperPrefix + source + wrapperSuffix;
 
-        var parsed = JavaScriptParser.ParseScript(
-            wrappedSource,
-            resolvedId,
-            -wrapperPrefix.Length,
-            source);
-        if (parsed.Statements.Count != 1 ||
-            parsed.Statements[0] is not JsExpressionStatement { Expression: JsFunctionExpression wrapperExpression })
-            throw new InvalidOperationException("CommonJS wrapper did not parse as a single function expression.");
+        using var ast = JavaScriptParser.ParseScript(wrappedSource, resolvedId);
+        var statements = ast.ChildRange(ast[ast.Root].Arg0, ast[ast.Root].Arg1);
+        if (statements.Length != 1 || ast[statements[0]].Kind != AstKind.ExpressionStatement)
+            throw new InvalidOperationException(
+                "CommonJS wrapper did not parse as a single function expression."
+            );
 
-        using var compiler = new JsCompiler(realm);
-        return compiler.CompileHoistedFunctionTemplate(
-            wrapperExpression,
-            string.Empty,
-            wrappedSource,
-            resolvedId,
-            parsed.IdentifierTable);
+        var expression = ast[statements[0]].Arg0;
+        if (ast[expression].Kind != AstKind.FunctionExpression)
+            throw new InvalidOperationException(
+                "CommonJS wrapper did not parse as a function expression."
+            );
+
+        var function = ast.GetFunction(ast[expression].Arg0);
+        // The wrapper is compiled through a bare JsFunctionCompiler, which
+        // does not inherit source from an outer compile: attach the wrapped
+        // source explicitly or stack frames carry no file/line locations.
+        // The wrapper prefix holds no newline, so reported lines already
+        // match user source lines; columns shift by the prefix length (a
+        // wrapper-to-user remap belongs to the debug-info redesign).
+        return new JsFunctionCompiler(
+            realm,
+            scriptSourceCode: new SourceCode(wrappedSource, resolvedId)
+        )
+            .CompileFunction(ast, function, ast[expression].Arg1)
+            .CreateClosure(realm);
     }
 
     private JsHostFunction CreateRequireFunction(JsRealm realm, string resolvedId)
     {
-        var requireFunction = new JsHostFunction(realm, "require", 1, static (in info) =>
+        var requireFunction = new JsHostFunction(
+            realm,
+            "require",
+            1,
+            static (in info) =>
+            {
+                var state = (RequireFunctionState)((JsHostFunction)info.Function).UserData!;
+                var specifier = info.GetArgumentString(0);
+                return state.Runtime.Require(specifier, state.Referrer);
+            },
+            false
+        )
         {
-            var state = (RequireFunctionState)((JsHostFunction)info.Function).UserData!;
-            var specifier = info.GetArgumentString(0);
-            return state.Runtime.Require(specifier, state.Referrer);
-        }, false)
-        {
-            UserData = new RequireFunctionState(this, resolvedId)
+            UserData = new RequireFunctionState(this, resolvedId),
         };
 
-        requireFunction.DefineDataProperty("cache", JsValue.FromObject(requireCacheObject), JsShapePropertyFlags.Open);
+        requireFunction.DefineDataProperty(
+            "cache",
+            JsValue.FromObject(requireCacheObject),
+            JsShapePropertyFlags.Open
+        );
         return requireFunction;
     }
 
     private JsHostFunction CreateNodeHostImportBridge(JsRealm realm)
     {
-        return new(realm, NodeHostImportBridgeTempName, 1, static (in info) =>
-        {
-            var hostState = (NodeRealmHostState?)info.Realm.HostDefined;
-            if (hostState is null)
-                throw new InvalidOperationException("Node host bridge is not available for this realm.");
+        return new(
+            realm,
+            NodeHostImportBridgeTempName,
+            1,
+            static (in info) =>
+            {
+                var hostState = (NodeRealmHostState?)info.Realm.HostDefined;
+                if (hostState is null)
+                    throw new InvalidOperationException(
+                        "Node host bridge is not available for this realm."
+                    );
 
-            var specifier = info.GetArgumentString(0);
-            return hostState.Runtime.LoadNodeHostModule(specifier);
-        }, false)
+                var specifier = info.GetArgumentString(0);
+                return hostState.Runtime.LoadNodeHostModule(specifier);
+            },
+            false
+        )
         {
-            UserData = null
+            UserData = null,
         };
     }
 
-    private static JsPlainObject CreateModuleObject(JsRealm realm, string resolvedId, JsPlainObject exportsObject)
+    private static JsPlainObject CreateModuleObject(
+        JsRealm realm,
+        string resolvedId,
+        JsPlainObject exportsObject
+    )
     {
         var moduleObject = new JsPlainObject(realm);
-        moduleObject.DefineDataProperty("exports", JsValue.FromObject(exportsObject), JsShapePropertyFlags.Open);
-        moduleObject.DefineDataProperty("filename", JsValue.FromString(resolvedId), JsShapePropertyFlags.Open);
-        moduleObject.DefineDataProperty("id", JsValue.FromString(resolvedId), JsShapePropertyFlags.Open);
+        moduleObject.DefineDataProperty(
+            "exports",
+            JsValue.FromObject(exportsObject),
+            JsShapePropertyFlags.Open
+        );
+        moduleObject.DefineDataProperty(
+            "filename",
+            JsValue.FromString(resolvedId),
+            JsShapePropertyFlags.Open
+        );
+        moduleObject.DefineDataProperty(
+            "id",
+            JsValue.FromString(resolvedId),
+            JsShapePropertyFlags.Open
+        );
         moduleObject.DefineDataProperty("loaded", JsValue.False, JsShapePropertyFlags.Open);
-        moduleObject.DefineDataProperty("path", JsValue.FromString(GetDirectoryName(resolvedId)),
-            JsShapePropertyFlags.Open);
+        moduleObject.DefineDataProperty(
+            "path",
+            JsValue.FromString(GetDirectoryName(resolvedId)),
+            JsShapePropertyFlags.Open
+        );
         return moduleObject;
     }
 
@@ -332,8 +411,10 @@ public sealed class NodeRuntime : IDisposable
 
     private bool TryGetRequireCacheExports(string key, out JsValue exports)
     {
-        if (!requireCacheObject.TryGetProperty(key, out var cacheEntry) ||
-            !cacheEntry.TryGetObject(out var cacheObject))
+        if (
+            !requireCacheObject.TryGetProperty(key, out var cacheEntry)
+            || !cacheEntry.TryGetObject(out var cacheObject)
+        )
         {
             exports = JsValue.Undefined;
             return false;

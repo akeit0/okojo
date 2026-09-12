@@ -10,5 +10,6 @@ internal static class SourceGeneratorDiagnostics
         "{0}",
         "Okojo.SourceGenerator",
         DiagnosticSeverity.Error,
-        true);
+        true
+    );
 }

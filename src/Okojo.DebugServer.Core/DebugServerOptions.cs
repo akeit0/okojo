@@ -19,6 +19,7 @@ public sealed class DebugServerOptions
     public bool StopOnResumeGenerator { get; private set; }
     public bool StopOnPeriodic { get; private set; }
     public bool EnableSourceMaps { get; private set; }
+    public bool StructuredOutput { get; private set; }
     public DebugStepGranularity StepGranularity { get; private set; } = DebugStepGranularity.Line;
     public IReadOnlyList<BreakpointSpec> Breakpoints => breakpoints;
 
@@ -30,6 +31,9 @@ public sealed class DebugServerOptions
             var arg = args[i];
             switch (arg)
             {
+                case "--structured-output":
+                    options.StructuredOutput = true;
+                    break;
                 case "--script":
                     if (i + 1 < args.Length)
                         options.ScriptPath = args[++i];
@@ -43,7 +47,11 @@ public sealed class DebugServerOptions
                         options.breakpoints.Add(ParseBreakpoint(args[++i], options.Cwd));
                     break;
                 case "--check-interval":
-                    if (i + 1 < args.Length && ulong.TryParse(args[++i], out var checkInterval) && checkInterval != 0)
+                    if (
+                        i + 1 < args.Length
+                        && ulong.TryParse(args[++i], out var checkInterval)
+                        && checkInterval != 0
+                    )
                         options.CheckInterval = checkInterval;
                     break;
                 case "--step-granularity":
@@ -116,8 +124,15 @@ public sealed class DebugServerOptions
     private static BreakpointSpec ParseBreakpoint(string spec, string? cwd)
     {
         int colon = spec.LastIndexOf(':');
-        if (colon <= 0 || colon == spec.Length - 1 || !int.TryParse(spec[(colon + 1)..], out int line))
-            throw new ArgumentException("Breakpoint must be in the form sourcePath:line.", nameof(spec));
+        if (
+            colon <= 0
+            || colon == spec.Length - 1
+            || !int.TryParse(spec[(colon + 1)..], out int line)
+        )
+            throw new ArgumentException(
+                "Breakpoint must be in the form sourcePath:line.",
+                nameof(spec)
+            );
 
         string sourcePath = spec[..colon];
         if (!Path.IsPathRooted(sourcePath))
@@ -141,7 +156,7 @@ public sealed class DebugServerOptions
             "line" => DebugStepGranularity.Line,
             "instruction" => DebugStepGranularity.Instruction,
             "pc" => DebugStepGranularity.Instruction,
-            _ => throw new ArgumentException($"Unknown step granularity '{raw}'.", nameof(raw))
+            _ => throw new ArgumentException($"Unknown step granularity '{raw}'.", nameof(raw)),
         };
     }
 }

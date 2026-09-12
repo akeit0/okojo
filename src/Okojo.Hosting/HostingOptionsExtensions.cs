@@ -1,16 +1,24 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
 public static class HostingOptionsExtensions
 {
-    public static JsRuntimeBuilder UseHosting(this JsRuntimeBuilder builder, Action<HostingBuilder>? configure = null)
+    public static JsRuntimeBuilder UseHosting(
+        this JsRuntimeBuilder builder,
+        Action<HostingBuilder>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.ConfigureOptions(options => options.UseHosting(configure));
     }
 
-    public static JsRuntimeOptions UseHosting(this JsRuntimeOptions options, Action<HostingBuilder>? configure = null)
+    public static JsRuntimeOptions UseHosting(
+        this JsRuntimeOptions options,
+        Action<HostingBuilder>? configure = null
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
 

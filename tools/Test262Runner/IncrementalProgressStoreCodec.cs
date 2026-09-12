@@ -11,29 +11,40 @@ internal static class IncrementalProgressStoreCodec
             return null;
 
         var featurePool = snapshot.F ?? [];
-        return snapshot.E.Select(entry =>
-        {
-            var features = entry.F is null || entry.F.Length == 0
-                ? Array.Empty<string>()
-                : entry.F.Select(index => index >= 0 && index < featurePool.Length ? featurePool[index] : string.Empty)
-                    .Where(static x => !string.IsNullOrEmpty(x))
-                    .ToArray();
-            return new IncrementalProgressEntry(
-                entry.P,
-                entry.P,
-                features,
-                DecodeStatus(entry.S),
-                entry.K,
-                entry.M,
-                DecodeSkipSpecStatus(entry.T),
-                entry.U == 0 ? DateTimeOffset.MinValue : DateTimeOffset.FromUnixTimeSeconds(entry.U));
-        }).ToArray();
+        return snapshot
+            .E.Select(entry =>
+            {
+                var features =
+                    entry.F is null || entry.F.Length == 0
+                        ? Array.Empty<string>()
+                        : entry
+                            .F.Select(index =>
+                                index >= 0 && index < featurePool.Length
+                                    ? featurePool[index]
+                                    : string.Empty
+                            )
+                            .Where(static x => !string.IsNullOrEmpty(x))
+                            .ToArray();
+                return new IncrementalProgressEntry(
+                    entry.P,
+                    entry.P,
+                    features,
+                    DecodeStatus(entry.S),
+                    entry.K,
+                    entry.M,
+                    DecodeSkipSpecStatus(entry.T),
+                    entry.U == 0
+                        ? DateTimeOffset.MinValue
+                        : DateTimeOffset.FromUnixTimeSeconds(entry.U)
+                );
+            })
+            .ToArray();
     }
 
     public static string Serialize(IncrementalProgressSnapshot snapshot)
     {
-        var featurePool = snapshot.Entries
-            .SelectMany(static x => x.Features)
+        var featurePool = snapshot
+            .Entries.SelectMany(static x => x.Features)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(static x => x, StringComparer.Ordinal)
             .ToArray();
@@ -41,18 +52,25 @@ internal static class IncrementalProgressStoreCodec
             .Select((value, index) => new KeyValuePair<string, int>(value, index))
             .ToDictionary(static x => x.Key, static x => x.Value, StringComparer.Ordinal);
 
-        var entries = snapshot.Entries
-            .Select(entry => new CompactIncrementalEntry(
+        var entries = snapshot
+            .Entries.Select(entry => new CompactIncrementalEntry(
                 entry.Path,
                 EncodeStatus(entry.Status),
                 string.IsNullOrWhiteSpace(entry.SkipReason) ? null : entry.SkipReason,
                 string.IsNullOrWhiteSpace(entry.FailureReason) ? null : entry.FailureReason,
                 EncodeSkipSpecStatus(entry.SkipSpecStatus),
-                entry.LastUpdated == DateTimeOffset.MinValue ? 0 : entry.LastUpdated.ToUnixTimeSeconds(),
-                entry.Features.Count == 0 ? null : entry.Features.Select(feature => featureIndex[feature]).ToArray()))
+                entry.LastUpdated == DateTimeOffset.MinValue
+                    ? 0
+                    : entry.LastUpdated.ToUnixTimeSeconds(),
+                entry.Features.Count == 0
+                    ? null
+                    : entry.Features.Select(feature => featureIndex[feature]).ToArray()
+            ))
             .ToArray();
 
-        return JsonSerializer.Serialize(new CompactIncrementalProgressSnapshot(1, featurePool, entries));
+        return JsonSerializer.Serialize(
+            new CompactIncrementalProgressSnapshot(1, featurePool, entries)
+        );
     }
 
     public static string DecodeStatus(byte status)
@@ -62,7 +80,7 @@ internal static class IncrementalProgressStoreCodec
             1 => "passed",
             2 => "failed",
             3 => "skipped",
-            _ => "not-yet"
+            _ => "not-yet",
         };
     }
 
@@ -73,7 +91,7 @@ internal static class IncrementalProgressStoreCodec
             "passed" => 1,
             "failed" => 2,
             "skipped" => 3,
-            _ => 0
+            _ => 0,
         };
     }
 
@@ -87,7 +105,7 @@ internal static class IncrementalProgressStoreCodec
             4 => nameof(SkipList.SkipSpecStatus.FinishedProposalNotInBaseline),
             5 => nameof(SkipList.SkipSpecStatus.Standard),
             6 => nameof(SkipList.SkipSpecStatus.Other),
-            _ => null
+            _ => null,
         };
     }
 
@@ -101,31 +119,33 @@ internal static class IncrementalProgressStoreCodec
             nameof(SkipList.SkipSpecStatus.FinishedProposalNotInBaseline) => 4,
             nameof(SkipList.SkipSpecStatus.Standard) => 5,
             nameof(SkipList.SkipSpecStatus.Other) => 6,
-            _ => 0
+            _ => 0,
         };
     }
 
     private sealed record CompactIncrementalProgressSnapshot(
         [property: JsonPropertyName("v")] int V,
         [property: JsonPropertyName("f")] string[] F,
-        [property: JsonPropertyName("e")] CompactIncrementalEntry[] E);
+        [property: JsonPropertyName("e")] CompactIncrementalEntry[] E
+    );
 
     private sealed record CompactIncrementalEntry(
         [property: JsonPropertyName("p")] string P,
         [property: JsonPropertyName("s")] byte S,
         [property: JsonPropertyName("k")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        string? K,
+            string? K,
         [property: JsonPropertyName("m")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        string? M,
+            string? M,
         [property: JsonPropertyName("t")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        byte T,
+            byte T,
         [property: JsonPropertyName("u")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        long U,
+            long U,
         [property: JsonPropertyName("f")]
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        int[]? F);
+            int[]? F
+    );
 }

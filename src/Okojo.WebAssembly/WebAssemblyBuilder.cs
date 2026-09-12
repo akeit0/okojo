@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.WebAssembly;
 
@@ -27,9 +29,11 @@ public sealed class WebAssemblyBuilder
     {
         options.UseRealmSetup(realm =>
         {
-            var backendFactory = state.BackendFactory
-                                 ?? throw new InvalidOperationException(
-                                     "WebAssembly globals require a configured wasm backend. Call UseBackend(...) first.");
+            var backendFactory =
+                state.BackendFactory
+                ?? throw new InvalidOperationException(
+                    "WebAssembly globals require a configured wasm backend. Call UseBackend(...) first."
+                );
             WebAssemblyInstaller.Install(realm, backendFactory());
         });
 

@@ -13,29 +13,36 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         var provider = context.SyntaxProvider.ForAttributeWithMetadataName(
             AttributeMetadataNames.GenerateJsObjectAttribute,
             static (node, _) => node is ClassDeclarationSyntax,
-            static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol);
+            static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol
+        );
 
-        context.RegisterSourceOutput(provider, static (spc, symbol) =>
-        {
-            var model = JsObjectExportCollector.Collect(symbol);
-            if (model is null)
-                return;
-            var instanceOverloads = GroupMethodMembers(model.InstanceMembers);
-            var staticOverloads = GroupMethodMembers(model.StaticMembers);
-            var hasErrors = ReportDiagnostics(spc, instanceOverloads) | ReportDiagnostics(spc, staticOverloads);
-            if (hasErrors)
-                return;
-            spc.AddSource(GetHintName(symbol), Emit(model));
-        });
+        context.RegisterSourceOutput(
+            provider,
+            static (spc, symbol) =>
+            {
+                var model = JsObjectExportCollector.Collect(symbol);
+                if (model is null)
+                    return;
+                var instanceOverloads = GroupMethodMembers(model.InstanceMembers);
+                var staticOverloads = GroupMethodMembers(model.StaticMembers);
+                var hasErrors =
+                    ReportDiagnostics(spc, instanceOverloads)
+                    | ReportDiagnostics(spc, staticOverloads);
+                if (hasErrors)
+                    return;
+                spc.AddSource(GetHintName(symbol), Emit(model));
+            }
+        );
     }
 
     private static string GetHintName(INamedTypeSymbol symbol)
     {
-        return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            .Replace("global::", string.Empty)
-            .Replace('<', '_')
-            .Replace('>', '_')
-            .Replace('.', '_') + ".JsHost.g.cs";
+        return symbol
+                .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                .Replace("global::", string.Empty)
+                .Replace('<', '_')
+                .Replace('>', '_')
+                .Replace('.', '_') + ".JsHost.g.cs";
     }
 
     private static string Emit(JsObjectTypeModel model)
@@ -44,7 +51,9 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         var symbol = model.Symbol;
         var instanceMethodGroups = GroupMethodMembers(model.InstanceMembers);
         var staticMethodGroups = GroupMethodMembers(model.StaticMembers);
-        var ns = symbol.ContainingNamespace.IsGlobalNamespace ? null : symbol.ContainingNamespace.ToDisplayString();
+        var ns = symbol.ContainingNamespace.IsGlobalNamespace
+            ? null
+            : symbol.ContainingNamespace.ToDisplayString();
         var typeName = symbol.Name + BuildTypeParameters(symbol);
         var fullTypeName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -57,34 +66,52 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        sb.Append("partial class ").Append(typeName).Append(" : global::Okojo.Runtime.Interop.IHostBindable")
+        sb.Append("partial class ")
+            .Append(typeName)
+            .Append(" : global::Okojo.JavaScript.Execution.Interop.IHostBindable")
             .AppendLine();
         sb.AppendLine("{");
         sb.AppendLine(
-            "    private static readonly global::Okojo.Runtime.Interop.HostBinding s_HostBinding = CreateHostBinding();");
+            "    private static readonly global::Okojo.JavaScript.Execution.Interop.HostBinding s_HostBinding = CreateHostBinding();"
+        );
         sb.AppendLine();
         sb.AppendLine(
-            "    global::Okojo.Runtime.Interop.HostBinding global::Okojo.Runtime.Interop.IHostBindable.GetHostBinding()");
+            "    global::Okojo.JavaScript.Execution.Interop.HostBinding global::Okojo.JavaScript.Execution.Interop.IHostBindable.GetHostBinding()"
+        );
         sb.AppendLine("        => s_HostBinding;");
         sb.AppendLine();
         sb.Append(
-                "    public static global::Okojo.Objects.JsHostObject ToJsObject(global::Okojo.Runtime.JsRealm realm, ")
-            .Append(fullTypeName).AppendLine(" value)");
+                "    public static global::Okojo.JavaScript.Objects.JsHostObject ToJsObject(global::Okojo.JavaScript.Execution.JsRealm realm, "
+            )
+            .Append(fullTypeName)
+            .AppendLine(" value)");
         sb.AppendLine("        => realm.WrapHostObject(value);");
         sb.AppendLine();
         sb.AppendLine(
-            "    public static global::Okojo.Objects.JsHostFunction ToJsType(global::Okojo.Runtime.JsRealm realm)");
-        sb.AppendLine("        => realm.WrapHostType(typeof(" + fullTypeName + "), s_HostBinding);");
+            "    public static global::Okojo.JavaScript.Objects.JsHostFunction ToJsType(global::Okojo.JavaScript.Execution.JsRealm realm)"
+        );
+        sb.AppendLine(
+            "        => realm.WrapHostType(typeof(" + fullTypeName + "), s_HostBinding);"
+        );
         sb.AppendLine();
-        sb.AppendLine("    private static global::Okojo.Runtime.Interop.HostBinding CreateHostBinding()");
+        sb.AppendLine(
+            "    private static global::Okojo.JavaScript.Execution.Interop.HostBinding CreateHostBinding()"
+        );
         sb.AppendLine("    {");
-        sb.Append("        return new global::Okojo.Runtime.Interop.HostBinding(typeof(").Append(fullTypeName)
+        sb.Append(
+                "        return new global::Okojo.JavaScript.Execution.Interop.HostBinding(typeof("
+            )
+            .Append(fullTypeName)
             .AppendLine("),");
-        sb.AppendLine("            instanceMembers: new global::Okojo.Runtime.Interop.HostMemberBinding[]");
+        sb.AppendLine(
+            "            instanceMembers: new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding[]"
+        );
         sb.AppendLine("            {");
         EmitMembers(sb, symbol, model.InstanceMembers, instanceMethodGroups, false);
         sb.AppendLine("            },");
-        sb.AppendLine("            staticMembers: new global::Okojo.Runtime.Interop.HostMemberBinding[]");
+        sb.AppendLine(
+            "            staticMembers: new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding[]"
+        );
         sb.AppendLine("            {");
         EmitMembers(sb, symbol, model.StaticMembers, staticMethodGroups, true);
         sb.AppendLine("            });");
@@ -99,8 +126,11 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         StringBuilder sb,
         INamedTypeSymbol symbol,
         IReadOnlyList<JsObjectMemberModel> members,
-        IReadOnlyList<AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>> methodGroups,
-        bool isStaticGroup)
+        IReadOnlyList<
+            AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>
+        > methodGroups,
+        bool isStaticGroup
+    )
     {
         foreach (var member in members)
             switch (member.Symbol)
@@ -117,76 +147,114 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             EmitMethodBinding(sb, methodGroup, isStaticGroup);
     }
 
-    private static void EmitField(StringBuilder sb, INamedTypeSymbol containingType, JsObjectMemberModel member,
-        IFieldSymbol field)
+    private static void EmitField(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        JsObjectMemberModel member,
+        IFieldSymbol field
+    )
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(member.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Field, ")
+            .Append("\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Field, ")
             .Append(field.IsStatic ? "true" : "false");
-        sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
-        EmitToJsValue(sb, field.Type, () =>
-        {
-            AppendCallTarget(sb, fullTypeName, field.IsStatic);
-            sb.Append('.').Append(field.Name);
-        });
+        sb.Append(", getterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => ");
+        EmitToJsValue(
+            sb,
+            field.Type,
+            () =>
+            {
+                AppendCallTarget(sb, fullTypeName, field.IsStatic);
+                sb.Append('.').Append(field.Name);
+            }
+        );
 
         if (member.CanWrite)
         {
-            sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
+            sb.Append(
+                ", setterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => { "
+            );
             AppendCallTarget(sb, fullTypeName, field.IsStatic);
             sb.Append('.').Append(field.Name).Append(" = ");
             EmitGetArgument(sb, field.Type, 0);
-            sb.Append("; return global::Okojo.JsValue.Undefined; }");
+            sb.Append("; return global::Okojo.JavaScript.JsValue.Undefined; }");
         }
 
         sb.AppendLine("),");
     }
 
-    private static void EmitProperty(StringBuilder sb, INamedTypeSymbol containingType, JsObjectMemberModel member,
-        IPropertySymbol property)
+    private static void EmitProperty(
+        StringBuilder sb,
+        INamedTypeSymbol containingType,
+        JsObjectMemberModel member,
+        IPropertySymbol property
+    )
     {
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(member.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Property, ")
+            .Append(
+                "\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Property, "
+            )
             .Append(property.IsStatic ? "true" : "false");
         if (member.CanRead)
         {
-            sb.Append(", getterBody: static (in global::Okojo.Runtime.CallInfo info) => ");
-            EmitToJsValue(sb, property.Type, () =>
-            {
-                AppendCallTarget(sb, fullTypeName, property.IsStatic);
-                sb.Append('.').Append(property.Name);
-            });
+            sb.Append(
+                ", getterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => "
+            );
+            EmitToJsValue(
+                sb,
+                property.Type,
+                () =>
+                {
+                    AppendCallTarget(sb, fullTypeName, property.IsStatic);
+                    sb.Append('.').Append(property.Name);
+                }
+            );
         }
 
         if (member.CanWrite)
         {
-            sb.Append(", setterBody: static (in global::Okojo.Runtime.CallInfo info) => { ");
+            sb.Append(
+                ", setterBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => { "
+            );
             AppendCallTarget(sb, fullTypeName, property.IsStatic);
             sb.Append('.').Append(property.Name).Append(" = ");
             EmitGetArgument(sb, property.Type, 0);
-            sb.Append("; return global::Okojo.JsValue.Undefined; }");
+            sb.Append("; return global::Okojo.JavaScript.JsValue.Undefined; }");
         }
 
         sb.AppendLine("),");
     }
 
-    private static void EmitMethodBinding(StringBuilder sb,
-        AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel> methodGroup, bool isStaticGroup)
+    private static void EmitMethodBinding(
+        StringBuilder sb,
+        AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel> methodGroup,
+        bool isStaticGroup
+    )
     {
         var methodName = GetGeneratedMethodGroupName(methodGroup.Name, isStaticGroup);
-        sb.Append("                new global::Okojo.Runtime.Interop.HostMemberBinding(\"")
+        sb.Append(
+                "                new global::Okojo.JavaScript.Execution.Interop.HostMemberBinding(\""
+            )
             .Append(methodGroup.Name)
-            .Append("\", global::Okojo.Runtime.Interop.HostMemberBindingKind.Method, ")
+            .Append("\", global::Okojo.JavaScript.Execution.Interop.HostMemberBindingKind.Method, ")
             .Append(isStaticGroup ? "true" : "false")
-            .Append(", methodBody: static (in global::Okojo.Runtime.CallInfo info) => ")
+            .Append(
+                ", methodBody: static (in global::Okojo.JavaScript.Execution.CallInfo info) => "
+            )
             .Append(methodName)
             .Append("(info), functionLength: ")
-            .Append(methodGroup.Overloads.Min(static x =>
-                ParameterTypeSupport.ComputeFunctionLength(x.Symbol.Parameters, false)))
+            .Append(
+                methodGroup.Overloads.Min(static x =>
+                    ParameterTypeSupport.ComputeFunctionLength(x.Symbol.Parameters, false)
+                )
+            )
             .Append("),");
         sb.AppendLine();
     }
@@ -194,8 +262,11 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
     private static void EmitMethodGroups(
         StringBuilder sb,
         INamedTypeSymbol containingType,
-        IReadOnlyList<AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>> methodGroups,
-        bool isStaticGroup)
+        IReadOnlyList<
+            AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>
+        > methodGroups,
+        bool isStaticGroup
+    )
     {
         foreach (var methodGroup in methodGroups)
         {
@@ -208,7 +279,8 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         StringBuilder sb,
         INamedTypeSymbol containingType,
         AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel> methodGroup,
-        bool isStaticGroup)
+        bool isStaticGroup
+    )
     {
         var dispatcherName = GetGeneratedMethodGroupName(methodGroup.Name, isStaticGroup);
         MethodOverloadDispatchEmitter.EmitDispatcher(
@@ -217,7 +289,8 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             "Host function argument type mismatch.",
             methodGroup,
             true,
-            overloadIndex => dispatcherName + "__Overload" + overloadIndex);
+            overloadIndex => dispatcherName + "__Overload" + overloadIndex
+        );
 
         var fullTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         for (var i = 0; i < methodGroup.Overloads.Count; i++)
@@ -227,19 +300,26 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
                 sb,
                 fullTypeName,
                 methodGroup.Overloads[i].Symbol,
-                dispatcherName + "__Overload" + i);
+                dispatcherName + "__Overload" + i
+            );
         }
     }
 
-    private static void EmitMethodOverloadWrapper(StringBuilder sb, string fullTypeName, IMethodSymbol method,
-        string methodName)
+    private static void EmitMethodOverloadWrapper(
+        StringBuilder sb,
+        string fullTypeName,
+        IMethodSymbol method,
+        string methodName
+    )
     {
-        var hasTrailingSpan =
-            ParameterTypeSupport.TryGetTrailingReadOnlySpanElementType(method.Parameters, out var spanIndex,
-                out var spanElementType);
-        sb.Append("    private static global::Okojo.JsValue ")
+        var hasTrailingSpan = ParameterTypeSupport.TryGetTrailingReadOnlySpanElementType(
+            method.Parameters,
+            out var spanIndex,
+            out var spanElementType
+        );
+        sb.Append("    private static global::Okojo.JavaScript.JsValue ")
             .Append(methodName)
-            .AppendLine("(scoped in global::Okojo.Runtime.CallInfo info)");
+            .AppendLine("(scoped in global::Okojo.JavaScript.Execution.CallInfo info)");
         sb.AppendLine("    {");
         if (hasTrailingSpan)
             EmitTrailingSpanSetup(sb, spanElementType, spanIndex, "        ");
@@ -248,7 +328,8 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             method,
             fullTypeName,
             "        ",
-            hasTrailingSpan ? "__jsSpanArg" : null);
+            hasTrailingSpan ? "__jsSpanArg" : null
+        );
         sb.AppendLine("    }");
     }
 
@@ -257,13 +338,17 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         IMethodSymbol method,
         string fullTypeName,
         string indent,
-        string? spanArgumentName)
+        string? spanArgumentName
+    )
     {
         ITypeSymbol? spanElementType = null;
-        var needsTryFinally = spanArgumentName is not null &&
-                              ParameterTypeSupport.TryGetReadOnlySpanElementType(
-                                  method.Parameters[method.Parameters.Length - 1].Type, out spanElementType) &&
-                              ParameterTypeSupport.GetSpanElementKind(spanElementType) != SpanElementKind.JsValue;
+        var needsTryFinally =
+            spanArgumentName is not null
+            && ParameterTypeSupport.TryGetReadOnlySpanElementType(
+                method.Parameters[method.Parameters.Length - 1].Type,
+                out spanElementType
+            )
+            && ParameterTypeSupport.GetSpanElementKind(spanElementType) != SpanElementKind.JsValue;
         if (needsTryFinally)
         {
             sb.Append(indent).AppendLine("try");
@@ -291,7 +376,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (method.ReturnsVoid)
         {
-            sb.Append(indent).AppendLine("return global::Okojo.JsValue.Undefined;");
+            sb.Append(indent).AppendLine("return global::Okojo.JavaScript.JsValue.Undefined;");
         }
         else
         {
@@ -345,12 +430,19 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             return;
         }
 
-        sb.Append("info.GetArgument<").Append(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+        sb.Append("info.GetArgument<")
+            .Append(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
             .Append(">(")
-            .Append(index).Append(')');
+            .Append(index)
+            .Append(')');
     }
 
-    private static void EmitTrailingSpanSetup(StringBuilder sb, ITypeSymbol elementType, int startIndex, string indent)
+    private static void EmitTrailingSpanSetup(
+        StringBuilder sb,
+        ITypeSymbol elementType,
+        int startIndex,
+        string indent
+    )
     {
         var elementTypeName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var kind = ParameterTypeSupport.GetSpanElementKind(elementType);
@@ -364,16 +456,16 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         if (kind == SpanElementKind.JsValue)
         {
             sb.Append(indent)
-                .Append("global::System.ReadOnlySpan<global::Okojo.JsValue> __jsSpanArg = info.Arguments.Slice(")
+                .Append(
+                    "global::System.ReadOnlySpan<global::Okojo.JavaScript.JsValue> __jsSpanArg = info.Arguments.Slice("
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanCount);");
             return;
         }
 
         var usesStackalloc = kind != SpanElementKind.Other && kind != SpanElementKind.String;
-        sb.Append(indent)
-            .Append(elementTypeName)
-            .AppendLine("[]? __jsSpanPooled = null;");
+        sb.Append(indent).Append(elementTypeName).AppendLine("[]? __jsSpanPooled = null;");
         if (usesStackalloc)
         {
             sb.Append(indent)
@@ -381,10 +473,15 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
                 .Append(elementTypeName)
                 .Append("> __jsSpanArg = __jsSpanCount <= 16 ? stackalloc ")
                 .Append(elementTypeName)
-                .AppendLine("[__jsSpanCount] : (__jsSpanPooled = global::System.Buffers.ArrayPool<" + elementTypeName +
-                            ">.Shared.Rent(__jsSpanCount));");
+                .AppendLine(
+                    "[__jsSpanCount] : (__jsSpanPooled = global::System.Buffers.ArrayPool<"
+                        + elementTypeName
+                        + ">.Shared.Rent(__jsSpanCount));"
+                );
             sb.Append(indent)
-                .Append("global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, ")
+                .Append(
+                    "global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanArg);");
         }
@@ -409,21 +506,27 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
                 .Append("> __jsSpanBuffer = __jsSpanPooled.AsSpan(0, __jsSpanCount);")
                 .AppendLine();
             sb.Append(indent)
-                .Append("    global::Okojo.Runtime.Interop.CallInfoSpanConverter.FillArgumentSpan(info, ")
+                .Append(
+                    "    global::Okojo.JavaScript.Execution.Interop.CallInfoSpanConverter.FillArgumentSpan(info, "
+                )
                 .Append(startIndex)
                 .AppendLine(", __jsSpanBuffer);");
-            sb.Append(indent)
-                .Append("    __jsSpanArg = __jsSpanBuffer;")
-                .AppendLine();
+            sb.Append(indent).Append("    __jsSpanArg = __jsSpanBuffer;").AppendLine();
             sb.Append(indent).AppendLine("}");
         }
     }
 
-    private static void EmitTrailingSpanCleanup(StringBuilder sb, ITypeSymbol elementType, string indent)
+    private static void EmitTrailingSpanCleanup(
+        StringBuilder sb,
+        ITypeSymbol elementType,
+        string indent
+    )
     {
         var elementTypeName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var clearArray =
-            ParameterTypeSupport.GetSpanElementKind(elementType) is SpanElementKind.Other or SpanElementKind.String;
+            ParameterTypeSupport.GetSpanElementKind(elementType)
+            is SpanElementKind.Other
+                or SpanElementKind.String;
         sb.Append(indent).AppendLine("if (__jsSpanPooled is not null)");
         sb.Append(indent)
             .Append("    global::System.Buffers.ArrayPool<")
@@ -444,7 +547,7 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
         if (type.SpecialType == SpecialType.System_String)
         {
-            sb.Append("global::Okojo.JsValue.FromString(");
+            sb.Append("global::Okojo.JavaScript.JsValue.FromString(");
             emitValue();
             sb.Append(')');
             return;
@@ -454,7 +557,9 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         {
             sb.Append("((");
             emitValue();
-            sb.Append(") ? global::Okojo.JsValue.True : global::Okojo.JsValue.False)");
+            sb.Append(
+                ") ? global::Okojo.JavaScript.JsValue.True : global::Okojo.JavaScript.JsValue.False)"
+            );
             return;
         }
 
@@ -465,13 +570,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             case SpecialType.System_SByte:
             case SpecialType.System_Int16:
             case SpecialType.System_UInt16:
-                sb.Append("global::Okojo.JsValue.FromInt32((int)(");
+                sb.Append("global::Okojo.JavaScript.JsValue.FromInt32((int)(");
                 emitValue();
                 sb.Append("))");
                 return;
             case SpecialType.System_Single:
             case SpecialType.System_Double:
-                sb.Append("new global::Okojo.JsValue(");
+                sb.Append("new global::Okojo.JavaScript.JsValue(");
                 emitValue();
                 sb.Append(')');
                 return;
@@ -484,8 +589,10 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
     private static bool TryEmitTaskArgument(StringBuilder sb, ITypeSymbol type, int index)
     {
-        if (type is not INamedTypeSymbol namedType ||
-            namedType.ContainingNamespace.ToDisplayString() != "System.Threading.Tasks")
+        if (
+            type is not INamedTypeSymbol namedType
+            || namedType.ContainingNamespace.ToDisplayString() != "System.Threading.Tasks"
+        )
             return false;
 
         if (namedType.Name == "Task")
@@ -497,8 +604,14 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             }
 
             sb.Append("info.Realm.ToTask<")
-                .Append(namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
-                .Append(">(info.GetArgument(").Append(index).Append("))");
+                .Append(
+                    namedType
+                        .TypeArguments[0]
+                        .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                )
+                .Append(">(info.GetArgument(")
+                .Append(index)
+                .Append("))");
             return true;
         }
 
@@ -511,8 +624,14 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             }
 
             sb.Append("info.Realm.ToValueTask<")
-                .Append(namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
-                .Append(">(info.GetArgument(").Append(index).Append("))");
+                .Append(
+                    namedType
+                        .TypeArguments[0]
+                        .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                )
+                .Append(">(info.GetArgument(")
+                .Append(index)
+                .Append("))");
             return true;
         }
 
@@ -521,8 +640,10 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
 
     private static bool TryEmitTaskReturn(StringBuilder sb, ITypeSymbol type, Action emitValue)
     {
-        if (type is not INamedTypeSymbol namedType ||
-            namedType.ContainingNamespace.ToDisplayString() != "System.Threading.Tasks")
+        if (
+            type is not INamedTypeSymbol namedType
+            || namedType.ContainingNamespace.ToDisplayString() != "System.Threading.Tasks"
+        )
             return false;
 
         if (namedType.Name == "Task")
@@ -530,7 +651,11 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             if (namedType.TypeArguments.Length == 1)
             {
                 sb.Append("info.Realm.WrapTask<")
-                    .Append(namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+                    .Append(
+                        namedType
+                            .TypeArguments[0]
+                            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                    )
                     .Append(">(");
                 emitValue();
                 sb.Append(')');
@@ -548,7 +673,11 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             if (namedType.TypeArguments.Length == 1)
             {
                 sb.Append("info.Realm.WrapTask<")
-                    .Append(namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
+                    .Append(
+                        namedType
+                            .TypeArguments[0]
+                            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                    )
                     .Append(">(");
                 emitValue();
                 sb.Append(')');
@@ -571,8 +700,9 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         return "<" + string.Join(", ", symbol.TypeParameters.Select(static x => x.Name)) + ">";
     }
 
-    private static IReadOnlyList<AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>> GroupMethodMembers(
-        IReadOnlyList<JsObjectMemberModel> members)
+    private static IReadOnlyList<
+        AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>
+    > GroupMethodMembers(IReadOnlyList<JsObjectMemberModel> members)
     {
         var methods = new List<JsObjectMemberModel>();
         for (var i = 0; i < members.Count; i++)
@@ -585,7 +715,8 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
             static x => (IMethodSymbol)x.Symbol,
             static x => x.Parameters,
             static x => x.Type,
-            static _ => false);
+            static _ => false
+        );
     }
 
     private static string GetGeneratedMethodGroupName(string methodName, bool isStaticGroup)
@@ -597,8 +728,10 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         return sb.Length == 0 ? "__OkojoGeneratedMethod_" : sb.ToString();
     }
 
-    private static bool ReportDiagnostics(SourceProductionContext spc,
-        IReadOnlyList<AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>> overloadSets)
+    private static bool ReportDiagnostics(
+        SourceProductionContext spc,
+        IReadOnlyList<AnalyzedOverloadSet<JsObjectMemberModel, JsObjectParameterModel>> overloadSets
+    )
     {
         var hasErrors = false;
         for (var i = 0; i < overloadSets.Count; i++)
@@ -606,10 +739,13 @@ public sealed class GenerateJsObjectGenerator : IIncrementalGenerator
         {
             hasErrors = true;
             var diagnostic = overloadSets[i].Diagnostics[j];
-            spc.ReportDiagnostic(Diagnostic.Create(
-                SourceGeneratorDiagnostics.AmbiguousGeneratedOverload,
-                diagnostic.Location,
-                diagnostic.Message));
+            spc.ReportDiagnostic(
+                Diagnostic.Create(
+                    SourceGeneratorDiagnostics.AmbiguousGeneratedOverload,
+                    diagnostic.Location,
+                    diagnostic.Message
+                )
+            );
         }
 
         return hasErrors;

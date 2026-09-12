@@ -7,8 +7,7 @@ namespace OkojoArtSandbox;
 
 internal sealed class SilkSketchApp : IDisposable
 {
-    private const string VertexShaderSource =
-        """
+    private const string VertexShaderSource = """
         #version 330 core
         layout (location = 0) in vec2 aPosition;
         layout (location = 1) in vec2 aUv;
@@ -20,8 +19,7 @@ internal sealed class SilkSketchApp : IDisposable
         }
         """;
 
-    private const string FragmentShaderSource =
-        """
+    private const string FragmentShaderSource = """
         #version 330 core
         in vec2 vUv;
         uniform sampler2D uTexture;
@@ -59,7 +57,7 @@ internal sealed class SilkSketchApp : IDisposable
 
         scriptWatcher = new(Path.GetDirectoryName(scriptPath)!, Path.GetFileName(scriptPath))
         {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
         };
         scriptWatcher.Changed += (_, _) => reloadRequested = true;
         scriptWatcher.Created += (_, _) => reloadRequested = true;
@@ -105,10 +103,26 @@ internal sealed class SilkSketchApp : IDisposable
         CreateFullscreenQuad();
         texture = gl.GenTexture();
         gl.BindTexture(TextureTarget.Texture2D, texture);
-        gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-        gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Linear
+        );
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Linear
+        );
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.ClampToEdge
+        );
+        gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.ClampToEdge
+        );
         EnsureSurface(window.Size.X, window.Size.Y);
     }
 
@@ -140,7 +154,8 @@ internal sealed class SilkSketchApp : IDisposable
             0,
             PixelFormat.Bgra,
             PixelType.UnsignedByte,
-            pixmap.GetPixels().ToPointer());
+            pixmap.GetPixels().ToPointer()
+        );
 
         gl.ClearColor(0f, 0f, 0f, 1f);
         gl.Clear((uint)ClearBufferMask.ColorBufferBit);
@@ -227,13 +242,7 @@ internal sealed class SilkSketchApp : IDisposable
         if (gl is null)
             return;
 
-        float[] vertices =
-        [
-            -1f, -1f, 0f, 1f,
-            1f, -1f, 1f, 1f,
-            1f, 1f, 1f, 0f,
-            -1f, 1f, 0f, 0f
-        ];
+        float[] vertices = [-1f, -1f, 0f, 1f, 1f, -1f, 1f, 1f, 1f, 1f, 1f, 0f, -1f, 1f, 0f, 0f];
 
         uint[] indices = [0, 1, 2, 2, 3, 0];
 
@@ -245,22 +254,43 @@ internal sealed class SilkSketchApp : IDisposable
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, vertexBuffer);
         fixed (float* verticesPtr = vertices)
         {
-            gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)(vertices.Length * sizeof(float)), verticesPtr,
-                BufferUsageARB.StaticDraw);
+            gl.BufferData(
+                BufferTargetARB.ArrayBuffer,
+                (nuint)(vertices.Length * sizeof(float)),
+                verticesPtr,
+                BufferUsageARB.StaticDraw
+            );
         }
 
         gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, indexBuffer);
         fixed (uint* indicesPtr = indices)
         {
-            gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), indicesPtr,
-                BufferUsageARB.StaticDraw);
+            gl.BufferData(
+                BufferTargetARB.ElementArrayBuffer,
+                (nuint)(indices.Length * sizeof(uint)),
+                indicesPtr,
+                BufferUsageARB.StaticDraw
+            );
         }
 
         gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), (void*)0);
+        gl.VertexAttribPointer(
+            0,
+            2,
+            VertexAttribPointerType.Float,
+            false,
+            4 * sizeof(float),
+            (void*)0
+        );
         gl.EnableVertexAttribArray(1);
-        gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float),
-            (void*)(2 * sizeof(float)));
+        gl.VertexAttribPointer(
+            1,
+            2,
+            VertexAttribPointerType.Float,
+            false,
+            4 * sizeof(float),
+            (void*)(2 * sizeof(float))
+        );
     }
 
     private uint CreateProgram()
@@ -276,7 +306,9 @@ internal sealed class SilkSketchApp : IDisposable
         gl.LinkProgram(shaderProgram);
         gl.GetProgram(shaderProgram, ProgramPropertyARB.LinkStatus, out var linkStatus);
         if (linkStatus == 0)
-            throw new InvalidOperationException("OpenGL link failed: " + gl.GetProgramInfoLog(shaderProgram));
+            throw new InvalidOperationException(
+                "OpenGL link failed: " + gl.GetProgramInfoLog(shaderProgram)
+            );
 
         gl.DeleteShader(vertexShader);
         gl.DeleteShader(fragmentShader);
@@ -293,7 +325,9 @@ internal sealed class SilkSketchApp : IDisposable
         gl.CompileShader(shader);
         gl.GetShader(shader, ShaderParameterName.CompileStatus, out var status);
         if (status == 0)
-            throw new InvalidOperationException($"OpenGL {shaderType} compile failed: {gl.GetShaderInfoLog(shader)}");
+            throw new InvalidOperationException(
+                $"OpenGL {shaderType} compile failed: {gl.GetShaderInfoLog(shader)}"
+            );
 
         return shader;
     }

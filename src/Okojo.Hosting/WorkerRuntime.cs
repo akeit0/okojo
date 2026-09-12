@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -7,16 +9,14 @@ public sealed class WorkerRuntime : IDisposable
     private readonly JsAgentThreadHost? threadHost;
     private bool disposed;
 
-    internal WorkerRuntime(JsRuntime engine, JsAgent agent, JsAgentThreadHost? threadHost)
+    internal WorkerRuntime(JsAgent agent, JsAgentThreadHost? threadHost)
     {
-        Engine = engine;
         Agent = agent;
         Realm = agent.MainRealm;
         Pump = new(agent);
         this.threadHost = threadHost;
     }
 
-    public JsRuntime Engine { get; }
     public JsAgent Agent { get; }
     public JsRealm Realm { get; }
     public HostPump Pump { get; }
@@ -36,7 +36,9 @@ public sealed class WorkerRuntime : IDisposable
     {
         ThrowIfDisposed();
         if (threadHost is null)
-            throw new InvalidOperationException("This hosted worker was not configured with a background host.");
+            throw new InvalidOperationException(
+                "This hosted worker was not configured with a background host."
+            );
 
         threadHost.Start();
     }
@@ -64,8 +66,9 @@ public sealed class WorkerRuntime : IDisposable
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(ownerRealm);
         ArgumentNullException.ThrowIfNull(specifier);
-        return ownerRealm.BridgeFromOtherRealm(Agent.EvaluateModule(Realm, specifier,
-            ownerRealm.GetCurrentModuleResolvedIdOrNull()));
+        return ownerRealm.BridgeFromOtherRealm(
+            Agent.Modules.Evaluate(Realm, specifier, ownerRealm.CurrentModuleResolvedId)
+        );
     }
 
     public void Terminate()

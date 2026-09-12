@@ -14,8 +14,9 @@ internal sealed class SandboxAssets
             {
                 ["https://demo.local/api/data"] = """{"kind":"demo"}""",
                 ["https://services.local/users/42"] = """{"id":42,"name":"Ada"}""",
-                ["https://services.local/audit/42"] = """{"userId":42,"actions":["login","deploy"]}"""
-            }
+                ["https://services.local/audit/42"] =
+                    """{"userId":42,"actions":["login","deploy"]}""",
+            },
         };
     }
 

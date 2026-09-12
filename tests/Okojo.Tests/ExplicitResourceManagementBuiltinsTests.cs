@@ -1,6 +1,8 @@
-using Okojo.Objects;
-using Okojo.Runtime;
-using Okojo.Runtime.Interop;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Execution.Interop;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
@@ -12,7 +14,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        realm.Evaluate("""
+        realm.Evaluate(
+            """
             globalThis.__ermChecks = (() => {
               const err = new SuppressedError(1, 2, "msg");
               return [
@@ -26,7 +29,8 @@ public class ExplicitResourceManagementBuiltinsTests
                 err instanceof SuppressedError
               ];
             })();
-            """);
+            """
+        );
 
         var checks = realm.Global["__ermChecks"].AsObject() as JsArray;
         Assert.That(checks, Is.Not.Null);
@@ -43,7 +47,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        var result = realm.Evaluate("""
+        var result = realm.Evaluate(
+            """
             class MyDisposableStack extends DisposableStack {}
             const order = [];
             const stack1 = new MyDisposableStack();
@@ -60,7 +65,8 @@ public class ExplicitResourceManagementBuiltinsTests
             stack2 instanceof DisposableStack &&
             !(stack2 instanceof MyDisposableStack) &&
             order.join(",") === "defer,resource";
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -71,7 +77,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        realm.Evaluate("""
+        realm.Evaluate(
+            """
             globalThis.__ermSuppressedChecks = (() => {
               const first = new Error("first");
               const second = new Error("second");
@@ -89,7 +96,8 @@ public class ExplicitResourceManagementBuiltinsTests
                 ];
               }
             })();
-            """);
+            """
+        );
 
         var checks = realm.Global["__ermSuppressedChecks"].AsObject() as JsArray;
         Assert.That(checks, Is.Not.Null);
@@ -106,7 +114,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>(
+            """
             class MyAsyncDisposableStack extends AsyncDisposableStack {}
             const order = [];
             const stack1 = new MyAsyncDisposableStack();
@@ -136,7 +145,8 @@ public class ExplicitResourceManagementBuiltinsTests
               moved instanceof AsyncDisposableStack &&
               !(moved instanceof MyAsyncDisposableStack) &&
               order.join(",") === "Symbol.asyncDispose,Symbol.dispose,disposed,moved";
-            """);
+            """
+        );
 
         Assert.That(result, Is.True);
     }
@@ -146,7 +156,8 @@ public class ExplicitResourceManagementBuiltinsTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>(
+            """
             const neverResolves = Promise.withResolvers().promise;
             const stack = new AsyncDisposableStack();
             stack.use({
@@ -159,7 +170,8 @@ public class ExplicitResourceManagementBuiltinsTests
               Promise.resolve().then(() => "tick")
             ]);
             return raced === "disposed";
-            """);
+            """
+        );
 
         Assert.That(result, Is.True);
     }
@@ -169,7 +181,8 @@ public class ExplicitResourceManagementBuiltinsTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        _ = realm.Evaluate("""
+        _ = realm.Evaluate(
+            """
             const marker = {};
             globalThis.__ermMarker = marker;
             const stack = new AsyncDisposableStack();
@@ -180,7 +193,8 @@ public class ExplicitResourceManagementBuiltinsTests
               }
             });
             globalThis.__ermDisposeAsyncPromise = stack.disposeAsync();
-            """);
+            """
+        );
 
         PromiseRejectedException? ex = null;
         try
@@ -206,7 +220,8 @@ public class ExplicitResourceManagementBuiltinsTests
     public void DisposableStack_Adopt_Passes_Value_As_Argument()
     {
         using var runtime = JsRuntime.Create();
-        var result = runtime.DefaultRealm.Evaluate("""
+        var result = runtime.DefaultRealm.Evaluate(
+            """
             const stack = new DisposableStack();
             const resource = {};
             let callArg = "unset";
@@ -215,7 +230,8 @@ public class ExplicitResourceManagementBuiltinsTests
             });
             stack.dispose();
             callArg === resource;
-            """);
+            """
+        );
 
         Assert.That(result.IsTrue, Is.True);
     }
@@ -226,7 +242,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        _ = realm.Evaluate("""
+        _ = realm.Evaluate(
+            """
             globalThis.__disposeAsyncRejected = false;
             globalThis.__disposeAsyncPromise =
               AsyncDisposableStack.prototype.disposeAsync.call({})
@@ -236,7 +253,8 @@ public class ExplicitResourceManagementBuiltinsTests
                     globalThis.__disposeAsyncRejected = error instanceof TypeError;
                     return true;
                   });
-            """);
+            """
+        );
 
         await realm.ToPumpedValueTask(realm.Global["__disposeAsyncPromise"]);
         Assert.That(realm.Global["__disposeAsyncRejected"].IsTrue, Is.True);
@@ -247,7 +265,8 @@ public class ExplicitResourceManagementBuiltinsTests
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
-        var result = await realm.EvaluateInAsyncFunctionScope<bool>("""
+        var result = await realm.EvaluateInAsyncFunctionScope<bool>(
+            """
             const stack = new AsyncDisposableStack();
             const sequence = [];
             stack.use(null);
@@ -257,7 +276,8 @@ public class ExplicitResourceManagementBuiltinsTests
               Promise.resolve().then(() => 0).then(() => sequence.push("job 2"))
             ]);
             return sequence.join(",") === "job 1,dispose,job 2";
-            """);
+            """
+        );
 
         Assert.That(result, Is.True);
     }
@@ -268,7 +288,8 @@ public class ExplicitResourceManagementBuiltinsTests
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
 
-        _ = realm.Evaluate("""
+        _ = realm.Evaluate(
+            """
             async function* generator() {}
             const AsyncIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf(generator.prototype));
             globalThis.__asyncDisposeRejected = false;
@@ -283,7 +304,8 @@ public class ExplicitResourceManagementBuiltinsTests
                   globalThis.__asyncDisposeRejected = error instanceof TypeError && error.message === "boom";
                   return true;
                 });
-            """);
+            """
+        );
 
         await realm.ToPumpedValueTask(realm.Global["__asyncDisposePromise"]);
         Assert.That(realm.Global["__asyncDisposeRejected"].IsTrue, Is.True);

@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 internal static class Test262RunnerPump
 {
@@ -8,7 +10,8 @@ internal static class Test262RunnerPump
         Func<bool> hasTimedOut,
         int timeoutMs,
         Test262RunnerTimeProvider? runnerTime,
-        out string? timeoutMessage)
+        out string? timeoutMessage
+    )
     {
         ArgumentNullException.ThrowIfNull(realm);
         ArgumentNullException.ThrowIfNull(completed);
@@ -36,7 +39,8 @@ internal static class Test262RunnerPump
     public static void RunWorkerLoop(
         JsRealm workerRealm,
         Func<bool> shouldStop,
-        Test262RunnerTimeProvider? runnerTime)
+        Test262RunnerTimeProvider? runnerTime
+    )
     {
         ArgumentNullException.ThrowIfNull(workerRealm);
         ArgumentNullException.ThrowIfNull(shouldStop);
@@ -51,18 +55,21 @@ internal static class Test262RunnerPump
         }
     }
 
-    private static void WaitForWorkOrAdvance(JsAgent agent, Test262RunnerTimeProvider? runnerTime,
-        int idleWaitMilliseconds)
+    private static void WaitForWorkOrAdvance(
+        JsAgent agent,
+        Test262RunnerTimeProvider? runnerTime,
+        int idleWaitMilliseconds
+    )
     {
         if (runnerTime is not null)
         {
-            if (!agent.JobsAvailableWaitHandle.WaitOne(0) &&
-                !runnerTime.AdvanceForAsyncPump())
+            if (agent.PendingJobCount == 0 && !runnerTime.AdvanceForAsyncPump())
                 Thread.Yield();
 
             return;
         }
 
-        agent.JobsAvailableWaitHandle.WaitOne(idleWaitMilliseconds);
+        if (agent.PendingJobCount == 0)
+            Thread.Sleep(idleWaitMilliseconds);
     }
 }

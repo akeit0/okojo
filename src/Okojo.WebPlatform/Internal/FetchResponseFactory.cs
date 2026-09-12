@@ -1,7 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.WebPlatform.Internal;
 
@@ -13,50 +15,99 @@ internal static class FetchResponseFactory
         string statusText,
         string url,
         byte[] bodyBytes,
-        IReadOnlyDictionary<string, string> headers)
+        IReadOnlyDictionary<string, string> headers
+    )
     {
         var shape = WebPlatformShapeCache.For(realm).Response;
         var response = new JsPlainObject(shape.Shape);
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.OkSlot,
-            status is >= 200 and < 300 ? JsValue.True : JsValue.False);
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.StatusSlot, JsValue.FromInt32(status));
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.StatusTextSlot,
-            JsValue.FromString(statusText));
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.UrlSlot, JsValue.FromString(url));
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.HeadersSlot,
-            JsValue.FromObject(FetchHeaders.Create(realm, headers)));
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.OkSlot,
+            status is >= 200 and < 300 ? JsValue.True : JsValue.False
+        );
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.StatusSlot,
+            JsValue.FromInt32(status)
+        );
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.StatusTextSlot,
+            JsValue.FromString(statusText)
+        );
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.UrlSlot,
+            JsValue.FromString(url)
+        );
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.HeadersSlot,
+            JsValue.FromObject(FetchHeaders.Create(realm, headers))
+        );
 
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.TextSlot, JsValue.FromObject(
-            new JsHostFunction(realm, static (in info) =>
-            {
-                var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
-                return info.Realm.WrapTask(Task.FromResult(JsValue.FromString(Encoding.UTF8.GetString(bytes))));
-            }, "text", 0)
-            {
-                UserData = bodyBytes
-            }));
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.TextSlot,
+            JsValue.FromObject(
+                new JsHostFunction(
+                    realm,
+                    static (in info) =>
+                    {
+                        var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
+                        return info.Realm.WrapTask(
+                            Task.FromResult(JsValue.FromString(Encoding.UTF8.GetString(bytes)))
+                        );
+                    },
+                    "text",
+                    0
+                )
+                {
+                    UserData = bodyBytes,
+                }
+            )
+        );
 
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.JsonSlot, JsValue.FromObject(
-            new JsHostFunction(realm, static (in info) =>
-            {
-                var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
-                using var document = JsonDocument.Parse(bytes);
-                return info.Realm.WrapTask(
-                    Task.FromResult(ConvertJsonElementToJsValue(info.Realm, document.RootElement)));
-            }, "json", 0)
-            {
-                UserData = bodyBytes
-            }));
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.JsonSlot,
+            JsValue.FromObject(
+                new JsHostFunction(
+                    realm,
+                    static (in info) =>
+                    {
+                        var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
+                        using var document = JsonDocument.Parse(bytes);
+                        return info.Realm.WrapTask(
+                            Task.FromResult(
+                                ConvertJsonElementToJsValue(info.Realm, document.RootElement)
+                            )
+                        );
+                    },
+                    "json",
+                    0
+                )
+                {
+                    UserData = bodyBytes,
+                }
+            )
+        );
 
-        response.SetNamedSlotUnchecked(WebPlatformShapeCache.ResponseShapeCache.ArrayBufferSlot, JsValue.FromObject(
-            new JsHostFunction(realm, static (in info) =>
-            {
-                var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
-                return info.Realm.WrapTask(Task.FromResult(JsValue.FromObject(CreateArrayBuffer(info.Realm, bytes))));
-            }, "arrayBuffer", 0)
-            {
-                UserData = bodyBytes
-            }));
+        response.SetNamedSlotUnchecked(
+            WebPlatformShapeCache.ResponseShapeCache.ArrayBufferSlot,
+            JsValue.FromObject(
+                new JsHostFunction(
+                    realm,
+                    static (in info) =>
+                    {
+                        var bytes = (byte[])((JsHostFunction)info.Function).UserData!;
+                        return info.Realm.WrapTask(
+                            Task.FromResult(
+                                JsValue.FromObject(CreateArrayBuffer(info.Realm, bytes))
+                            )
+                        );
+                    },
+                    "arrayBuffer",
+                    0
+                )
+                {
+                    UserData = bodyBytes,
+                }
+            )
+        );
 
         return response;
     }
@@ -88,8 +139,11 @@ internal static class FetchResponseFactory
             {
                 var obj = new JsPlainObject(realm);
                 foreach (var property in element.EnumerateObject())
-                    obj.DefineDataProperty(property.Name, ConvertJsonElementToJsValue(realm, property.Value),
-                        JsShapePropertyFlags.Open);
+                    obj.DefineDataProperty(
+                        property.Name,
+                        ConvertJsonElementToJsValue(realm, property.Value),
+                        JsShapePropertyFlags.Open
+                    );
                 return JsValue.FromObject(obj);
             }
             default:

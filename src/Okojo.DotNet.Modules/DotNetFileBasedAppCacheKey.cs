@@ -12,7 +12,8 @@ public readonly record struct DotNetFileBasedAppCacheKey(string ApplicationName,
         string sourcePath,
         IEnumerable<DotNetModuleReference> moduleReferences,
         string sdkVersion,
-        string? implicitBuildFingerprint = null)
+        string? implicitBuildFingerprint = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentNullException.ThrowIfNull(moduleReferences);
@@ -25,18 +26,24 @@ public readonly record struct DotNetFileBasedAppCacheKey(string ApplicationName,
         var orderedReferences = new List<DotNetModuleReference>();
         foreach (var moduleReference in moduleReferences)
             orderedReferences.Add(moduleReference);
-        orderedReferences.Sort(static (left, right) =>
-        {
-            var kind = left.Kind.CompareTo(right.Kind);
-            if (kind != 0)
-                return kind;
+        orderedReferences.Sort(
+            static (left, right) =>
+            {
+                var kind = left.Kind.CompareTo(right.Kind);
+                if (kind != 0)
+                    return kind;
 
-            var specifier = string.Compare(left.Specifier, right.Specifier, StringComparison.Ordinal);
-            if (specifier != 0)
-                return specifier;
+                var specifier = string.Compare(
+                    left.Specifier,
+                    right.Specifier,
+                    StringComparison.Ordinal
+                );
+                if (specifier != 0)
+                    return specifier;
 
-            return string.Compare(left.Version, right.Version, StringComparison.Ordinal);
-        });
+                return string.Compare(left.Version, right.Version, StringComparison.Ordinal);
+            }
+        );
 
         var buffer = new StringBuilder();
         buffer.Append("sdk=").AppendLine(sdkVersion.Trim());
@@ -44,7 +51,8 @@ public readonly record struct DotNetFileBasedAppCacheKey(string ApplicationName,
         for (var i = 0; i < orderedReferences.Count; i++)
         {
             var moduleReference = orderedReferences[i];
-            buffer.Append(moduleReference.Kind)
+            buffer
+                .Append(moduleReference.Kind)
                 .Append('=')
                 .Append(moduleReference.Specifier)
                 .Append('@')

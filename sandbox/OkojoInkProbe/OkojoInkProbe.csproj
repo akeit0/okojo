@@ -7,12 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Okojo.Node\Okojo.Node.csproj"/>
-        <ProjectReference Include="..\..\src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj"/>
+        <ProjectReference Include="..\..\src\Okojo.Node\Okojo.Node.csproj" />
+        <ProjectReference Include="..\..\src\Okojo.WebAssembly.Wasmtime\Okojo.WebAssembly.Wasmtime.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="app\package.json" CopyToOutputDirectory="PreserveNewest"/>
-        <None Include="app\main.mjs" CopyToOutputDirectory="PreserveNewest"/>
+        <None Include="app\package.json" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="app\main.mjs" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 </Project>

@@ -1,6 +1,8 @@
 using System.Diagnostics;
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Node;
 
@@ -22,8 +24,14 @@ internal sealed class NodeAssertBuiltIn(NodeRuntime runtime)
         var realm = runtime.MainRealm;
         var shape = moduleShape ??= CreateModuleShape(realm);
         var module = new JsPlainObject(shape);
-        module.SetNamedSlotUnchecked(ModuleStrictEqualSlot, JsValue.FromObject(CreateStrictEqualFunction(realm)));
-        module.SetNamedSlotUnchecked(ModuleNotStrictEqualSlot, JsValue.FromObject(CreateNotStrictEqualFunction(realm)));
+        module.SetNamedSlotUnchecked(
+            ModuleStrictEqualSlot,
+            JsValue.FromObject(CreateStrictEqualFunction(realm))
+        );
+        module.SetNamedSlotUnchecked(
+            ModuleNotStrictEqualSlot,
+            JsValue.FromObject(CreateNotStrictEqualFunction(realm))
+        );
         moduleObject = module;
         return module;
     }
@@ -31,9 +39,16 @@ internal sealed class NodeAssertBuiltIn(NodeRuntime runtime)
     private StaticNamedPropertyLayout CreateModuleShape(JsRealm realm)
     {
         EnsureAtoms(realm);
-        var shape = realm.EmptyShape.GetOrAddTransition(atomStrictEqual, JsShapePropertyFlags.Open,
-            out var strictEqualInfo);
-        shape = shape.GetOrAddTransition(atomNotStrictEqual, JsShapePropertyFlags.Open, out var notStrictEqualInfo);
+        var shape = realm.EmptyShape.GetOrAddTransition(
+            atomStrictEqual,
+            JsShapePropertyFlags.Open,
+            out var strictEqualInfo
+        );
+        shape = shape.GetOrAddTransition(
+            atomNotStrictEqual,
+            JsShapePropertyFlags.Open,
+            out var notStrictEqualInfo
+        );
         Debug.Assert(strictEqualInfo.Slot == ModuleStrictEqualSlot);
         Debug.Assert(notStrictEqualInfo.Slot == ModuleNotStrictEqualSlot);
         return shape;
@@ -52,26 +67,44 @@ internal sealed class NodeAssertBuiltIn(NodeRuntime runtime)
 
     private static JsHostFunction CreateStrictEqualFunction(JsRealm realm)
     {
-        return new(realm, "strictEqual", 2, static (in info) =>
-        {
-            var actual = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            var expected = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            if (!SameValue(actual, expected))
-                throw new JsRuntimeException(JsErrorKind.TypeError, GetFailureMessage(info, actual, expected, true));
-            return JsValue.Undefined;
-        }, false);
+        return new(
+            realm,
+            "strictEqual",
+            2,
+            static (in info) =>
+            {
+                var actual = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                var expected = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                if (!SameValue(actual, expected))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        GetFailureMessage(info, actual, expected, true)
+                    );
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private static JsHostFunction CreateNotStrictEqualFunction(JsRealm realm)
     {
-        return new(realm, "notStrictEqual", 2, static (in info) =>
-        {
-            var actual = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
-            var expected = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
-            if (SameValue(actual, expected))
-                throw new JsRuntimeException(JsErrorKind.TypeError, GetFailureMessage(info, actual, expected, false));
-            return JsValue.Undefined;
-        }, false);
+        return new(
+            realm,
+            "notStrictEqual",
+            2,
+            static (in info) =>
+            {
+                var actual = info.Arguments.Length > 0 ? info.Arguments[0] : JsValue.Undefined;
+                var expected = info.Arguments.Length > 1 ? info.Arguments[1] : JsValue.Undefined;
+                if (SameValue(actual, expected))
+                    throw new JsRuntimeException(
+                        JsErrorKind.TypeError,
+                        GetFailureMessage(info, actual, expected, false)
+                    );
+                return JsValue.Undefined;
+            },
+            false
+        );
     }
 
     private static bool SameValue(in JsValue actual, in JsValue expected)
@@ -79,13 +112,18 @@ internal sealed class NodeAssertBuiltIn(NodeRuntime runtime)
         return JsValue.SameValue(actual, expected);
     }
 
-    private static string GetFailureMessage(in CallInfo info, in JsValue actual, in JsValue expected, bool equal)
+    private static string GetFailureMessage(
+        in CallInfo info,
+        in JsValue actual,
+        in JsValue expected,
+        bool equal
+    )
     {
         if (info.Arguments.Length > 2 && info.Arguments[2].IsString)
             return info.Arguments[2].AsString();
 
-        var actualText = info.Realm.ToJsStringSlowPath(actual);
-        var expectedText = info.Realm.ToJsStringSlowPath(expected);
+        var actualText = info.Realm.ToJsString(actual);
+        var expectedText = info.Realm.ToJsString(expected);
         return equal
             ? $"Expected strict equality: actual={actualText}, expected={expectedText}"
             : $"Expected values to differ: actual={actualText}, expected={expectedText}";

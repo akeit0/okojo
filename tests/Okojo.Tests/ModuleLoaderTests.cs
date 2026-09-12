@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Tests;
 
@@ -22,7 +24,8 @@ public class ModuleLoaderTests
     {
         var moduleLoader = new StubModuleLoader("module-source");
         var workerLoader = new StubWorkerLoader("worker-source");
-        var engine = JsRuntime.CreateBuilder()
+        var engine = JsRuntime
+            .CreateBuilder()
             .UseModuleSourceLoader(moduleLoader)
             .UseWorkerScriptSourceLoader(workerLoader)
             .Build();

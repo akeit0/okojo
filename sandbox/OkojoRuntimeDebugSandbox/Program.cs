@@ -1,9 +1,8 @@
 using System.Text.RegularExpressions;
-using Okojo.Compiler;
 using Okojo.Diagnostics;
-using Okojo.Parsing;
-using Okojo.Runtime;
-using Okojo;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 var options = ParseArguments(args);
 Console.WriteLine("OkojoRuntimeDebugSandbox");
@@ -18,15 +17,14 @@ var inputIsFile = File.Exists(options.Input);
 var sourcePath = inputIsFile
     ? Path.GetFullPath(options.Input)
     : Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "__inline_debug_module__.mjs"));
-var source = inputIsFile
-    ? File.ReadAllText(sourcePath)
-    : options.Input;
+var source = inputIsFile ? File.ReadAllText(sourcePath) : options.Input;
 
 using var output = options.LogPath is null
     ? Console.Out
     : new StreamWriter(options.LogPath, append: false) { AutoFlush = true };
 
-var runtimeBuilder = JsRuntime.CreateBuilder()
+var runtimeBuilder = JsRuntime
+    .CreateBuilder()
     .UseAgent(agent =>
     {
         agent.DebuggerSession = new SandboxDebuggerSession(output, options.Mode);
@@ -55,8 +53,7 @@ try
     }
     else
     {
-        var parsed = JavaScriptParser.ParseScript(source, sourcePath: inputIsFile ? sourcePath : null);
-        var script = JsCompiler.Compile(realm, parsed);
+        var script = realm.CompileScript(source, inputIsFile ? sourcePath : null);
 
         if (options.BreakpointLine is int line)
             agent.AddBreakpoint(script, line);
@@ -80,7 +77,8 @@ static SandboxOptions ParseArguments(string[] args)
 {
     if (args.Length == 0)
         throw new ArgumentException(
-            "Usage: --inline <js> | <file> [--module] [--caught|--debugger|--breakpoint] [--breakpoint-line <n>] [--log <path>]");
+            "Usage: --inline <js> | <file> [--module] [--caught|--debugger|--breakpoint] [--breakpoint-line <n>] [--log <path>]"
+        );
 
     string? input = null;
     var execution = ExecutionMode.Script;
@@ -133,14 +131,14 @@ static string FormatValue(JsValue value) => value.ToString() ?? "<null>";
 file enum ExecutionMode
 {
     Script,
-    Module
+    Module,
 }
 
 file enum DebugMode
 {
     CaughtException,
     DebuggerStatement,
-    Breakpoint
+    Breakpoint,
 }
 
 file readonly record struct SandboxOptions(
@@ -148,7 +146,8 @@ file readonly record struct SandboxOptions(
     ExecutionMode Execution,
     DebugMode Mode,
     int? BreakpointLine,
-    string? LogPath);
+    string? LogPath
+);
 
 file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : IDebuggerSession
 {
@@ -158,9 +157,15 @@ file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : ID
 
     public void OnCheckpoint(in ExecutionCheckpoint checkpoint)
     {
-        if (mode == DebugMode.CaughtException && checkpoint.Kind != ExecutionCheckpointKind.CaughtException)
+        if (
+            mode == DebugMode.CaughtException
+            && checkpoint.Kind != ExecutionCheckpointKind.CaughtException
+        )
             return;
-        if (mode == DebugMode.DebuggerStatement && checkpoint.Kind != ExecutionCheckpointKind.DebuggerStatement)
+        if (
+            mode == DebugMode.DebuggerStatement
+            && checkpoint.Kind != ExecutionCheckpointKind.DebuggerStatement
+        )
             return;
         if (mode == DebugMode.Breakpoint && checkpoint.Kind != ExecutionCheckpointKind.Breakpoint)
             return;
@@ -178,19 +183,29 @@ file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : ID
         if (snapshot.Script is null || snapshot.ProgramCounter < 0)
             return;
 
-        var disasm = Disassembler.Dump(snapshot.Script, new DisassemblerOptions
-        {
-            UnitKind = "function",
-            UnitName = snapshot.CurrentFrameInfo.FunctionName,
-            IncludeConstants = false
-        });
+        var disasm = Disassembler.Dump(
+            snapshot.Script,
+            new DisassemblerOptions
+            {
+                UnitKind = "function",
+                UnitName = snapshot.CurrentFrameInfo.FunctionName,
+                IncludeConstants = false,
+            }
+        );
 
         var lines = disasm.Split(Environment.NewLine, StringSplitOptions.None);
-        var codeStart = Array.FindIndex(lines, static line => string.Equals(line, ".code", StringComparison.Ordinal));
+        var codeStart = Array.FindIndex(
+            lines,
+            static line => string.Equals(line, ".code", StringComparison.Ordinal)
+        );
         if (codeStart < 0)
             return;
 
-        int instructionIndex = FindNearestInstructionLine(lines, codeStart + 1, snapshot.ProgramCounter);
+        int instructionIndex = FindNearestInstructionLine(
+            lines,
+            codeStart + 1,
+            snapshot.ProgramCounter
+        );
         if (instructionIndex < 0)
             return;
 
@@ -220,24 +235,36 @@ file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : ID
         for (int i = 0; i < locals.Count; i++)
         {
             var local = locals[i];
-            output.WriteLine($"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}");
+            output.WriteLine(
+                $"  - {local.Name} [{local.StorageKind}:{local.StorageIndex}] = {FormatValue(local.Value)}"
+            );
         }
 
         if (snapshot.Script is null || snapshot.ProgramCounter < 0)
             return;
 
-        var disasm = Disassembler.Dump(snapshot.Script, new DisassemblerOptions
-        {
-            UnitKind = "function",
-            UnitName = snapshot.CurrentFrameInfo.FunctionName,
-            IncludeConstants = false
-        });
+        var disasm = Disassembler.Dump(
+            snapshot.Script,
+            new DisassemblerOptions
+            {
+                UnitKind = "function",
+                UnitName = snapshot.CurrentFrameInfo.FunctionName,
+                IncludeConstants = false,
+            }
+        );
         var lines = disasm.Split(Environment.NewLine, StringSplitOptions.None);
-        var codeStart = Array.FindIndex(lines, static line => string.Equals(line, ".code", StringComparison.Ordinal));
+        var codeStart = Array.FindIndex(
+            lines,
+            static line => string.Equals(line, ".code", StringComparison.Ordinal)
+        );
         if (codeStart < 0)
             return;
 
-        int instructionIndex = FindNearestInstructionLine(lines, codeStart + 1, snapshot.ProgramCounter);
+        int instructionIndex = FindNearestInstructionLine(
+            lines,
+            codeStart + 1,
+            snapshot.ProgramCounter
+        );
         if (instructionIndex < 0)
             return;
 
@@ -255,7 +282,9 @@ file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : ID
         foreach (var register in registers)
         {
             var named = locals.FirstOrDefault(local =>
-                local.StorageKind == JsLocalDebugStorageKind.Register && local.StorageIndex == register);
+                local.StorageKind == JsLocalDebugStorageKind.Register
+                && local.StorageIndex == register
+            );
             if (!string.IsNullOrEmpty(named.Name))
                 resolved.Add($"r{register}={FormatValue(named.Value)} ({named.Name})");
             else
@@ -265,7 +294,11 @@ file sealed class SandboxDebuggerSession(TextWriter output, DebugMode mode) : ID
         output.WriteLine($"[runtime-debug] operands: {string.Join(", ", resolved)}");
     }
 
-    private static int FindNearestInstructionLine(string[] lines, int startIndex, int programCounter)
+    private static int FindNearestInstructionLine(
+        string[] lines,
+        int startIndex,
+        int programCounter
+    )
     {
         int nearestIndex = -1;
         int nearestPc = -1;

@@ -1,13 +1,16 @@
-using Okojo.Compiler;
-using Okojo.Objects;
-using Okojo.Parsing;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 
 //Console.WriteLine($"StackFrame {Unsafe.SizeOf<StackFrame>()}");
 //Console.WriteLine($"SavedCallFrame {Unsafe.SizeOf<SavedCallFrame>()}");
 //return;
 
-using var rt = JsRuntime.CreateBuilder()
+using var rt = JsRuntime
+    .CreateBuilder()
     .UseAgent(agent =>
     {
         agent.SetExecutionTimeout(TimeSpan.FromSeconds(2));
@@ -19,6 +22,6 @@ var realm = rt.MainRealm;
 var agent = realm.Agent;
 agent.SetCheckInterval(10000);
 realm.Evaluate("while(true){}");
-    // rt.MainRealm.Evaluate("++++++++++++[");
+// rt.MainRealm.Evaluate("++++++++++++[");
 //Thread.Sleep(2);
 // Console.WriteLine(result.ToString());

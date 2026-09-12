@@ -24,7 +24,7 @@ public sealed class NodeTerminalOptions
             StdoutColumns = StdoutColumns,
             StdoutRows = StdoutRows,
             StderrColumns = StderrColumns,
-            StderrRows = StderrRows
+            StderrRows = StderrRows,
         };
     }
 }

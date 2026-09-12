@@ -1,0 +1,19 @@
+# Normalize line endings for text files; keeps CRLF/LF warnings from core.autocrlf silent.
+* text=auto eol=lf
+
+# Rust / WGSL / TOML / C# / docs
+*.rs      text eol=lf
+*.wgsl    text eol=lf
+*.toml    text eol=lf
+*.lock    text eol=lf
+*.cs      text eol=lf
+*.csproj  text eol=lf
+*.md      text eol=lf
+
+# Scripts: shell and python must stay LF on Windows
+*.sh      text eol=lf
+*.py      text eol=lf
+*.ps1     text eol=crlf
+
+# Generated / binary artifacts
+*.png     binary

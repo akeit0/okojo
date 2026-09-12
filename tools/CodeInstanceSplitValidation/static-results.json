@@ -1,0 +1,51 @@
+{
+  "scope": "Source structure only; does not establish C# syntax, type correctness, runtime correctness, or performance",
+  "passed": true,
+  "checks": [
+    {
+      "name": "Changed C# delimiter balance (lexical check only)",
+      "passed": true,
+      "detail": "80 files; errors=[]"
+    },
+    {
+      "name": "Removed ownership/clone APIs have no production callers",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "Compiler does not resolve live realm atoms/shapes/globals",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "Closure construction does not clone runtime object state",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Portable code public array views are read-only spans",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Portable function code has no realm/agent/shape fields",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Runtime ID / handler table lengths agree",
+      "passed": true,
+      "detail": "IDs=72, handlers=72"
+    },
+    {
+      "name": "New runtime helper is appended in both tables",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "VM frame hoists execution view and numeric constants",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

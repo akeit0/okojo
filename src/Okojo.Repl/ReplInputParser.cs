@@ -1,4 +1,4 @@
-using Okojo.Parsing;
+using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Repl;
 
@@ -13,16 +13,21 @@ public static class ReplInputParser
 
         try
         {
-            JavaScriptParser.ParseScript(input, false, false, allowTopLevelAwait);
+            using var _ = JavaScriptParser.ParseScript(
+                input,
+                allowTopLevelAwait: allowTopLevelAwait
+            );
             return true;
         }
         catch (JsParseException ex)
         {
             var msg = ex.Message;
-            if (msg.Contains("found Eof", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("unexpected end of input", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("unterminated", StringComparison.OrdinalIgnoreCase) ||
-                IsLikelyEndOfInputParse(ex, input))
+            if (
+                msg.Contains("found Eof", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("unexpected end of input", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("unterminated", StringComparison.OrdinalIgnoreCase)
+                || IsLikelyEndOfInputParse(ex, input)
+            )
                 return false;
 
             return true;
@@ -140,8 +145,10 @@ public static class ReplInputParser
                     brace--;
                     if (brace < 0)
                         return true;
-                    if (templateExpressionBraceStack.Count != 0 &&
-                        brace == templateExpressionBraceStack.Peek())
+                    if (
+                        templateExpressionBraceStack.Count != 0
+                        && brace == templateExpressionBraceStack.Peek()
+                    )
                     {
                         templateExpressionBraceStack.Pop();
                         inTemplateText = true;
@@ -159,13 +166,18 @@ public static class ReplInputParser
             }
         }
 
-        return !inString && !inTemplateText && !inBlockComment && paren == 0 && brace == 0 && bracket == 0 &&
-               templateExpressionBraceStack.Count == 0;
+        return !inString
+            && !inTemplateText
+            && !inBlockComment
+            && paren == 0
+            && brace == 0
+            && bracket == 0
+            && templateExpressionBraceStack.Count == 0;
     }
 
     private static bool IsLikelyEndOfInputParse(JsParseException ex, string input)
     {
-        return ex.Position >= input.Length &&
-               ex.Message.Contains("Unexpected token", StringComparison.OrdinalIgnoreCase);
+        return ex.Position >= input.Length
+            && ex.Message.Contains("Unexpected token", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.Reflection;
-using Okojo.Compiler;
 using Okojo.Diagnostics;
 using Okojo.Hosting;
-using Okojo.Objects;
-using Okojo.Parsing;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Compiler;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
+using Okojo.JavaScript.Parsing;
 using Okojo.Repl;
-using Okojo.Runtime;
 
 namespace Okojo.Node.Cli;
 
@@ -33,7 +35,9 @@ internal static class NodeCliApplication
 
         if (cli.IsInspectEnabled && cli.ScriptPath is null && cli.Expressions.Count == 0)
         {
-            Console.Error.WriteLine("inspect mode currently requires a script path or -e/--eval input.");
+            Console.Error.WriteLine(
+                "inspect mode currently requires a script path or -e/--eval input."
+            );
             return 1;
         }
 
@@ -94,8 +98,12 @@ internal static class NodeCliApplication
         }
     }
 
-    private static void RunScript(NodeRuntime runtime, IHostTaskQueuePump hostLoop, NodeCliOptions cli,
-        NodeCliDebuggerHost? debugger)
+    private static void RunScript(
+        NodeRuntime runtime,
+        IHostTaskQueuePump hostLoop,
+        NodeCliOptions cli,
+        NodeCliDebuggerHost? debugger
+    )
     {
         var scriptPath = Path.GetFullPath(cli.ScriptPath!);
         var preparedScriptPath = scriptPath;
@@ -104,7 +112,10 @@ internal static class NodeCliApplication
         {
             if (debugger is not null && debugger.ShouldStopOnEntry)
             {
-                preparedScriptPath = runtime.PrepareMainModuleForDebugging(scriptPath, cli.ScriptArguments.ToArray());
+                preparedScriptPath = runtime.PrepareMainModuleForDebugging(
+                    scriptPath,
+                    cli.ScriptArguments.ToArray()
+                );
                 if (!debugger.PublishEntryStopped(preparedScriptPath))
                     return;
             }
@@ -116,14 +127,20 @@ internal static class NodeCliApplication
         finally
         {
             if (cli.PrintBytecode)
-                NodeCliBytecodePrinter.PrintRegisteredScripts(runtime.Runtime.MainAgent, preparedScriptPath);
+                NodeCliBytecodePrinter.PrintRegisteredScripts(
+                    runtime.Runtime.MainAgent,
+                    preparedScriptPath
+                );
 
             Environment.CurrentDirectory = previousDirectory;
         }
     }
 
-    private static void PumpHostEventLoopUntilIdle(NodeRuntime runtime, IHostTaskQueuePump hostLoop,
-        int maxIdleTurns = 3)
+    private static void PumpHostEventLoopUntilIdle(
+        NodeRuntime runtime,
+        IHostTaskQueuePump hostLoop,
+        int maxIdleTurns = 3
+    )
     {
         var pump = runtime.Runtime.CreateHostPump();
         var idleTurns = 0;
@@ -145,7 +162,11 @@ internal static class NodeCliApplication
                         ? nextDueAt - DateTimeOffset.UtcNow
                         : TimeSpan.FromMilliseconds(10);
                     if (wait > TimeSpan.Zero)
-                        Thread.Sleep(wait > TimeSpan.FromMilliseconds(25) ? TimeSpan.FromMilliseconds(25) : wait);
+                        Thread.Sleep(
+                            wait > TimeSpan.FromMilliseconds(25)
+                                ? TimeSpan.FromMilliseconds(25)
+                                : wait
+                        );
                     continue;
                 }
             }
@@ -154,20 +175,17 @@ internal static class NodeCliApplication
         }
     }
 
-    private static async Task RunEvalAsync(NodeRuntime runtime, IHostTaskQueuePump hostLoop, NodeCliOptions cli,
-        NodeCliDebuggerHost? debugger)
+    private static async Task RunEvalAsync(
+        NodeRuntime runtime,
+        IHostTaskQueuePump hostLoop,
+        NodeCliOptions cli,
+        NodeCliDebuggerHost? debugger
+    )
     {
         if (cli.ScriptArguments.Count != 0)
             SetEvalArgv(runtime.MainRealm, cli.ScriptArguments);
 
         var topLevelLexicalNames = new HashSet<string>(StringComparer.Ordinal);
-        var topLevelConstNames = new HashSet<string>(StringComparer.Ordinal);
-        var compileContext = new JsCompilerContext
-        {
-            IsRepl = true,
-            ReplTopLevelLexicalNames = topLevelLexicalNames,
-            ReplTopLevelConstNames = topLevelConstNames
-        };
 
         for (var i = 0; i < cli.Expressions.Count; i++)
         {
@@ -175,44 +193,56 @@ internal static class NodeCliApplication
             await ExecuteAndMaybePrintAsync(
                 runtime.MainRealm,
                 hostLoop,
-                compileContext,
                 topLevelLexicalNames,
-                topLevelConstNames,
                 cli.Expressions[i],
                 cli.StrictMode,
                 cli.PrintEvalResult ? EvalPrintMode.Always : EvalPrintMode.Never,
                 cli.PrintBytecode,
                 evalSourcePath,
                 debugger,
-                false);
+                false
+            );
         }
 
         PumpHostEventLoopUntilIdle(runtime, hostLoop);
     }
 
-    private static async Task RunReplAsync(NodeRuntime runtime, IHostTaskQueuePump hostLoop, int strictMode,
-        bool printBytecode)
+    private static async Task RunReplAsync(
+        NodeRuntime runtime,
+        IHostTaskQueuePump hostLoop,
+        int strictMode,
+        bool printBytecode
+    )
     {
         var realm = runtime.MainRealm;
         using var history = ReplHistoryStore.Load(GetReplHistoryPath());
         var hostPump = runtime.Runtime.CreateHostPump();
-        var evaluator = new NodeReplEvaluator(realm, () => HostTurnRunner.RunTurn(hostLoop, hostPump));
+        var evaluator = new NodeReplEvaluator(
+            realm,
+            () => HostTurnRunner.RunTurn(hostLoop, hostPump)
+        );
 
         Console.WriteLine($"Welcome to okojonode {GetOkojonodeVersion()}.");
         Console.WriteLine("Type \".help\" for more information.");
         var replEvaluationIndex = 0;
-        await SystemReplLoop.RunAsync(new()
-        {
-            History = history,
-            IsInputComplete = input => ReplInputParser.IsInputComplete(input, true),
-            PumpTurn = () => HostTurnRunner.RunTurn(hostLoop, hostPump),
-            HandleInputAsync = line => TryHandleReplLineAsync(
-                evaluator,
-                line,
-                strictMode,
-                printBytecode,
-                ++replEvaluationIndex)
-        }).ConfigureAwait(false);
+        await SystemReplLoop
+            .RunAsync(
+                new()
+                {
+                    History = history,
+                    IsInputComplete = input => ReplInputParser.IsInputComplete(input, true),
+                    PumpTurn = () => HostTurnRunner.RunTurn(hostLoop, hostPump),
+                    HandleInputAsync = line =>
+                        TryHandleReplLineAsync(
+                            evaluator,
+                            line,
+                            strictMode,
+                            printBytecode,
+                            ++replEvaluationIndex
+                        ),
+                }
+            )
+            .ConfigureAwait(false);
     }
 
     private static async Task<bool> TryHandleReplLineAsync(
@@ -220,7 +250,8 @@ internal static class NodeCliApplication
         string line,
         int strictMode,
         bool printBytecode,
-        int replEvaluationIndex)
+        int replEvaluationIndex
+    )
     {
         if (string.IsNullOrWhiteSpace(line))
             return true;
@@ -238,15 +269,18 @@ internal static class NodeCliApplication
         try
         {
             var sourcePath = $"REPL{replEvaluationIndex}";
-            var result = await evaluator.EvaluateAsync(
-                line,
-                strictMode,
-                sourcePath,
-                onCompiled: script =>
-                {
-                    if (printBytecode)
-                        NodeCliBytecodePrinter.PrintCompiledScript(script, sourcePath);
-                }).ConfigureAwait(false);
+            var result = await evaluator
+                .EvaluateAsync(
+                    line,
+                    strictMode,
+                    sourcePath,
+                    onCompiled: script =>
+                    {
+                        if (printBytecode)
+                            NodeCliBytecodePrinter.PrintCompiledScript(script, sourcePath);
+                    }
+                )
+                .ConfigureAwait(false);
             Console.WriteLine(new ReplFormatter(evaluator.Realm, 2).Format(result));
         }
         catch (JsRuntimeException runtimeException)
@@ -264,52 +298,44 @@ internal static class NodeCliApplication
     private static async Task ExecuteAndMaybePrintAsync(
         JsRealm realm,
         IHostTaskQueuePump hostLoop,
-        JsCompilerContext compileContext,
         HashSet<string> topLevelLexicalNames,
-        HashSet<string> topLevelConstNames,
         string source,
         int strictMode,
         EvalPrintMode printMode,
         bool printBytecode,
         string sourcePath,
         NodeCliDebuggerHost? debugger,
-        bool awaitPromiseResult)
+        bool awaitPromiseResult
+    )
     {
         var adjustedSource = ApplyStrictMode(source, strictMode);
-        var program = JavaScriptParser.ParseScript(adjustedSource, false, false, true, sourcePath);
-        ValidateReplTopLevelLexicalRedeclaration(program, topLevelLexicalNames);
+        using var ast = JavaScriptParser.ParseScript(
+            adjustedSource,
+            sourcePath,
+            allowTopLevelAwait: true
+        );
+        ValidateReplTopLevelLexicalRedeclaration(ast, topLevelLexicalNames);
 
-        var script = program.HasTopLevelAwait
-            ? JsCompiler.Compile(realm, program, compileContext, JsBytecodeFunctionKind.Async)
-            : JsCompiler.Compile(realm, program, compileContext);
+        var script = new JsScriptCompiler(realm).Compile(ast, sourcePath);
         if (printBytecode)
             NodeCliBytecodePrinter.PrintCompiledScript(script, sourcePath);
 
-        if (debugger is not null && debugger.ShouldStopOnEntry && !debugger.PublishEntryStopped(sourcePath))
+        if (
+            debugger is not null
+            && debugger.ShouldStopOnEntry
+            && !debugger.PublishEntryStopped(sourcePath)
+        )
             return;
 
-        JsValue rawResult;
-        if (program.HasTopLevelAwait)
-        {
-            var root = new JsBytecodeFunction(
-                realm,
-                script,
-                "root",
-                isStrict: script.StrictDeclared,
-                kind: JsBytecodeFunctionKind.Async);
-            rawResult = realm.Call(root, JsValue.FromObject(realm.GlobalObject));
-        }
-        else
-        {
-            realm.Execute(script);
-            rawResult = realm.Accumulator;
-        }
+        realm.Execute(script);
+        var rawResult = realm.Accumulator;
 
-        RegisterTopLevelLexicalDeclarations(program, topLevelLexicalNames, topLevelConstNames);
+        RegisterTopLevelLexicalDeclarations(ast, topLevelLexicalNames);
 
-        var result = awaitPromiseResult || program.HasTopLevelAwait
-            ? await AwaitIfPromiseAsync(realm, hostLoop, rawResult)
-            : rawResult;
+        var result =
+            awaitPromiseResult || ast.HasTopLevelAwait
+                ? await AwaitIfPromiseAsync(realm, hostLoop, rawResult)
+                : rawResult;
         switch (printMode)
         {
             case EvalPrintMode.Always:
@@ -327,12 +353,16 @@ internal static class NodeCliApplication
         {
             ReplStrictMode.Strict => "'use strict';\n" + source,
             ReplStrictMode.Sloppy => "void 0;\n" + source,
-            _ => source
+            _ => source,
         };
     }
 
-    private static async Task<JsValue> AwaitIfPromiseAsync(JsRealm realm, IHostTaskQueuePump hostLoop, JsValue value,
-        int timeoutMs = 30000)
+    private static async Task<JsValue> AwaitIfPromiseAsync(
+        JsRealm realm,
+        IHostTaskQueuePump hostLoop,
+        JsValue value,
+        int timeoutMs = 30000
+    )
     {
         if (!value.TryGetObject(out var obj) || obj is not JsPromiseObject promise)
             return value;
@@ -351,52 +381,57 @@ internal static class NodeCliApplication
         }
 
         if (promise.IsRejected)
-            throw new InvalidOperationException($"UnhandledPromiseRejection: {promise.SettledResult}");
+            throw new InvalidOperationException(
+                $"UnhandledPromiseRejection: {promise.SettledResult}"
+            );
 
         return promise.SettledResult;
     }
 
-    private static void ValidateReplTopLevelLexicalRedeclaration(JsProgram program,
-        HashSet<string> existingLexicalNames)
+    private static void ValidateReplTopLevelLexicalRedeclaration(
+        JsAst ast,
+        HashSet<string> existingLexicalNames
+    )
     {
-        foreach (var name in EnumerateTopLevelLexicalNames(program))
+        foreach (var name in EnumerateTopLevelLexicalNames(ast))
             if (existingLexicalNames.Contains(name))
-                throw new InvalidOperationException($"SyntaxError: Identifier '{name}' has already been declared");
+                throw new InvalidOperationException(
+                    $"SyntaxError: Identifier '{name}' has already been declared"
+                );
     }
 
-    private static void RegisterTopLevelLexicalDeclarations(
-        JsProgram program,
-        HashSet<string> lexicalNames,
-        HashSet<string> constNames)
+    private static void RegisterTopLevelLexicalDeclarations(JsAst ast, HashSet<string> lexicalNames)
     {
-        foreach (var stmt in program.Statements)
+        foreach (var name in EnumerateTopLevelLexicalNames(ast))
+            lexicalNames.Add(name);
+    }
+
+    private static List<string> EnumerateTopLevelLexicalNames(JsAst ast)
+    {
+        var names = new List<string>();
+        ref readonly var root = ref ast[ast.Root];
+        var statements = ast.ChildRange(root.Arg0, root.Arg1);
+        for (var i = 0; i < statements.Length; i++)
         {
-            if (stmt is not JsVariableDeclarationStatement decl)
+            ref readonly var statement = ref ast[statements[i]];
+            if (statement.Kind != AstKind.VariableDeclaration)
                 continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
+            if (
+                (JsVariableDeclarationKind)statement.Arg2
+                is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const)
+            )
                 continue;
 
-            foreach (var declarator in decl.Declarators)
+            var declarators = ast.ChildRange(statement.Arg0, statement.Arg1);
+            for (var j = 0; j < declarators.Length; j++)
             {
-                lexicalNames.Add(declarator.Name);
-                if (decl.Kind == JsVariableDeclarationKind.Const)
-                    constNames.Add(declarator.Name);
+                ref readonly var declarator = ref ast[declarators[j]];
+                if (declarator.Kind != AstKind.VariableDeclarator)
+                    continue;
+                names.Add(ast.GetString(declarator.Arg0));
             }
         }
-    }
-
-    private static IEnumerable<string> EnumerateTopLevelLexicalNames(JsProgram program)
-    {
-        foreach (var stmt in program.Statements)
-        {
-            if (stmt is not JsVariableDeclarationStatement decl)
-                continue;
-            if (decl.Kind is not (JsVariableDeclarationKind.Let or JsVariableDeclarationKind.Const))
-                continue;
-
-            foreach (var declarator in decl.Declarators)
-                yield return declarator.Name;
-        }
+        return names;
     }
 
     private static string GetOkojonodeVersion()
@@ -421,14 +456,17 @@ internal static class NodeCliApplication
 
         var root = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "OkojoNode");
+            "OkojoNode"
+        );
         return Path.Combine(root, "repl-history.json");
     }
 
     private static void SetEvalArgv(JsRealm realm, IReadOnlyList<string> extraArgs)
     {
-        if (!realm.GlobalObject.TryGetProperty("process", out var processValue) ||
-            !processValue.TryGetObject(out var processObject))
+        if (
+            !realm.GlobalObject.TryGetProperty("process", out var processValue)
+            || !processValue.TryGetObject(out var processObject)
+        )
             return;
 
         var argv = new JsArray(realm);
@@ -445,7 +483,10 @@ internal static class NodeCliApplication
         Console.Error.WriteLine(runtimeException.FormatOkojoStackTrace());
     }
 
-    private static void WriteReplRuntimeException(JsRealm realm, JsRuntimeException runtimeException)
+    private static void WriteReplRuntimeException(
+        JsRealm realm,
+        JsRuntimeException runtimeException
+    )
     {
         Console.Error.WriteLine(FormatReplExceptionSummary(realm, runtimeException));
 
@@ -453,7 +494,10 @@ internal static class NodeCliApplication
             Console.Error.WriteLine($"    at {FormatReplFrame(frame)}");
     }
 
-    private static string FormatReplExceptionSummary(JsRealm realm, JsRuntimeException runtimeException)
+    private static string FormatReplExceptionSummary(
+        JsRealm realm,
+        JsRuntimeException runtimeException
+    )
     {
         if (runtimeException.ThrownValue is { } thrownValue)
             return $"Uncaught {FormatThrownValueForRepl(realm, thrownValue)}";
@@ -480,12 +524,16 @@ internal static class NodeCliApplication
         return new ReplFormatter(realm, 2).Format(thrownValue);
     }
 
-    private static IEnumerable<StackFrameInfo> EnumerateReplFrames(JsRuntimeException runtimeException)
+    private static IEnumerable<StackFrameInfo> EnumerateReplFrames(
+        JsRuntimeException runtimeException
+    )
     {
         foreach (var frame in runtimeException.StackFrames)
         {
-            if (frame.FrameKind == CallFrameKind.ScriptFrame &&
-                string.Equals(frame.FunctionName, "root", StringComparison.Ordinal))
+            if (
+                frame.FrameKind == CallFrameKind.ScriptFrame
+                && string.Equals(frame.FunctionName, "root", StringComparison.Ordinal)
+            )
                 continue;
 
             yield return frame;
@@ -530,7 +578,8 @@ internal static class NodeCliApplication
               --inspect-brk            Attach the interactive debugger and stop on entry.
               --print-bytecode         Print Okojo bytecode disassembly for eval input or loaded script units.
               -h, --help               Show help.
-            """);
+            """
+        );
     }
 
     private static void WriteReplHelp()
@@ -545,13 +594,14 @@ internal static class NodeCliApplication
               Shift+Enter inserts a new line.
               Auto completion suggestions are currently disabled.
               The REPL runs with Okojo.Node globals like console, process, Buffer, and performance.
-            """);
+            """
+        );
     }
 
     private enum EvalPrintMode
     {
         Never = 0,
         IfNotUndefined = 1,
-        Always = 2
+        Always = 2,
     }
 }

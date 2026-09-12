@@ -1,0 +1,47 @@
+name: DAP debugger
+on:
+  pull_request:
+    paths:
+      - 'src/Okojo.JavaScript/**'
+      - 'src/Okojo.DebugServer*/**'
+      - 'src/vscode-debug/**'
+      - 'tests/Okojo.DebugServer.Tests/**'
+      - '.github/workflows/dap-debugger.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  debugger:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/vscode-debug/extension/package-lock.json
+      - name: Build extension and run stdio contract tests
+        working-directory: src/vscode-debug/extension
+        run: |
+          npm ci
+          npm run compile
+          npm test
+      - name: Run runtime debugger regressions (harness uses Debug output)
+        run: dotnet test tests/Okojo.DebugServer.Tests/Okojo.DebugServer.Tests.csproj -c Debug
+      - name: Run core runtime regressions
+        run: dotnet test tests/Okojo.Tests/Okojo.Tests.csproj -c Debug
+      - name: Build standalone debug host
+        run: dotnet build src/Okojo.DebugServer/Okojo.DebugServer.csproj -c Release
+      - name: Run real-engine DAP end-to-end tests
+        shell: pwsh
+        run: |
+          $env:OKOJO_DEBUG_SERVER = (Resolve-Path 'src/Okojo.DebugServer/bin/Release/net10.0/Okojo.DebugServer.dll').Path
+          Set-Location src/vscode-debug/extension
+          npm run test:engine

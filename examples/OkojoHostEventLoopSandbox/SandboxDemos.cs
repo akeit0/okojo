@@ -9,7 +9,9 @@ internal static class SandboxDemos
 
         Console.WriteLine("single-thread parallel async flow:");
         Console.WriteLine("  state  = " + host.MainRealm.Global["singleThreadState"].AsString());
-        Console.WriteLine("  events = " + host.MainRealm.Eval("singleThreadEvents.join(',')").AsString());
+        Console.WriteLine(
+            "  events = " + host.MainRealm.Eval("singleThreadEvents.join(',')").AsString()
+        );
     }
 
     public static void RunSingleThreadRenderLoopDemo(SingleThreadBrowserHost host)
@@ -41,9 +43,15 @@ internal static class SandboxDemos
         host.RunScript(mainRealm, "/browser/realm-main.js");
         host.RunScript(isolatedRealm, "/browser/realm-secondary.js");
 
-        var summary = string.Join(" | ",
-            mainRealm.Eval("[realmName, counter, typeof fetch, typeof Worker].join(':')").AsString(),
-            isolatedRealm.Eval("[realmName, counter, typeof fetch, typeof Worker].join(':')").AsString());
+        var summary = string.Join(
+            " | ",
+            mainRealm
+                .Eval("[realmName, counter, typeof fetch, typeof Worker].join(':')")
+                .AsString(),
+            isolatedRealm
+                .Eval("[realmName, counter, typeof fetch, typeof Worker].join(':')")
+                .AsString()
+        );
 
         Console.WriteLine("realm isolation:");
         Console.WriteLine("  " + summary);

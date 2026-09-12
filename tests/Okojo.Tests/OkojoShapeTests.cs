@@ -1,5 +1,7 @@
-using Okojo.Objects;
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.Tests;
 
@@ -11,7 +13,8 @@ public class OkojoShapeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var shape = realm.EmptyShape;
 
-        for (var i = 0; i < 15; i++) shape = shape.GetOrAddTransition(realm.Atoms.InternNoCheck($"p{i}"), out _);
+        for (var i = 0; i < 15; i++)
+            shape = shape.GetOrAddTransition(realm.Atoms.InternNoCheck($"p{i}"), out _);
 
         Assert.That(shape.Kind, Is.EqualTo(NamedPropertyLayoutKind.LinearStatic));
         Assert.That(shape.PropertyCount, Is.EqualTo(15));
@@ -23,7 +26,8 @@ public class OkojoShapeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var shape = realm.EmptyShape;
 
-        for (var i = 0; i < 16; i++) shape = shape.GetOrAddTransition(realm.Atoms.InternNoCheck($"p{i}"), out _);
+        for (var i = 0; i < 16; i++)
+            shape = shape.GetOrAddTransition(realm.Atoms.InternNoCheck($"p{i}"), out _);
 
         Assert.That(shape.Kind, Is.EqualTo(NamedPropertyLayoutKind.MapStatic));
         Assert.That(shape.PropertyCount, Is.EqualTo(16));
@@ -35,7 +39,8 @@ public class OkojoShapeTests
         var realm = JsRuntime.Create().DefaultRealm;
         var obj = new JsPlainObject(realm);
 
-        for (var i = 0; i < 16; i++) obj.DefineDataProperty($"p{i}", JsValue.FromInt32(i), JsShapePropertyFlags.Open);
+        for (var i = 0; i < 16; i++)
+            obj.DefineDataProperty($"p{i}", JsValue.FromInt32(i), JsShapePropertyFlags.Open);
 
         var deleted = obj.DeletePropertyAtom(realm, realm.Atoms.InternNoCheck("p0"));
 
@@ -51,7 +56,8 @@ public class OkojoShapeTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var shape = new DynamicNamedPropertyLayout(realm);
-        for (var i = 0; i < 15; i++) shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
+        for (var i = 0; i < 15; i++)
+            shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
 
         Assert.That(shape.Kind, Is.EqualTo(NamedPropertyLayoutKind.DynamicLinear));
         Assert.That(shape.Count, Is.EqualTo(15));
@@ -62,7 +68,8 @@ public class OkojoShapeTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var shape = new DynamicNamedPropertyLayout(realm);
-        for (var i = 0; i < 16; i++) shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
+        for (var i = 0; i < 16; i++)
+            shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
 
         Assert.That(shape.Kind, Is.EqualTo(NamedPropertyLayoutKind.DynamicMap));
         Assert.That(shape.Count, Is.EqualTo(16));
@@ -73,7 +80,8 @@ public class OkojoShapeTests
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var shape = new DynamicNamedPropertyLayout(realm);
-        for (var i = 0; i < 16; i++) shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
+        for (var i = 0; i < 16; i++)
+            shape.SetSlotInfo(i + 1, new(i, JsShapePropertyFlags.Open));
 
         var removed = shape.Remove(1, out _);
 

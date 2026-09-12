@@ -1,4 +1,6 @@
-using Okojo.Runtime;
+using Okojo.JavaScript;
+using Okojo.JavaScript.Embedding;
+using Okojo.JavaScript.Execution;
 
 namespace Okojo.Hosting;
 
@@ -14,7 +16,7 @@ public static class HostingEngineExtensions
     {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(agent);
-        if (!ReferenceEquals(agent.Engine, engine))
+        if (!engine.Agents.Contains(agent))
             throw new InvalidOperationException("Agent does not belong to this engine.");
 
         return new(agent);
@@ -22,7 +24,8 @@ public static class HostingEngineExtensions
 
     public static WorkerRuntime CreateWorkerRuntime(
         this JsRuntime engine,
-        Action<WorkerRuntimeOptions>? configure = null)
+        Action<WorkerRuntimeOptions>? configure = null
+    )
     {
         return WorkerRuntimeFactory.CreateWorkerRuntime(engine, configure);
     }
