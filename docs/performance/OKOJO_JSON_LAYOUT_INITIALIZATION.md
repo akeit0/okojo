@@ -78,3 +78,33 @@ a proportional parsing speedup.
 Validation after this step: 60 focused JSON tests, then 2,299 full-suite passes
 and four skips. Tests cover the 15/16/17 boundary and wide-object growth,
 compaction back to linear storage, promotion, descriptors and independent mutation.
+
+## Unescaped property-name spans
+
+The text parser now resolves property names in a separate non-inlined helper
+before recursively parsing their values. Unescaped names use a span for numeric
+index classification and atom interning, avoiding redundant substrings on hits.
+New atoms still allocate their canonical string. Backslash-containing names use
+the existing decoder, and value-string parsing is unchanged.
+
+Against `a7a69c4`, the modern workload's allocation falls from 14,300,896 to
+11,100,896 B (22.38%). Its 16,000 records each previously allocated 200 B of
+id/name/active/score/tags/ts name strings. Three process pairs measured median
+execution at 11.975 -> 11.321 ms with tiering, and 12.502 -> 11.787 ms with
+FullOpts, using the same .NET 10.0.12 x64 environment and one-second warmup.
+
+This has an escaped-name tradeoff. An all-escaped short-name cohort is about
+3% slower with tiering and 7% slower with FullOpts, with unchanged allocation.
+The helper rescans through the existing decoder on that path. Longer escaped
+prefixes have mixed results. A fresh-realm 64-name cohort allocates 6,544 B on
+both sides and has overlapping timing ranges. This is not allocation-free
+parsing or a speedup for every input distribution.
+
+Interning precedes value parsing, so parent/child first-intern order can change
+internal atom IDs. Existing IDs and observable property order remain stable.
+Failed parses do not roll back atom interning; the new path may intern a name
+before a later syntax error. Parsed objects are not exposed before completion.
+
+Validation: 65 focused JSON tests, then 2,304 full-suite passes and four skips.
+Coverage includes raw controls, escaped controls, lone surrogates, numeric
+boundaries, malformed input, long names, duplicate keys and nested atom growth.

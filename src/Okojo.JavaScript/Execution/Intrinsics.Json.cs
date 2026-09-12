@@ -307,17 +307,16 @@ public partial class Intrinsics
                         if (!Peek('"'))
                             throw new JsonException("Expected a JSON property name.");
 
-                        var name = ParseString();
+                        var isIndex = ParsePropertyName(out var atom, out var index);
                         SkipWhitespace();
                         Expect(':');
                         var propValue = ParseValue();
-                        if (TryGetArrayIndexFromCanonicalString(name, out var index))
+                        if (isIndex)
                         {
                             obj.SetElement(index, propValue);
                         }
                         else
                         {
-                            var atom = realm.Atoms.InternNoCheck(name);
                             if (!usedGenericNamedPath && !staging.ContainsAtom(atom))
                             {
                                 staging.Add(atom, propValue);
@@ -453,6 +452,43 @@ public partial class Intrinsics
             )
                 return JsValue.FromInt32((int)value);
             return new(value);
+        }
+
+        // Keep scanning and interning outside the recursive object parser's inlined body.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool ParsePropertyName(out int atom, out uint index)
+        {
+            var quote = offset;
+            Expect('"');
+            var start = offset;
+            var specialOffset = source.AsSpan(start).IndexOfAny('"', '\\');
+            if (specialOffset < 0)
+                throw new JsonException("Unterminated JSON string.");
+            var special = start + specialOffset;
+            if (source[special] == '\\')
+            {
+                offset = quote;
+                var decoded = ParseString();
+                if (TryGetArrayIndexFromCanonicalString(decoded, out index))
+                {
+                    atom = 0;
+                    return true;
+                }
+                atom = realm.Atoms.InternNoCheck(decoded);
+                return false;
+            }
+            for (var i = start; i < special; i++)
+                if (source[i] < ' ')
+                    throw new JsonException("A JSON string cannot contain control characters.");
+            offset = special + 1;
+            var name = source.AsSpan(start, specialOffset);
+            if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out index))
+            {
+                atom = 0;
+                return true;
+            }
+            atom = realm.Atoms.InternNoCheck(name);
+            return false;
         }
 
         private string ParseString()
