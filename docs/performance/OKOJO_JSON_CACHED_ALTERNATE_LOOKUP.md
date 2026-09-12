@@ -47,3 +47,7 @@ ulong return is a hypothesis to compare against E019-B's out-parameter shape.
 No custom table is implemented or claimed faster by this experiment. Gate it on
 lookup hits/misses, startup, retained memory, growth, Unicode, mixed workloads,
 then JSON and non-JSON engine controls. Keep the current dictionary until it wins.
+
+Follow-up: [general atom-index design](OKOJO_ATOM_INDEX_DESIGN.md) broadens the
+comparison beyond JSON and corrects ownership to JsAgent (shared by its realms).
+The replacement is unimplemented; E021 results above are unchanged.
