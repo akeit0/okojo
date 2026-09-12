@@ -846,7 +846,7 @@ public class JsObject
         ReadOnlySpan<JsValue> values
     )
     {
-        var ownerRealm = RequireCompatibleRealm(realm);
+        _ = RequireCompatibleRealm(realm);
         if (!UsesDynamicNamedProperties)
             throw new InvalidOperationException(
                 "Dynamic open-data initialization requires dynamic named-property layout."
@@ -860,10 +860,8 @@ public class JsObject
                 "Dynamic open-data initialization requires no existing named properties."
             );
 
-        NamedPropertyLayout = DynamicNamedPropertyLayout.CreateOpenDataNoCollision(
-            ownerRealm,
-            atoms
-        );
+        // Dynamic layouts belong to one object; fill its fresh layout instead of replacing it.
+        DynamicNamedPropertyLayout.InitializeOpenDataNoCollision(atoms);
         SlotsArray = new JsValue[values.Length];
         values.CopyTo(SlotsArray);
     }

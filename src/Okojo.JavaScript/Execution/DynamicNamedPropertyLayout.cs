@@ -41,18 +41,32 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
     internal Entry[] UnsafeEntries => Entries;
     internal int StorageSlotCount { get; private set; }
 
-    internal static DynamicNamedPropertyLayout CreateOpenDataNoCollision(
-        JsRealm owner,
-        ReadOnlySpan<int> atoms
-    )
+    internal void InitializeOpenDataNoCollision(ReadOnlySpan<int> atoms)
     {
+        if (Entries.Length != 0)
+            throw new InvalidOperationException(
+                "Open-data initialization requires a fresh layout."
+            );
         if (atoms.Length == 0)
-            return new(owner);
+            return;
 
         var denseEntries = new Entry[atoms.Length];
         for (var i = 0; i < atoms.Length; i++)
             denseEntries[i] = new(atoms[i], new(i, JsShapePropertyFlags.Open));
-        return CreateFromDenseEntries(owner, denseEntries);
+        if (atoms.Length > LinearEntryLimit)
+        {
+            Kind = NamedPropertyLayoutKind.DynamicMap;
+            BuildMapFromDenseEntries(
+                denseEntries,
+                ComputeSwissCapacity(atoms.Length),
+                atoms.Length
+            );
+        }
+        else
+        {
+            Entries = denseEntries;
+            entryCount = LiveCount = StorageSlotCount = atoms.Length;
+        }
     }
 
     internal new bool TryGetSlotInfo(int atom, out SlotInfo slotInfo)
