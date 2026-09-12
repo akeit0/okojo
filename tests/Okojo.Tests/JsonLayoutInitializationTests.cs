@@ -9,7 +9,9 @@ public class JsonLayoutInitializationTests
     [TestCase(1)]
     [TestCase(15)]
     [TestCase(16)]
+    [TestCase(17)]
     [TestCase(64)]
+    [TestCase(256)]
     public void InitializedLayoutsRemainIndependentAndMutable(int count)
     {
         using var runtime = JsRuntime.Create();
@@ -35,7 +37,9 @@ public class JsonLayoutInitializationTests
 
     [TestCase(15)]
     [TestCase(16)]
+    [TestCase(17)]
     [TestCase(64)]
+    [TestCase(256)]
     public void JsonDuplicatesReviverAndSubsequentMutationPreserveOrder(int count)
     {
         using var runtime = JsRuntime.Create();
@@ -53,6 +57,39 @@ public class JsonLayoutInitializationTests
                 && Object.getPrototypeOf(a)===Object.prototype
                 && Object.keys(a).slice(-2).join()==='extra,p2'
                 && !Object.getOwnPropertyDescriptor(a,'p3').writable;
+            """;
+        realm.Execute(
+            realm.CompileScript("(function(){" + body.Replace("COUNT", count.ToString()) + "})();")
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [TestCase(16)]
+    [TestCase(17)]
+    [TestCase(64)]
+    [TestCase(256)]
+    public void WideJsonObjectsSurviveGrowthCompactionAndPromotion(int count)
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        string body = """
+            const n=COUNT;
+            const text='{'+Array.from({length:n},(_,i)=>'"p'+i+'":'+i).join(',')+'}';
+            const a=JSON.parse(text), b=JSON.parse(text);
+            // Grow the entry storage and map, then remove enough to compact to linear.
+            for(let i=n;i<n*3;i++) a['p'+i]=i;
+            for(let i=0;i<n*3-8;i++) delete a['p'+i];
+            const remaining=Array.from({length:8},(_,i)=>'p'+(n*3-8+i));
+            if(Object.keys(a).join()!==remaining.join()) return false;
+            // Promote back to a map and rewrite descriptors without affecting b.
+            for(let i=0;i<40;i++) a['q'+i]=i+100;
+            Object.defineProperty(a,'q0',{value:999,writable:false});
+            for(let i=0;i<n;i++) if(b['p'+i]!==i) return false;
+            for(let i=n*3-8;i<n*3;i++) if(a['p'+i]!==i) return false;
+            for(let i=1;i<40;i++) if(a['q'+i]!==i+100) return false;
+            Object.freeze(a);
+            return a.q0===999 && b.q0===undefined && Object.keys(b).length===n
+                && Object.keys(a).length===48 && !Object.isExtensible(a);
             """;
         realm.Execute(
             realm.CompileScript("(function(){" + body.Replace("COUNT", count.ToString()) + "})();")

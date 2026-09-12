@@ -516,6 +516,7 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         entryIndexes[slot] = entryIndex;
     }
 
+    // Takes ownership of denseEntries: every caller supplies a fresh, unshared array.
     private void BuildMapFromDenseEntries(
         Entry[] denseEntries,
         int capacity,
@@ -531,9 +532,16 @@ internal sealed class DynamicNamedPropertyLayout : NamedPropertyLayout
         Array.Fill(entryIndexes, -1);
 
         var entryArrayLength = Math.Max(Math.Max(denseEntries.Length, minimumEntryArrayLength), 16);
-        Entries = new Entry[entryArrayLength];
-        if (denseEntries.Length != 0)
-            denseEntries.AsSpan().CopyTo(Entries);
+        if (denseEntries.Length == entryArrayLength)
+        {
+            Entries = denseEntries;
+        }
+        else
+        {
+            Entries = new Entry[entryArrayLength];
+            if (denseEntries.Length != 0)
+                denseEntries.AsSpan().CopyTo(Entries);
+        }
 
         entryCount = denseEntries.Length;
         LiveCount = denseEntries.Length;
