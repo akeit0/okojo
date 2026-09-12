@@ -973,19 +973,17 @@ public sealed class AtomTable
         "Symbol.asyncDispose",
     ];
 
-    private readonly Dictionary<string, int> atomByString = new(StringComparer.Ordinal);
-    private readonly List<string> stringByAtom = new();
+    private readonly AtomStringTable strings = new(PredefinedAtoms.Length);
     private readonly List<Symbol> symbolByAtom = new();
 
     public AtomTable()
     {
         var predefinedSymbolSet = new HashSet<string>(StringComparer.Ordinal);
-        stringByAtom.Capacity = PredefinedAtoms.Length;
         for (var i = 0; i < PredefinedAtoms.Length; i++)
         {
             var name = PredefinedAtoms[i];
-            stringByAtom.Add(name);
-            atomByString[name] = i;
+            var atom = strings.Intern(name);
+            Debug.Assert(atom == i, "Predefined atom IDs must remain stable.");
         }
 
         symbolByAtom.Capacity = PredefinedSymbolAtoms.Length;
@@ -1002,10 +1000,17 @@ public sealed class AtomTable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetArrayIndexFromCanonicalString(string text, out uint index)
+    public static bool TryGetArrayIndexFromCanonicalString(string text, out uint index) =>
+        TryGetArrayIndexFromCanonicalString(text.AsSpan(), out index);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static bool TryGetArrayIndexFromCanonicalString(
+        ReadOnlySpan<char> text,
+        out uint index
+    )
     {
         index = 0;
-        if (string.IsNullOrEmpty(text))
+        if (text.IsEmpty)
             return false;
 
         var firstChar = text[0];
@@ -1014,7 +1019,10 @@ public sealed class AtomTable
         return TryGetArrayIndexFromCanonicalStringSlowPath(text, out index);
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TryGetArrayIndexFromCanonicalStringSlowPath(string text, out uint index)
+        static bool TryGetArrayIndexFromCanonicalStringSlowPath(
+            ReadOnlySpan<char> text,
+            out uint index
+        )
         {
             index = 0;
             if (text.Length > 1 && text[0] == '0')
@@ -1056,13 +1064,11 @@ public sealed class AtomTable
 
     public bool TryGetInterned(string name, out int atom)
     {
-        return atomByString.TryGetValue(name, out atom);
+        return strings.TryGetValue(name, out atom);
     }
 
     public int InternNoCheck(string name)
     {
-        if (atomByString.TryGetValue(name, out var atom))
-            return atom;
 #if DEBUG
         if (TryGetArrayIndexFromCanonicalString(name, out _))
             throw new InvalidOperationException(
@@ -1070,10 +1076,19 @@ public sealed class AtomTable
             );
 #endif
 
-        atom = stringByAtom.Count;
-        atomByString.Add(name, atom);
-        stringByAtom.Add(name);
-        return atom;
+        return strings.Intern(name);
+    }
+
+    // Runtime-only span entry point; AtomTable is not the stable embedding API.
+    internal int InternNoCheck(ReadOnlySpan<char> name)
+    {
+#if DEBUG
+        if (TryGetArrayIndexFromCanonicalString(name, out _))
+            throw new InvalidOperationException(
+                "InternNoCheck received a canonical array-index span."
+            );
+#endif
+        return strings.Intern(name);
     }
 
     public int InternSymbolString(string? description)
@@ -1091,9 +1106,9 @@ public sealed class AtomTable
             if ((uint)symbolIndex < (uint)symbolByAtom.Count)
                 return symbolByAtom[symbolIndex].Description ?? string.Empty;
         }
-        else if ((uint)atom < (uint)stringByAtom.Count)
+        else if ((uint)atom < (uint)strings.Count)
         {
-            return stringByAtom[atom];
+            return strings.Name(atom);
         }
 
         throw new KeyNotFoundException($"Unknown atom id: {atom}");
