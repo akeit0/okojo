@@ -731,3 +731,5 @@ code, not as an acceptance criterion by itself.
 - E018: skip hidden /d replacement indices (baseline includes separate named-index identity fix 45984cd). Retained: duplicate-name replacement saves 19,456 B/64 matches and 8.30% long-PGO time; non-global control +100 ns. Standalone exec allocation unchanged. Full suite 2,271 passed, 4 skipped.
 
 - [E019: JSON property-name reuse](OKOJO_JSON_PROPERTY_NAME_REUSE.md): both variants rejected. Fixed parse saves 100,000 B/500 records but regresses PGO time 30.16%/20.39%; four correctness cases retained, full suite 2,275 passed, 4 skipped.
+
+- [E020: rope cache compaction](OKOJO_ROPE_CACHE_COMPACTION.md): A rejected for cached-read regression; B retained as an allocation optimization. Nodes 48 -> 40 B, full base64 -304,328 B/execution (14.48%), throughput broadly neutral with FullOpts append +1.51%. Both variants and decode confirmation preserved; full suite 2,277 passed, 4 skipped.

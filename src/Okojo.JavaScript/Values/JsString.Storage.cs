@@ -298,7 +298,6 @@ public readonly partial struct JsString
     {
         private const int InitialPendingCapacity = 16;
 
-        private string? flat;
         public object Left = left;
         public int LeftLength = leftLength;
         public int Length = length;
@@ -306,17 +305,18 @@ public readonly partial struct JsString
 
         public bool TryGetFlat([NotNullWhen(true)] out string? value)
         {
-            value = flat;
+            // Concat never creates a node with an empty right operand.
+            // Flatten publishes that sentinel after storing the flat string in Left.
+            value = ReferenceEquals(Right, string.Empty) ? Unsafe.As<string>(Left) : null;
             return value is not null;
         }
 
         public string Flatten()
         {
-            if (flat is not null)
+            if (TryGetFlat(out var flat))
                 return flat;
 
             var result = string.Create(Length, this, static (chars, rope) => rope.CopyInto(chars));
-            flat = result;
             Left = result;
             Right = string.Empty;
             LeftLength = result.Length;
@@ -333,7 +333,7 @@ public readonly partial struct JsString
 
             while (true)
             {
-                if (node is RopeNode rope && rope.flat is null)
+                if (node is RopeNode rope && !rope.TryGetFlat(out _))
                 {
                     if (pendingCount == pending.Length)
                         Array.Resize(
