@@ -718,3 +718,8 @@ A1-A13. The fresh 20260828 comparison for the local-sharing + cold-split
 attempt is 22503 -> 21925 Tier1 bytes (-2.6%), 98 -> 44 IL locals, with the
 full suite green. Local count is recorded as a means to improve generated
 code, not as an acceptance criterion by itself.
+
+## September decoder follow-ups
+
+- [E012: by-value offset](OKOJO_SCALED_DECODER_EXPERIMENT.md): rejected; PGO-enabled sum/call regressions despite reduced Add stack traffic.
+- [E013: pre-addressed operand](OKOJO_OPERAND_ADDRESS_EXPERIMENT.md): rejected; PGO-enabled calls +5.04%, wide sum +12.88%; four decoder correctness cases retained. Full suite 2,250 passed, 4 skipped.
