@@ -1287,6 +1287,10 @@ public partial class Intrinsics
                         );
                     var nextSourcePosition = 0;
                     var matchedAny = false;
+                    var canReuseReplaceArgs =
+                        isGlobal
+                        && replaceObj is JsBytecodeFunction { Kind: JsBytecodeFunctionKind.Normal };
+                    JsValue[]? reusableReplaceArgs = null;
                     while (true)
                     {
                         if (
@@ -1406,7 +1410,19 @@ public partial class Intrinsics
                             }
 
                             var replaceArgCount = captureCount + 3 + (hasGroups ? 1 : 0);
-                            var replaceArgs = new JsValue[replaceArgCount];
+                            JsValue[] replaceArgs;
+                            if (rawMatch is not null && canReuseReplaceArgs)
+                            {
+                                // Normal bytecode calls copy arguments into their own frame.
+                                // Keep this buffer local to one replace invocation for reentrancy.
+                                if (reusableReplaceArgs?.Length != replaceArgCount)
+                                    reusableReplaceArgs = new JsValue[replaceArgCount];
+                                replaceArgs = reusableReplaceArgs;
+                            }
+                            else
+                            {
+                                replaceArgs = new JsValue[replaceArgCount];
+                            }
                             replaceArgs[0] = JsValue.FromString(matched);
                             for (var captureIndex = 0; captureIndex < captureCount; captureIndex++)
                             {
