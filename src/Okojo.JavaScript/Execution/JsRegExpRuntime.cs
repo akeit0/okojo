@@ -190,7 +190,8 @@ internal static class JsRegExpRuntime
         JsRealm realm,
         JsRegExpObject rx,
         string input,
-        bool materializeNamedGroups = true
+        bool materializeNamedGroups = true,
+        bool materializeIndices = true
     )
     {
         var lastIndex = GetLastIndex(realm, rx);
@@ -209,7 +210,8 @@ internal static class JsRegExpRuntime
             rx.CompiledPattern,
             input,
             startIndex,
-            materializeNamedGroups
+            materializeNamedGroups,
+            materializeIndices
         );
         if (engineMatch is null)
         {

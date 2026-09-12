@@ -154,7 +154,8 @@ internal sealed class RegExpEngine
         RegExpCompiledPattern compiled,
         string input,
         int startIndex,
-        bool materializeNamedGroups = true
+        bool materializeNamedGroups = true,
+        bool materializeIndices = true
     )
     {
         if (compiled.EngineState is not CompiledRegExp regexp)
@@ -167,7 +168,14 @@ internal sealed class RegExpEngine
         if (!regexp.TryMatch(input, startIndex, captures, out _))
             return null;
 
-        return BuildMatchResult(compiled, regexp, input, captures, materializeNamedGroups);
+        return BuildMatchResult(
+            compiled,
+            regexp,
+            input,
+            captures,
+            materializeNamedGroups,
+            materializeIndices
+        );
     }
 
     internal static string? GetNamedCaptureValue(
@@ -222,10 +230,11 @@ internal sealed class RegExpEngine
         CompiledRegExp regexp,
         string input,
         CaptureRange[] captures,
-        bool materializeNamedGroups
+        bool materializeNamedGroups,
+        bool materializeIndices
     )
     {
-        var hasIndices = compiled.ParsedFlags.HasIndices;
+        var hasIndices = materializeIndices && compiled.ParsedFlags.HasIndices;
         var groupCount = captures.Length;
         var groups = new string?[groupCount];
         var groupIndices = hasIndices ? new RegExpMatchRange?[groupCount] : null;

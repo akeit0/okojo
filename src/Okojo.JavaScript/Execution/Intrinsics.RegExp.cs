@@ -1348,7 +1348,9 @@ public partial class Intrinsics
                                 realm,
                                 rx2,
                                 input,
-                                materializeNamedGroups: !functionalReplace
+                                materializeNamedGroups: !functionalReplace,
+                                // Replacement consumes capture strings, never match indices.
+                                materializeIndices: false
                             );
                             if (rawMatch is null)
                                 break;
