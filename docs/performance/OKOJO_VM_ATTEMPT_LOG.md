@@ -733,3 +733,5 @@ code, not as an acceptance criterion by itself.
 - [E019: JSON property-name reuse](OKOJO_JSON_PROPERTY_NAME_REUSE.md): both variants rejected. Fixed parse saves 100,000 B/500 records but regresses PGO time 30.16%/20.39%; four correctness cases retained, full suite 2,275 passed, 4 skipped.
 
 - [E020: rope cache compaction](OKOJO_ROPE_CACHE_COMPACTION.md): A rejected for cached-read regression; B retained as an allocation optimization. Nodes 48 -> 40 B, full base64 -304,328 B/execution (14.48%), throughput broadly neutral with FullOpts append +1.51%. Both variants and decode confirmation preserved; full suite 2,277 passed, 4 skipped.
+
+- [E021: cached JSON alternate lookup](OKOJO_JSON_CACHED_ALTERNATE_LOOKUP.md): rejected. Fixed parse +25.94% vs production despite -2.86% vs fresh E019-A and 100,000 B saved. Compatibility helper removed; custom append-only atom-ID index plus direct key-to-atom parsing designed for a future measured prototype. Two tests retained; full suite 2,279 passed, 4 skipped.
