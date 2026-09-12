@@ -584,6 +584,44 @@ public class ToolingTests
         Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(70300));
     }
 
+    [TestCase(2)]
+    [TestCase(4)]
+    public void Vm_ScaledAdd_AdvancesOperandAndResetsScale(int width)
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        List<byte> bytes =
+        [
+            (byte)JsOpCode.LdaSmi,
+            20,
+            (byte)JsOpCode.StarWide,
+            0x2C,
+            0x01,
+            (byte)JsOpCode.Star,
+            0,
+            (byte)JsOpCode.LdaSmi,
+            3,
+            (byte)(width == 2 ? JsOpCode.Wide : JsOpCode.ExtraWide),
+            (byte)JsOpCode.Add,
+        ];
+        // r300 detects truncation to a byte; the next instruction detects
+        // incorrect operand advancement or a scale leaking past one opcode.
+        for (int i = 0; i < width; i++)
+            bytes.Add((byte)(300 >> (8 * i)));
+        bytes.AddRange([(byte)JsOpCode.Add, 0, (byte)JsOpCode.Return]);
+        var code = new JsFunctionCode(
+            bytes.ToArray(),
+            Array.Empty<ulong>(),
+            Array.Empty<object>(),
+            301,
+            []
+        );
+        var script = new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm);
+
+        realm.Execute(script);
+
+        Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(43));
+    }
+
     [Test]
     public void Compiler_Uses_LdaSmiWide_And_ExtraWide_For_IntegerLiterals()
     {
