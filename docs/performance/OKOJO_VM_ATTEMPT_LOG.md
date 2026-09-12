@@ -729,3 +729,5 @@ code, not as an acceptance criterion by itself.
 - [E017: direct named-capture objects](OKOJO_REGEXP_NAMED_CAPTURE_DIRECT.md): retained for intrinsic functional replacement. Avoids the temporary named-value dictionary; saves 17,408 B per 64-match named call. Long-PGO optional/duplicate-name cases improve 10.67%/7.89%; controls retain allocations, exec/template timings have wide scatter. Six regressions added; full suite 2,268 passed, 4 skipped.
 
 - E018: skip hidden /d replacement indices (baseline includes separate named-index identity fix 45984cd). Retained: duplicate-name replacement saves 19,456 B/64 matches and 8.30% long-PGO time; non-global control +100 ns. Standalone exec allocation unchanged. Full suite 2,271 passed, 4 skipped.
+
+- [E019: JSON property-name reuse](OKOJO_JSON_PROPERTY_NAME_REUSE.md): both variants rejected. Fixed parse saves 100,000 B/500 records but regresses PGO time 30.16%/20.39%; four correctness cases retained, full suite 2,275 passed, 4 skipped.
