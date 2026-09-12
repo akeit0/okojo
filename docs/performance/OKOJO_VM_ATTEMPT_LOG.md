@@ -737,3 +737,5 @@ code, not as an acceptance criterion by itself.
 - [E021: cached JSON alternate lookup](OKOJO_JSON_CACHED_ALTERNATE_LOOKUP.md): rejected. Fixed parse +25.94% vs production despite -2.86% vs fresh E019-A and 100,000 B saved. Compatibility helper removed; custom append-only atom-ID index plus direct key-to-atom parsing designed for a future measured prototype. Two tests retained; full suite 2,279 passed, 4 skipped.
 
 - [Post-E021 general atom-index design](OKOJO_ATOM_INDEX_DESIGN.md): unimplemented. Compare compact chaining, scalar full-hash/ID and grouped fingerprint/ID layouts across engine callers. Agent ownership and broad regression gates explicit; benchmark-specific parser tuning excluded.
+
+- [E022: general atom-index screening](OKOJO_ATOM_INDEX_SCREENING.md): three standalone layouts rejected for integration. Smaller payload but ordinary string/long-key regressions; 75 process runs including a preserved PGO warmup correction. Production unchanged, no JSON-specific tuning.

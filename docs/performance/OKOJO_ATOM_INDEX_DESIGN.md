@@ -76,3 +76,6 @@ Preserve current intern-after-value order first; eager interning can change new
 ID assignment and retention after malformed input. E019-B already removed the
 second lookup on hits and still regressed, so one fewer lookup alone is not proof
 of a faster parser.
+
+Follow-through: [E022 screening](OKOJO_ATOM_INDEX_SCREENING.md) implements the three
+main layouts; none passes the general replacement gate in its current form.
