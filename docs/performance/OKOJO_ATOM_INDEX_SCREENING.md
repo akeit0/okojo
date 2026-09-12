@@ -47,3 +47,7 @@ Decision: reject all three current implementations for general replacement. Keep
 the reduced-memory designs as prototypes. Next isolate hash policy and dispatch
 while preserving ordinary string identity performance and collision behavior.
 No deterministic benchmark-friendly hashing or JSON-only acceptance criterion.
+
+Follow-up: [E023 hash/call isolation](OKOJO_ATOM_HASH_CALL_SCREENING.md) tests
+forced inlining and directly measures the hash entrances. It keeps the general
+replacement gate and does not introduce private runtime APIs into production.

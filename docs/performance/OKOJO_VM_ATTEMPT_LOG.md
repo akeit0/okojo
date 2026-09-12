@@ -739,3 +739,5 @@ code, not as an acceptance criterion by itself.
 - [Post-E021 general atom-index design](OKOJO_ATOM_INDEX_DESIGN.md): unimplemented. Compare compact chaining, scalar full-hash/ID and grouped fingerprint/ID layouts across engine callers. Agent ownership and broad regression gates explicit; benchmark-specific parser tuning excluded.
 
 - [E022: general atom-index screening](OKOJO_ATOM_INDEX_SCREENING.md): three standalone layouts rejected for integration. Smaller payload but ordinary string/long-key regressions; 75 process runs including a preserved PGO warmup correction. Production unchanged, no JSON-specific tuning.
+
+- [E023: hash/call screening](OKOJO_ATOM_HASH_CALL_SCREENING.md): Mask/Hash/both inline variants rejected; PGO base already removes Mask calls. Hash-only public/runtime-dictionary span paths at length 128 measure 62.23/17.09 ns. Forty-two process records; no production or hash-policy change.
