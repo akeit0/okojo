@@ -150,7 +150,12 @@ internal sealed class RegExpEngine
         };
     }
 
-    public RegExpMatchResult? Exec(RegExpCompiledPattern compiled, string input, int startIndex)
+    public RegExpMatchResult? Exec(
+        RegExpCompiledPattern compiled,
+        string input,
+        int startIndex,
+        bool materializeNamedGroups = true
+    )
     {
         if (compiled.EngineState is not CompiledRegExp regexp)
             throw new ArgumentException(
@@ -162,7 +167,20 @@ internal sealed class RegExpEngine
         if (!regexp.TryMatch(input, startIndex, captures, out _))
             return null;
 
-        return BuildMatchResult(compiled, regexp, input, captures);
+        return BuildMatchResult(compiled, regexp, input, captures, materializeNamedGroups);
+    }
+
+    internal static string? GetNamedCaptureValue(
+        RegExpCompiledPattern compiled,
+        string?[] groups,
+        string name
+    )
+    {
+        var regexp = (CompiledRegExp)compiled.EngineState!;
+        foreach (var index in regexp.GetCaptureIndices(name))
+            if (groups[index] is { } value)
+                return value;
+        return null;
     }
 
     private static string[] ToNamedGroupNames(CompiledRegExp regexp)
@@ -190,7 +208,8 @@ internal sealed class RegExpEngine
         RegExpCompiledPattern compiled,
         CompiledRegExp regexp,
         string input,
-        CaptureRange[] captures
+        CaptureRange[] captures,
+        bool materializeNamedGroups
     )
     {
         var hasIndices = compiled.ParsedFlags.HasIndices;
@@ -212,9 +231,11 @@ internal sealed class RegExpEngine
         IReadOnlyDictionary<string, string?>? namedGroups = null;
         IReadOnlyDictionary<string, RegExpMatchRange?>? namedGroupIndices = null;
         var names = compiled.NamedGroupNames;
-        if (names.Length != 0)
+        if (names.Length != 0 && (materializeNamedGroups || hasIndices))
         {
-            var valueDict = new Dictionary<string, string?>(names.Length, StringComparer.Ordinal);
+            var valueDict = materializeNamedGroups
+                ? new Dictionary<string, string?>(names.Length, StringComparer.Ordinal)
+                : null;
             var indexDict = hasIndices
                 ? new Dictionary<string, RegExpMatchRange?>(names.Length, StringComparer.Ordinal)
                 : null;
@@ -232,7 +253,8 @@ internal sealed class RegExpEngine
                     break;
                 }
 
-                valueDict[name] = value;
+                if (valueDict is not null)
+                    valueDict[name] = value;
                 if (indexDict is not null)
                     indexDict[name] = range;
             }

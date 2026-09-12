@@ -287,6 +287,25 @@ public partial class Intrinsics
             return groups;
         }
 
+        static JsObject CreateNamedCapturesFromValues(
+            JsRealm realm,
+            RegExpCompiledPattern compiled,
+            string?[] values
+        )
+        {
+            JsPlainObject groups = new(realm, false) { Prototype = null };
+            foreach (var name in compiled.NamedGroupNames)
+            {
+                var value = RegExpEngine.GetNamedCaptureValue(compiled, values, name);
+                groups.DefineDataProperty(
+                    name,
+                    value is null ? JsValue.Undefined : JsValue.FromString(value),
+                    JsShapePropertyFlags.Open
+                );
+            }
+            return groups;
+        }
+
         static JsValue FromLengthValue(long value)
         {
             return value <= int.MaxValue ? JsValue.FromInt32((int)value) : new(value);
@@ -1325,7 +1344,12 @@ public partial class Intrinsics
                         }
                         else if (ReferenceEquals(execFunction, execFn) && obj is JsRegExpObject rx2)
                         {
-                            rawMatch = JsRegExpRuntime.ExecMatchResult(realm, rx2, input);
+                            rawMatch = JsRegExpRuntime.ExecMatchResult(
+                                realm,
+                                rx2,
+                                input,
+                                materializeNamedGroups: !functionalReplace
+                            );
                             if (rawMatch is null)
                                 break;
                         }
@@ -1388,12 +1412,17 @@ public partial class Intrinsics
                             var hasGroups = false;
                             if (rawMatch is not null)
                             {
-                                hasGroups =
-                                    rawMatch.NamedGroups is not null
-                                    && rawMatch.NamedGroups.Count != 0;
+                                // Intrinsic matches own their capture strings. Build a fresh JS
+                                // object directly; no intermediate named-value dictionary is needed.
+                                var compiled = ((JsRegExpObject)obj).CompiledPattern;
+                                hasGroups = compiled.NamedGroupNames.Length != 0;
                                 if (hasGroups)
                                     groupsArgValue = JsValue.FromObject(
-                                        CreateNamedCapturesObject(realm, rawMatch.NamedGroups!)
+                                        CreateNamedCapturesFromValues(
+                                            realm,
+                                            compiled,
+                                            rawMatch.Groups
+                                        )
                                     );
                             }
                             else if (

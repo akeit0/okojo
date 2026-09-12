@@ -189,7 +189,8 @@ internal static class JsRegExpRuntime
     internal static RegExpMatchResult? ExecMatchResult(
         JsRealm realm,
         JsRegExpObject rx,
-        string input
+        string input,
+        bool materializeNamedGroups = true
     )
     {
         var lastIndex = GetLastIndex(realm, rx);
@@ -204,7 +205,12 @@ internal static class JsRegExpRuntime
             return null;
         }
 
-        var engineMatch = RegExpEngine.Default.Exec(rx.CompiledPattern, input, startIndex);
+        var engineMatch = RegExpEngine.Default.Exec(
+            rx.CompiledPattern,
+            input,
+            startIndex,
+            materializeNamedGroups
+        );
         if (engineMatch is null)
         {
             if (useLastIndex)
