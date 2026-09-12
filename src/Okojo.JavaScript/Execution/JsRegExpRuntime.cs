@@ -284,16 +284,15 @@ internal static class JsRegExpRuntime
                     if (!seen.Add(groupName))
                         continue;
 
-                    RegExpMatchRange? range = null;
-                    if (match.NamedGroupIndices is not null)
-                        match.NamedGroupIndices.TryGetValue(groupName, out range);
-                    groups.DefineDataProperty(
-                        groupName,
-                        range.HasValue
-                            ? CreateMatchIndexPairArray(realm, range.Value)
-                            : JsValue.Undefined,
-                        JsShapePropertyFlags.Open
+                    var captureIndex = RegExpEngine.GetParticipatingCaptureIndex(
+                        rx.CompiledPattern,
+                        match.Groups,
+                        groupName
                     );
+                    var pair = JsValue.Undefined;
+                    if (captureIndex >= 0)
+                        indices.TryGetElement((uint)captureIndex, out pair);
+                    groups.DefineDataProperty(groupName, pair, JsShapePropertyFlags.Open);
                 }
 
                 indexGroupsValue = JsValue.FromObject(groups);

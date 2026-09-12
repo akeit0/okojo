@@ -183,6 +183,19 @@ internal sealed class RegExpEngine
         return null;
     }
 
+    internal static int GetParticipatingCaptureIndex(
+        RegExpCompiledPattern compiled,
+        string?[] groups,
+        string name
+    )
+    {
+        var regexp = (CompiledRegExp)compiled.EngineState!;
+        foreach (var index in regexp.GetCaptureIndices(name))
+            if (groups[index] is not null)
+                return index;
+        return -1;
+    }
+
     private static string[] ToNamedGroupNames(CompiledRegExp regexp)
     {
         var names = new string[regexp.GroupNames.Count];
