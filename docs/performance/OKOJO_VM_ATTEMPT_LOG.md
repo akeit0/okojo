@@ -724,3 +724,4 @@ code, not as an acceptance criterion by itself.
 - [E012: by-value offset](OKOJO_SCALED_DECODER_EXPERIMENT.md): rejected; PGO-enabled sum/call regressions despite reduced Add stack traffic.
 - [E013: pre-addressed operand](OKOJO_OPERAND_ADDRESS_EXPERIMENT.md): rejected; PGO-enabled calls +5.04%, wide sum +12.88%; four decoder correctness cases retained. Full suite 2,250 passed, 4 skipped.
 - [E014: direct Star assignment](OKOJO_REGISTER_STORE_EXPERIMENT.md): rejected; PGO sum +13.37%, calls +4.27%; direct heap stores add a reference-assignment helper on the numeric path. Seven semantic cases retained; full suite 2,257 passed, 4 skipped.
+- [E015: known integer heap-store screening](OKOJO_KNOWN_INT_STORE_SCREENING.md): screened out before implementation; RegExp callback offset already lowers to scalar payload/null stores. No candidate or speedup claimed.
