@@ -741,3 +741,5 @@ code, not as an acceptance criterion by itself.
 - [E022: general atom-index screening](OKOJO_ATOM_INDEX_SCREENING.md): three standalone layouts rejected for integration. Smaller payload but ordinary string/long-key regressions; 75 process runs including a preserved PGO warmup correction. Production unchanged, no JSON-specific tuning.
 
 - [E023: hash/call screening](OKOJO_ATOM_HASH_CALL_SCREENING.md): Mask/Hash/both inline variants rejected; PGO base already removes Mask calls. Hash-only public/runtime-dictionary span paths at length 128 measure 62.23/17.09 ns. Forty-two process records; no production or hash-policy change.
+
+- [Dictionary baseline study](OKOJO_DOTNET_DICTIONARY_BASELINE.md): source inspection and .NET 10.0.12 structural checks. Verified 24-byte entries, eight-byte views, collision-triggered randomized rehash at the 102nd same-bucket insertion, and cached-view validity across rehash/growth. No new timing or production change.
