@@ -73,39 +73,48 @@ workload, so refresh this table with a new run before quoting it, and use
 
 ### `JintSuiteComparisonBenchmarks`
 
-2026-09-11, ShortRun (`DOTNET_TieredPGO=0`), Jint 4.16.1, i7-13700F / .NET
-10.0.12. Re-run with `--filter *JintSuiteComparisonBenchmarks*`.
+2026-09-12, ShortRun (`IterationCount=5`, `LaunchCount=1`, `WarmupCount=3`),
+Jint 4.16.1, BenchmarkDotNet v0.15.8, Windows 11
+(10.0.26200.9445/25H2/2025Update/HudsonValley2), i7-13700F / .NET 10.0.12
+(SDK 11.0.100-preview.5.26302.115). Re-run with
+`--filter *JintSuiteComparisonBenchmarks*`.
 Ratios are Okojo / Jint; below 1.00 favors Okojo.
 
 | Script | Parse Jint | Parse Okojo (ratio) | Parse alloc O/J | Exec Jint | Exec Okojo (ratio) | Exec alloc O/J |
 | --- | ---:| ---:| ---:| ---:| ---:| ---:|
-| array-stress | 19.35 us | 19.63 us (1.01) | 11,806 / 29,560 B (0.40) | 1.719 ms | 1.630 ms (0.95) | 1,083,437 / 1,055,000 B (1.03) |
-| dromaeo-3d-cube-modern | 304.30 us | 341.35 us (1.12) | 161,555 / 300,800 B (0.54) | 3.377 ms | 2.337 ms (0.69) | 725,464 / 1,229,267 B (0.59) |
-| dromaeo-core-eval-modern | 11.54 us | 29.25 us (2.53) | 22,922 / 20,928 B (1.10) | 0.601 ms | 0.974 ms (1.62) | 1,797,331 / 168,248 B (10.68) |
-| dromaeo-object-array-modern | 33.51 us | 63.20 us (1.89) | 44,655 / 48,792 B (0.92) | 9.171 ms | 6.777 ms (0.74) | 4,330,926 / 9,298,742 B (0.47) |
-| dromaeo-object-regexp-modern | 184.71 us | 370.57 us (2.01) | 240,741 / 234,304 B (1.03) | 39.538 ms | 32.856 ms (0.83) | 68,542,808 / 86,904,371 B (0.79) |
-| dromaeo-object-string-modern | 102.07 us | 156.46 us (1.53) | 91,090 / 126,656 B (0.72) | 20.103 ms | 17.730 ms (0.88) | 9,855,406 / 21,755,680 B (0.45) |
-| dromaeo-string-base64-modern | 92.42 us | 97.70 us (1.06) | 47,591 / 102,515 B (0.46) | 12.623 ms | 8.890 ms (0.70) | 2,102,840 / 1,605,864 B (1.31) |
-| evaluation-modern | 6.68 us | 11.05 us (1.65) | 8,104 / 11,952 B (0.68) | 1.471 us | 0.760 us (0.52) | 616 / 1,552 B (0.40) |
-| json-parse-modern | 25.23 us | 31.56 us (1.25) | 19,764 / 37,728 B (0.52) | 13.260 ms | 11.119 ms (0.84) | 15,581,895 / 11,631,924 B (1.34) |
-| linq-js | 2.165 ms | 3.403 ms (1.57) | 1,752,707 / 1,565,816 B (1.12) | 26.44 us | 17.52 us (0.66) | 58,240 / 75,897 B (0.77) |
-| minimal | 1.02 us | 3.50 us (3.43) | 3,333 / 3,296 B (1.01) | 81.45 ns | 97.28 ns (1.19) | 200 / 296 B (0.68) |
-| stopwatch-modern | 28.16 us | 40.37 us (1.43) | 28,359 / 33,176 B (0.85) | 63.912 ms | 56.876 ms (0.89) | 10,976,032 / 12,349,184 B (0.89) |
+| array-stress | 18.49 us | 19.84 us (1.07) | 11,806 / 29,560 B (0.40) | 1.644 ms | 1.672 ms (1.02) | 1,083,444 / 1,055,000 B (1.03) |
+| dromaeo-3d-cube-modern | 314.68 us | 359.01 us (1.14) | 161,555 / 300,800 B (0.54) | 3.350 ms | 2.335 ms (0.70) | 725,464 / 1,229,267 B (0.59) |
+| dromaeo-core-eval-modern | 11.88 us | 28.56 us (2.40) | 22,922 / 20,928 B (1.10) | 592.27 us | 974.17 us (1.64) | 1,566,037 / 168,248 B (9.31) |
+| dromaeo-object-array-modern | 32.68 us | 61.99 us (1.90) | 44,655 / 48,794 B (0.92) | 8.868 ms | 6.163 ms (0.69) | 4,330,966 / 9,298,754 B (0.47) |
+| dromaeo-object-regexp-modern | 191.80 us | 359.65 us (1.88) | 240,741 / 234,304 B (1.03) | 37.432 ms | 33.761 ms (0.90) | 68,531,941 / 84,401,774 B (0.81) |
+| dromaeo-object-string-modern | 106.91 us | 154.39 us (1.44) | 91,090 / 126,656 B (0.72) | 21.626 ms | 17.598 ms (0.81) | 9,770,114 / 21,746,386 B (0.45) |
+| dromaeo-string-base64-modern | 93.94 us | 94.40 us (1.00) | 47,591 / 102,515 B (0.46) | 11.983 ms | 8.626 ms (0.72) | 1,798,512 / 1,605,864 B (1.12) |
+| evaluation-modern | 6.90 us | 11.45 us (1.66) | 8,104 / 11,952 B (0.68) | 1.46 us | 733.84 ns (0.50) | 616 / 1,552 B (0.40) |
+| json-parse-modern | 24.80 us | 31.04 us (1.25) | 19,764 / 37,728 B (0.52) | 12.992 ms | 10.989 ms (0.85) | 11,102,029 / 11,631,879 B (0.95) |
+| linq-js | 2.182 ms | 3.275 ms (1.50) | 1,744,981 / 1,565,816 B (1.11) | 26.66 us | 18.15 us (0.68) | 58,240 / 75,897 B (0.77) |
+| minimal | 944.51 ns | 3.35 us (3.54) | 3,333 / 3,296 B (1.01) | 84.61 ns | 95.87 ns (1.13) | 200 / 296 B (0.68) |
+| stopwatch-modern | 27.72 us | 40.81 us (1.47) | 28,359 / 33,176 B (0.85) | 63.347 ms | 57.621 ms (0.91) | 10,976,032 / 12,349,184 B (0.89) |
 
-Read: execution favors Okojo on 10 of 12 scripts; parse+compile favors Jint
-on all 12 (roughly 1.0-2.5x, 3.4x on the tiny `minimal` script). The two
-execution regressions are `dromaeo-core-eval-modern` (1.62x time, 10.68x
-alloc — the outlier on both axes) and `minimal` noise-level (1.19x on a
-sub-microsecond workload). Execution allocation favors Okojo on 8 of 12;
-the other alloc regressions are `dromaeo-string-base64-modern` (1.31x) and
-`json-parse-modern` (1.34x).
+Regenerate this table from the raw BenchmarkDotNet CSV:
+
+```bash
+bash benchmarks/jint-suite-comparison-to-readme.sh BenchmarkDotNet.Artifacts/results/JintSuiteComparisonBenchmarks-report.csv
+```
+
+Read: execution favors Okojo on 9 of 12 scripts; parse+compile favors Jint
+on all 12 (roughly 1.0-2.4x, 3.54x on the tiny `minimal` script). The three
+execution regressions are `dromaeo-core-eval-modern` (1.64x time, 9.31x
+alloc — the outlier on both axes), `array-stress` (1.02x, near noise), and
+`minimal` noise-level (1.13x on a sub-microsecond workload). Execution
+allocation favors Okojo on 9 of 12; the other alloc regressions are
+`array-stress` (1.03x) and `dromaeo-string-base64-modern` (1.12x).
 
 ## Known gaps under measurement
 
 - Parse+compile is behind Jint across the ported suite (see table above);
   closing that gap is compiler-frontend work, not VM work.
 - `dromaeo-core-eval-modern` execution is the one significant execution
-  regression (1.62x time, 10.68x alloc); `eval`-heavy path work belongs here.
+  regression (1.64x time, 9.31x alloc); `eval`-heavy path work belongs here.
 - RegExp split-path tuning continues against Jint 4.16.1. Detail:
   `docs/performance/reports/OKOJO_REGEXP_SPLIT_PERF_NOTE.md`.
 - Deeper dotnet-trace methodology notes live under `docs/performance/`.
