@@ -458,28 +458,17 @@ public partial class Intrinsics
         [MethodImpl(MethodImplOptions.NoInlining)]
         private bool ParsePropertyName(out int atom, out uint index)
         {
-            var quote = offset;
             Expect('"');
             var start = offset;
             var specialOffset = source.AsSpan(start).IndexOfAny('"', '\\');
             if (specialOffset < 0)
                 throw new JsonException("Unterminated JSON string.");
             var special = start + specialOffset;
-            if (source[special] == '\\')
-            {
-                offset = quote;
-                var decoded = ParseString();
-                if (TryGetArrayIndexFromCanonicalString(decoded, out index))
-                {
-                    atom = 0;
-                    return true;
-                }
-                atom = realm.Atoms.InternNoCheck(decoded);
-                return false;
-            }
             for (var i = start; i < special; i++)
                 if (source[i] < ' ')
                     throw new JsonException("A JSON string cannot contain control characters.");
+            if (source[special] == '\\')
+                return ParseEscapedPropertyName(start, special, out atom, out index);
             offset = special + 1;
             var name = source.AsSpan(start, specialOffset);
             if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out index))
@@ -489,6 +478,50 @@ public partial class Intrinsics
             }
             atom = realm.Atoms.InternNoCheck(name);
             return false;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool ParseEscapedPropertyName(int start, int special, out int atom, out uint index)
+        {
+            var builder = new PooledCharBuilder(stackalloc char[128]);
+            try
+            {
+                builder.Append(source.AsSpan(start, special - start));
+                while (true)
+                {
+                    offset = special + 1;
+                    if (offset == source.Length)
+                        throw new JsonException("Unterminated JSON escape.");
+                    builder.Append(ParsePropertyEscape(source[offset++]));
+                    start = offset;
+                    var next = source.AsSpan(start).IndexOfAny('"', '\\');
+                    if (next < 0)
+                        throw new JsonException("Unterminated JSON string.");
+                    special = start + next;
+                    for (var i = start; i < special; i++)
+                        if (source[i] < ' ')
+                            throw new JsonException(
+                                "A JSON string cannot contain control characters."
+                            );
+                    builder.Append(source.AsSpan(start, next));
+                    if (source[special] == '"')
+                    {
+                        offset = special + 1;
+                        var name = builder.AsSpan();
+                        if (AtomTable.TryGetArrayIndexFromCanonicalString(name, out index))
+                        {
+                            atom = 0;
+                            return true;
+                        }
+                        atom = realm.Atoms.InternNoCheck(name);
+                        return false;
+                    }
+                }
+            }
+            finally
+            {
+                builder.Dispose();
+            }
         }
 
         private string ParseString()
@@ -578,6 +611,46 @@ public partial class Intrinsics
 
                     builder.Append((char)value);
                     return;
+                }
+                default:
+                    throw new JsonException("Invalid JSON escape.");
+            }
+        }
+
+        // Keep value-string decoding separate: sharing this return-value helper regressed
+        // FullOpts string-value parsing. Both decoders preserve UTF-16 code units.
+        private char ParsePropertyEscape(char escape)
+        {
+            switch (escape)
+            {
+                case '"':
+                case '\\':
+                case '/':
+                    return escape;
+                case 'b':
+                    return '\b';
+                case 'f':
+                    return '\f';
+                case 'n':
+                    return '\n';
+                case 'r':
+                    return '\r';
+                case 't':
+                    return '\t';
+                case 'u':
+                {
+                    if (offset + 4 > source.Length)
+                        throw new JsonException("Incomplete JSON unicode escape.");
+                    var value = 0;
+                    for (var i = 0; i < 4; i++)
+                    {
+                        var digit = HexValue(source[offset++]);
+                        if (digit < 0)
+                            throw new JsonException("Invalid JSON unicode escape.");
+                        value = (value << 4) | digit;
+                    }
+
+                    return (char)value;
                 }
                 default:
                     throw new JsonException("Invalid JSON escape.");

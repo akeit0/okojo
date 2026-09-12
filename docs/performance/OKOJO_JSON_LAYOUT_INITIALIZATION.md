@@ -108,3 +108,45 @@ before a later syntax error. Parsed objects are not exposed before completion.
 Validation: 65 focused JSON tests, then 2,304 full-suite passes and four skips.
 Coverage includes raw controls, escaped controls, lone surrogates, numeric
 boundaries, malformed input, long names, duplicate keys and nested atom growth.
+
+## Escaped property-name spans
+
+The escaped-name fallback now continues from the already located backslash.
+It decodes into the existing PooledCharBuilder, starting with 128 stack chars,
+and appends validated ordinary runs as spans. Numeric classification and atom
+interning consume the decoded span before the helper disposes its buffer.
+Existing atoms require no temporary decoded string; new atoms retain an owned
+canonical string. The non-inlined helper returns before recursive value parsing,
+so its stack buffer does not accumulate per nested container. Longer names use
+ArrayPool storage; first rent and pool pressure can still allocate.
+
+ParseString and its AppendEscape decoder retain their original source. An
+experiment sharing a character-returning decoder with values improved tiered
+measurements but regressed isolated FullOpts string-value cases. The property
+decoder remains separate to avoid that change to the value path.
+
+Against `0371db5`, three alternating process pairs per configuration measured
+all-escaped six-key objects (64 objects per action) as follows. Times are us per
+complete action; prefix length is the ordinary run before the escaped digit.
+
+| Prefix chars | Tiered before -> after | FullOpts before -> after | Allocation B before -> after |
+|---|---:|---:|---:|
+| 0 | 26.488 -> 22.563 | 25.425 -> 21.188 | 69,288 -> 23,208 |
+| 128 | 83.600 -> 68.400 | 69.463 -> 53.700 | 265,896 -> 23,208 |
+| 512 | 226.488 -> 185.750 | 166.338 -> 133.988 | 855,720 -> 23,208 |
+
+This supersedes the earlier escaped-name fallback penalty. First-seen escaped
+names also improve: 64 names take 9.0 -> 6.6 us tiered and 9.5 -> 7.4 us FullOpts,
+with 19,776 -> 6,464 B allocated. Warm pooled-name savings are not cold-pool claims.
+
+There is no demonstrated gain for the mostly unescaped modern workload:
+11.328 -> 11.459 ms tiered and 11.794 -> 12.284 ms FullOpts, both with overlapping
+process ranges and unchanged 11,100,896 B allocation. Repeated unescaped names
+improve 3.6% tiered but regress 4.0% FullOpts. Value-only allocation is unchanged;
+residual FullOpts timing movement remains despite identical normalized native
+instructions for ParseString and AppendEscape. These are scoped escape-path
+wins, not evidence of a universal parsing speedup.
+
+Validation: 71 focused JSON tests, then 2,310 full-suite passes and four skips;
+builds have no warnings. Additional cases cover the stack/pool boundary, long
+names, buffer reuse after failed parsing and retained lone-surrogate keys.

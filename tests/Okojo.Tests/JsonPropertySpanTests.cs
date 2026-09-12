@@ -4,6 +4,36 @@ namespace Okojo.Tests;
 
 public class JsonPropertySpanTests
 {
+    [TestCase(126)]
+    [TestCase(127)]
+    [TestCase(128)]
+    [TestCase(129)]
+    [TestCase(512)]
+    [TestCase(2048)]
+    public void EscapedNamesOwnTheirStorageAfterBufferReuseAndErrors(int count)
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        string body = """
+            const prefix='q'.repeat(COUNT), key=prefix+'\n\ud800';
+            const text='{'+JSON.stringify(key)+':1}';
+            const first=JSON.parse(text);
+            for(let i=0;i<20;i++) {
+                const other=prefix+'\t'+i;
+                if(JSON.parse('{'+JSON.stringify(other)+':2}')[other]!==2)return false;
+                let threw=false;
+                try{JSON.parse('{"'+prefix+'\\u0061'+String.fromCharCode(1)+'":0}')}
+                catch(e){threw=e instanceof SyntaxError}
+                if(!threw || JSON.parse(text)[key]!==1)return false;
+            }
+            return first[key]===1 && Object.keys(first)[0]===key;
+            """;
+        realm.Execute(
+            realm.CompileScript("(function(){" + body.Replace("COUNT", count.ToString()) + "})();")
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
     [TestCase(
         """
             const a=JSON.parse('{"4294967294":1,"4294967295":2,"0":3,"00":4,"01":5,"-0":6,"1e0":7}');
