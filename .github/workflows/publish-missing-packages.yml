@@ -1,0 +1,74 @@
+name: Publish missing packages (temporary)
+
+# One-off backfill: pack every packable project under src/ and push it to nuget.org.
+# Existing packages are skipped with --skip-duplicate, so this only publishes what is
+# missing. Remove this workflow once the full release set has been published.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Pack packable projects
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $repoRoot = $PWD.Path
+          $sourceRoot = Join-Path $repoRoot 'src'
+
+          $projects = @(
+            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.csproj' |
+              ForEach-Object {
+                [xml]$projectFile = Get-Content -LiteralPath $_.FullName -Raw
+                $propertyGroups = @($projectFile.Project.PropertyGroup)
+                $isPackable = @($propertyGroups | ForEach-Object { $_.IsPackable }) -contains 'true'
+                $packageId = @($propertyGroups | ForEach-Object { $_.PackageId }) |
+                  Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                  Select-Object -First 1
+                if ($isPackable -and $packageId) {
+                  [pscustomobject]@{
+                    Id = [string]$packageId
+                    Project = [IO.Path]::GetRelativePath($repoRoot, $_.FullName)
+                  }
+                }
+              }
+          ) | Sort-Object Id
+
+          if (-not $projects) { throw "No packable projects found under src/." }
+
+          foreach ($project in $projects) {
+            Write-Host "Packing $($project.Id) from $($project.Project)"
+            dotnet pack $project.Project -c Release -o artifacts /p:ContinuousIntegrationBuild=true
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push packages (skip existing)
+        shell: pwsh
+        run: |
+          $packages = Get-ChildItem artifacts -Filter *.nupkg | Sort-Object Name
+          if ($packages.Count -eq 0) { throw "No packages to publish." }
+
+          foreach ($package in $packages) {
+            Write-Host "Publishing $($package.Name)"
+            dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
