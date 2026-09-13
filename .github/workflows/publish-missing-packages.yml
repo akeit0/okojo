@@ -6,6 +6,10 @@ name: Publish missing packages (temporary)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/publish-missing-packages.trigger"
 
 jobs:
   publish:
