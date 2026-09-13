@@ -24,6 +24,11 @@ on:
           - Okojo.DocGenerator.Cli
           - Okojo.JavaScript
           - Okojo.JavaScript.Embedding
+          - Okojo.Numerics
+          - Okojo.Text.Unicode
+          - Okojo.Text.RegularExpressions
+          - Okojo.Globalization
+          - Okojo.DotNet.Modules
           - Okojo.Hosting
           - Okojo.Diagnostics
           - Okojo.Reflection
@@ -49,29 +54,36 @@ jobs:
         shell: pwsh
         run: |
           $selected = "${{ inputs.package }}"
+          $repoRoot = $PWD.Path
+          $sourceRoot = Join-Path $repoRoot 'src'
+
+          # Discover every packable project so the publish set cannot drift from src/.
           $all = @(
-            @{ Id = "Okojo.Annotations"; Project = "src/Okojo.Annotations/Okojo.Annotations.csproj" },
-            @{ Id = "Okojo.SourceGenerator"; Project = "src/Okojo.SourceGenerator/Okojo.SourceGenerator.csproj" },
-            @{ Id = "Okojo.DocGenerator.Annotations"; Project = "src/Okojo.DocGenerator.Annotations/Okojo.DocGenerator.Annotations.csproj" },
-            @{ Id = "Okojo.DocGenerator.Cli"; Project = "src/Okojo.DocGenerator.Cli/Okojo.DocGenerator.Cli.csproj" },
-            @{ Id = "Okojo.JavaScript"; Project = "src/Okojo.JavaScript/Okojo.JavaScript.csproj" },
-            @{ Id = "Okojo.JavaScript.Embedding"; Project = "src/Okojo.JavaScript.Embedding/Okojo.JavaScript.Embedding.csproj" },
-            @{ Id = "Okojo.Hosting"; Project = "src/Okojo.Hosting/Okojo.Hosting.csproj" },
-            @{ Id = "Okojo.Diagnostics"; Project = "src/Okojo.Diagnostics/Okojo.Diagnostics.csproj" },
-            @{ Id = "Okojo.Reflection"; Project = "src/Okojo.Reflection/Okojo.Reflection.csproj" },
-            @{ Id = "Okojo.WebAssembly"; Project = "src/Okojo.WebAssembly/Okojo.WebAssembly.csproj" },
-            @{ Id = "Okojo.WebPlatform"; Project = "src/Okojo.WebPlatform/Okojo.WebPlatform.csproj" },
-            @{ Id = "Okojo.WebAssembly.Wasmtime"; Project = "src/Okojo.WebAssembly.Wasmtime/Okojo.WebAssembly.Wasmtime.csproj" }
-          )
+            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.csproj' |
+              ForEach-Object {
+                [xml]$projectFile = Get-Content -LiteralPath $_.FullName -Raw
+                $propertyGroups = @($projectFile.Project.PropertyGroup)
+                $isPackable = @($propertyGroups | ForEach-Object { $_.IsPackable }) -contains 'true'
+                $packageId = @($propertyGroups | ForEach-Object { $_.PackageId }) |
+                  Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                  Select-Object -First 1
+                if ($isPackable -and $packageId) {
+                  [pscustomobject]@{
+                    Id = [string]$packageId
+                    Project = [IO.Path]::GetRelativePath($repoRoot, $_.FullName)
+                  }
+                }
+              }
+          ) | Sort-Object Id
 
           if ($selected -eq "all") {
-            $packages = $all
+            $packages = @($all)
           } else {
-            $packages = $all | Where-Object { $_.Id -eq $selected }
+            $packages = @($all | Where-Object { $_.Id -eq $selected })
           }
 
           if ($packages.Count -eq 0) {
-            throw "No packages selected."
+            throw "No packages selected. Available: $($all.Id -join ', ')"
           }
 
           $json = $packages | ConvertTo-Json -Compress
