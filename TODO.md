@@ -24,6 +24,8 @@
 
 ### Compatibility and integration
 
+- [ ] scope module loading/caches per browser realm and detach document-owned host work on navigation; `JsRuntime.ReleaseRealm` removes registry ownership only (see `docs/architecture/OKOJO_REALM_OWNERSHIP.md`)
+
 - [ ] keep the non-legacy, non-staging Test262 passing baseline stable during API/compiler/runtime work
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads
 - [ ] attempt a real HTML/CSS renderer integration for DOM-manipulation browser compatibility testing

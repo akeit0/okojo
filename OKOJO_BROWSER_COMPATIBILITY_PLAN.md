@@ -14,6 +14,14 @@ Target outcome:
 
 ## Current status
 
+### Browser realm ownership
+
+`JsRuntime.ReleaseRealm` lets browser hosts release an additional realm's registry ownership
+while saved JavaScript objects/functions and pending jobs remain valid. Same-agent realms use
+direct references, with monotonic realm IDs. Module cache isolation and document-specific task
+teardown remain prerequisites for complete iframe navigation. See
+[`OKOJO_REALM_OWNERSHIP.md`](docs/architecture/OKOJO_REALM_OWNERSHIP.md).
+
 ### Code/instance split implementation (gates green 2026-09-10)
 
 Portable compilation units and function descriptors now separate shared bytecode

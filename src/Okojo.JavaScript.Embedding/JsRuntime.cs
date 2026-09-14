@@ -221,6 +221,21 @@ public sealed class JsRuntime : IDisposable
         return MainAgent.CreateRealm(CreateRealmOptions(configure));
     }
 
+    /// <summary>
+    /// Releases registry ownership of an additional realm created on this runtime's main agent.
+    /// Returns false if the realm was already released. The main realm cannot be released.
+    /// </summary>
+    /// <remarks>
+    /// Existing objects, functions, and pending jobs remain valid and can keep the realm alive.
+    /// Hosts must detach document services and cancel their own work separately. Other roots,
+    /// including module caches, are not removed by this operation.
+    /// </remarks>
+    public bool ReleaseRealm(JsRealm realm)
+    {
+        ThrowIfDisposed();
+        return MainAgent.ReleaseRealm(realm);
+    }
+
     public JsModuleLoadResult LoadModule(string specifier, string? referrer = null)
     {
         ThrowIfDisposed();

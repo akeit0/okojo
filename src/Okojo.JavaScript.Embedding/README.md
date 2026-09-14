@@ -13,3 +13,9 @@ Console.WriteLine(runtime.MainRealm.Evaluate("1 + 2"));
 
 Add `Okojo.Hosting`, `Okojo.WebPlatform`, or another profile package when host
 policy and platform APIs are needed.
+
+Additional same-agent realms created with `runtime.CreateRealm()` share object references
+without copying. When a browser document is replaced, `runtime.ReleaseRealm(childRealm)`
+removes the runtime's registry ownership. Saved functions/objects and pending jobs remain
+valid; the host must detach its document services separately. The main realm remains owned
+until runtime disposal. Module caches can still retain a released realm.

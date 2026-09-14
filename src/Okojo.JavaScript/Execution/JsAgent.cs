@@ -38,6 +38,7 @@ public sealed partial class JsAgent : IDisposable
     private readonly Queue<PendingJob> promiseJobs = new();
     private readonly List<JsRealm> realms = new();
     private readonly object realmsGate = new();
+    private int nextRealmId;
     private readonly ConditionalWeakTable<JsScript, object> registeredScripts = new();
     private readonly Dictionary<int, Symbol> registeredSymbolByAtom = new();
     private readonly object scriptRegistryGate = new();
@@ -128,7 +129,7 @@ public sealed partial class JsAgent : IDisposable
             ? ExecutionCheckInterval
             : ulong.MaxValue;
         HostDefined = Options.HostDefined;
-        var realm = new JsRealm(this, realms.Count, Options.Realm);
+        var realm = new JsRealm(this, ReserveRealmId(), Options.Realm);
         lock (realmsGate)
         {
             realms.Add(realm);
@@ -314,10 +315,38 @@ public sealed partial class JsAgent : IDisposable
     {
         lock (realmsGate)
         {
-            var realm = new JsRealm(this, realms.Count, options ?? Options.Realm);
+            var realm = new JsRealm(this, ReserveRealmId(), options ?? Options.Realm);
             realm.Initialize();
             realms.Add(realm);
             return realm;
+        }
+    }
+
+    // Called only during construction or under realmsGate. IDs are independent of registry
+    // positions because released realms may still be referenced by JavaScript or pending jobs.
+    private int ReserveRealmId()
+    {
+        var id = nextRealmId;
+        nextRealmId = checked(nextRealmId + 1);
+        return id;
+    }
+
+    internal bool ReleaseRealm(JsRealm realm)
+    {
+        ArgumentNullException.ThrowIfNull(realm);
+        if (!ReferenceEquals(realm.Agent, this))
+            throw new ArgumentException(
+                "Realm belongs to a different JavaScript agent.",
+                nameof(realm)
+            );
+        lock (realmsGate)
+        {
+            if (ReferenceEquals(realm, realms[0]))
+                throw new ArgumentException(
+                    "The main realm is owned until its runtime is disposed.",
+                    nameof(realm)
+                );
+            return realms.Remove(realm);
         }
     }
 
