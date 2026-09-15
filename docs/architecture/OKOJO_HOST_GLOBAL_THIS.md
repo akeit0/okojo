@@ -76,7 +76,7 @@ instruction sequence; the correction is in receiver forwarding and proxy cache f
 
 ### Follow-up: module entry this
 
-The Falconet consumer test exposed a preexisting module-entry bug: `ModuleExecutor` used the
+A host integration regression exposed a module-entry bug: `ModuleExecutor` used the
 classic script entry point, so module top-level this received the global object (now the proxy).
 Scope: pass undefined explicitly at module entry, retaining classic script this and strict
 function behavior. Add synchronous and top-level-await module cases to `HostGlobalThisTests`.

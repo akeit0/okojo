@@ -4,7 +4,7 @@ Scope: provide the host integration layer with a pending intrinsic Promise, firs
 resolution locking, internal reactions, and explicit handled marking. Internal runtime
 capabilities, reaction records, and Promise state remain internal. No compiler or VM changes.
 
-Falconet's View Transition binding needs three stable promises and callback result adoption.
+Host APIs need stable native promises for asynchronous completion and callback result adoption.
 Capturing JavaScript `Promise`/`then` functions is insufficient: species and constructor
 properties remain observable and mutable. `JsRealm.CreatePromiseCapability()` provides the
 host-owned operation; only its `Promise` is published to script. Calls stay on the owning
