@@ -5,6 +5,7 @@ namespace Okojo.JavaScript.Objects;
 public sealed class JsWindowProxy : JsObject, IProxyObject
 {
     private ProxyCore core;
+    private IWindowAccessPolicy? accessPolicy;
 
     private readonly JsObject handler;
 
@@ -50,8 +51,19 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
                 "A window target must belong to the same agent.",
                 nameof(target)
             );
-        core = target is null ? default : new ProxyCore(target.GlobalObject, handler);
+        core = target is null ? default : new ProxyCore(target.GlobalObject, handler, accessPolicy);
     }
+
+    /// <summary>
+    /// Installs the host's cross-origin member policy. Null restores unrestricted access.
+    /// </summary>
+    public void SetAccessPolicy(IWindowAccessPolicy? policy)
+    {
+        accessPolicy = policy;
+        core.AccessPolicy = policy;
+    }
+
+    private void EnsureAccess(JsRealm realm, string? member) => core.EnsureAccess(realm, member);
 
     public override bool IsExtensible => EnsureTarget().IsExtensible;
     JsObject IProxyObject.ProxyOwner => this;
@@ -69,6 +81,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
 
     internal override JsObject? GetPrototypeOf(JsRealm realm)
     {
+        EnsureAccess(realm, null);
         return core.GetPrototypeOf(realm);
     }
 
@@ -115,6 +128,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         out JsValue value
     )
     {
+        EnsureAccess(realm, index.ToString());
         return EnsureTarget(realm).TryGetElementWithReceiver(realm, receiver, index, out value);
     }
 
@@ -125,6 +139,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         JsValue value
     )
     {
+        EnsureAccess(realm, index.ToString());
         return this.SetElementWithReceiverViaProxy(realm, receiver, index, value);
     }
 
@@ -151,6 +166,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         bool needDescriptor = true
     )
     {
+        EnsureAccess(realm, atom < 0 ? null : realm.Atoms.AtomToString(atom));
         var target = EnsureTarget();
         return target.TryGetOwnNamedPropertyDescriptorAtom(
             realm,
@@ -180,6 +196,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         List<string> enumerableKeysOut
     )
     {
+        EnsureAccess(realm, null);
         var target = EnsureTarget();
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
     }
