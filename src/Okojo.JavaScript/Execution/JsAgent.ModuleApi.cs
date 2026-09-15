@@ -11,13 +11,14 @@ public sealed partial class JsAgent
     )
     {
         ArgumentNullException.ThrowIfNull(realm);
-        var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        var resolvedId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
         var value = EvaluateModule(realm, specifier, referrer, false);
         if (!value.TryGetObject(out var ns))
             throw new InvalidOperationException("Module namespace object was not returned.");
 
         var moduleNamespace = new JsModuleNamespace(realm, resolvedId, ns);
         var isCompleted = !TryGetPendingModuleEvaluationPromise(
+            realm,
             specifier,
             referrer,
             out var pendingPromise
@@ -92,8 +93,34 @@ public sealed partial class JsAgent
 
         public string Resolve(string specifier, string? referrer = null)
         {
-            return agent.ResolveModuleSpecifierOrThrow(specifier, referrer);
+            return agent.ResolveModuleSpecifierOrThrow(agent.MainRealm, specifier, referrer);
         }
+
+        public string Resolve(JsRealm realm, string specifier, string? referrer = null) =>
+            agent.ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
+
+        public bool TryGetCachedNamespace(
+            JsRealm realm,
+            string resolvedId,
+            out JsValue namespaceValue
+        ) => agent.TryGetCachedModuleNamespaceByResolvedId(resolvedId, out namespaceValue, realm);
+
+        public ModuleStateSnapshot GetState(
+            JsRealm realm,
+            string resolvedId,
+            bool includeError = false
+        ) => agent.GetModuleStateSnapshotByResolvedId(resolvedId, includeError, realm);
+
+        public bool Invalidate(JsRealm realm, string resolvedId) =>
+            agent.InvalidateModuleByResolvedId(resolvedId, realm);
+
+        public ModuleInvalidationResult Invalidate(
+            JsRealm realm,
+            string resolvedId,
+            ModuleInvalidationScope scope
+        ) => agent.InvalidateModuleByResolvedId(resolvedId, scope, realm);
+
+        public void Clear(JsRealm realm) => agent.ClearModuleCaches(realm);
 
         public JsValue Evaluate(string specifier, string? referrer = null)
         {

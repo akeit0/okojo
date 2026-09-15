@@ -18,4 +18,9 @@ Additional same-agent realms created with `runtime.CreateRealm()` share object r
 without copying. When a browser document is replaced, `runtime.ReleaseRealm(childRealm)`
 removes the runtime's registry ownership. Saved functions/objects and pending jobs remain
 valid; the host must detach its document services separately. The main realm remains owned
-until runtime disposal. Module caches can still retain a released realm.
+until runtime disposal. Each realm has an independent module map; set
+`options.ModuleSourceLoader` in `runtime.CreateRealm(options => ...)` to override its loader.
+Module URLs and `import.meta.url` are unchanged. Cached modules do not independently root a
+released realm through the agent, while retained namespace/function references remain valid.
+`agent.Modules` diagnostics and invalidation default to the main realm; use their explicit
+realm overloads to inspect or invalidate a child document's map.

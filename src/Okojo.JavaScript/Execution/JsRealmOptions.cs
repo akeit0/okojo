@@ -9,8 +9,16 @@ public sealed class JsRealmOptions
     public object? HostDefined { get; set; }
     public Action<JsRealm>? Initialize { get; set; }
 
+    /// <summary>Overrides module resolution/loading for this realm's independent module map.</summary>
+    public IModuleSourceLoader? ModuleSourceLoader { get; set; }
+
     internal JsRealmOptions Clone()
     {
-        return new() { HostDefined = HostDefined, Initialize = Initialize };
+        return new()
+        {
+            HostDefined = HostDefined,
+            Initialize = Initialize,
+            ModuleSourceLoader = ModuleSourceLoader,
+        };
     }
 }

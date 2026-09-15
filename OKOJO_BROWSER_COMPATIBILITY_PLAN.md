@@ -18,8 +18,10 @@ Target outcome:
 
 `JsRuntime.ReleaseRealm` lets browser hosts release an additional realm's registry ownership
 while saved JavaScript objects/functions and pending jobs remain valid. Same-agent realms use
-direct references, with monotonic realm IDs. Module cache isolation and document-specific task
-teardown remain prerequisites for complete iframe navigation. See
+direct references, with monotonic realm IDs. Each realm now has an independent module map and
+an optional `JsRealmOptions.ModuleSourceLoader`; identical URLs in related documents preserve
+their own namespaces, globals, and async evaluation. Document-specific host task teardown
+remains an embedding prerequisite for complete iframe navigation. See
 [`OKOJO_REALM_OWNERSHIP.md`](docs/architecture/OKOJO_REALM_OWNERSHIP.md).
 
 ### Code/instance split implementation (gates green 2026-09-10)

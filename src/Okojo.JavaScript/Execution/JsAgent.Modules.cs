@@ -21,6 +21,8 @@ public sealed partial class JsAgent
         string? importType = null
     )
     {
+        var cache = GetModuleCache(realm);
+        var ModuleGraph = cache.Graph;
         if (
             !string.IsNullOrEmpty(importType)
             && !string.Equals(importType, "json", StringComparison.Ordinal)
@@ -34,7 +36,7 @@ public sealed partial class JsAgent
 
         if (string.Equals(importType, "json", StringComparison.Ordinal))
         {
-            var resolvedImportId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+            var resolvedImportId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
             if (!resolvedImportId.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new JsRuntimeException(
                     JsErrorKind.TypeError,
@@ -48,7 +50,7 @@ public sealed partial class JsAgent
 
         var node = LinkModule(realm, specifier, referrer);
         var resolvedId = node.ResolvedId;
-        var linkPlan = node.LinkPlan ?? BuildModuleLinkPlan(node);
+        var linkPlan = node.LinkPlan ?? BuildModuleLinkPlan(cache, node);
 
         if (node.State == ModuleEvalState.Evaluated)
             return node.ExportsObject;
@@ -266,6 +268,7 @@ public sealed partial class JsAgent
                     if (
                         binding.Kind == ModuleImportBindingKind.Named
                         && !CanResolveExportName(
+                            cache,
                             binding.ResolvedDependencyId,
                             binding.ImportedName,
                             binding.ImportType
@@ -288,6 +291,7 @@ public sealed partial class JsAgent
                     _ = EnsureDependencyExports(new(from.ResolvedDependencyId, from.ImportType));
                     if (
                         !CanResolveExportName(
+                            cache,
                             from.ResolvedDependencyId,
                             from.ImportedName,
                             from.ImportType
@@ -660,7 +664,8 @@ public sealed partial class JsAgent
                     (Action)(
                         () =>
                         {
-                            var ancestorPlan = ancestor.LinkPlan ?? BuildModuleLinkPlan(ancestor);
+                            var ancestorPlan =
+                                ancestor.LinkPlan ?? BuildModuleLinkPlan(cache, ancestor);
                             StartModuleExecution(
                                 ancestor,
                                 targetRealm,
@@ -910,7 +915,9 @@ public sealed partial class JsAgent
         bool requireJsonType = false
     )
     {
-        var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        var cache = GetModuleCache(realm);
+        var jsonModuleNamespaceCache = cache.Json;
+        var resolvedId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
         if (requireJsonType && !resolvedId.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
@@ -923,7 +930,7 @@ public sealed partial class JsAgent
                 return cachedNamespace;
         }
 
-        var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
+        var source = LoadModuleSourceByResolvedIdOrThrow(realm, resolvedId);
         var defaultExport = realm.ParseJsonModuleSource(source);
         var moduleNamespace = new JsModuleNamespaceObject(realm);
         moduleNamespace.DefineDataPropertyAtom(
@@ -947,14 +954,16 @@ public sealed partial class JsAgent
 
     internal JsValue EvaluateTextModule(JsRealm realm, string specifier, string? referrer = null)
     {
-        var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        var cache = GetModuleCache(realm);
+        var textModuleNamespaceCache = cache.Text;
+        var resolvedId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
         lock (moduleCacheGate)
         {
             if (textModuleNamespaceCache.TryGetValue(resolvedId, out var cachedNamespace))
                 return cachedNamespace;
         }
 
-        var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
+        var source = LoadModuleSourceByResolvedIdOrThrow(realm, resolvedId);
         var moduleNamespace = new JsModuleNamespaceObject(realm);
         moduleNamespace.DefineDataPropertyAtom(
             realm,
@@ -977,7 +986,8 @@ public sealed partial class JsAgent
 
     internal ModuleRecordNode LinkModule(JsRealm realm, string specifier, string? referrer)
     {
-        var rootResolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        var cache = GetModuleCache(realm);
+        var rootResolvedId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
         try
         {
             ModuleRecordNode? rootNode = null;
@@ -998,14 +1008,14 @@ public sealed partial class JsAgent
                 ModuleLinkPlan? plan;
                 lock (moduleCacheGate)
                 {
-                    var source = LoadModuleSourceByResolvedIdOrThrow(resolvedId);
+                    var source = LoadModuleSourceByResolvedIdOrThrow(realm, resolvedId);
                     node = GetOrCreateModuleNodeOrThrow(resolvedId, source, realm);
                     plan = node.LinkPlan;
                 }
 
                 if (plan is null)
                 {
-                    var linkResult = ModuleLinker.BuildPlanResult(resolvedId, node.Program!);
+                    var linkResult = cache.Linker.BuildPlanResult(resolvedId, node.Program!);
                     if (linkResult.Diagnostics.Count != 0)
                         throw WrapModuleLinkException(
                             resolvedId,
@@ -1038,8 +1048,10 @@ public sealed partial class JsAgent
         }
     }
 
-    private ModuleLinkPlan BuildModuleLinkPlan(ModuleRecordNode node) =>
-        ModuleLinker.BuildPlanResult(node.ResolvedId, node.Program!).Plan;
+    private static ModuleLinkPlan BuildModuleLinkPlan(
+        RealmModuleCache cache,
+        ModuleRecordNode node
+    ) => cache.Linker.BuildPlanResult(node.ResolvedId, node.Program!).Plan;
 
     private static IEnumerable<ResolvedModuleDependency> EnumerateLinkDependencies(
         ModuleLinkPlan plan
@@ -1057,12 +1069,14 @@ public sealed partial class JsAgent
     }
 
     internal bool TryGetPendingModuleEvaluationPromise(
+        JsRealm realm,
         string specifier,
         string? referrer,
         out JsPromiseObject pendingPromise
     )
     {
-        var resolvedId = ResolveModuleSpecifierOrThrow(specifier, referrer);
+        var ModuleGraph = GetModuleCache(realm).Graph;
+        var resolvedId = ResolveModuleSpecifierOrThrow(realm, specifier, referrer);
         lock (moduleCacheGate)
         {
             if (ModuleGraph.TryGet(resolvedId, out var node))
@@ -1110,11 +1124,11 @@ public sealed partial class JsAgent
         };
     }
 
-    internal string ResolveModuleSpecifierOrThrow(string specifier, string? referrer)
+    internal string ResolveModuleSpecifierOrThrow(JsRealm realm, string specifier, string? referrer)
     {
         try
         {
-            return ModuleSourceLoader.ResolveSpecifier(specifier, referrer);
+            return GetModuleCache(realm).Loader.ResolveSpecifier(specifier, referrer);
         }
         catch (JsRuntimeException)
         {
@@ -1132,11 +1146,11 @@ public sealed partial class JsAgent
         }
     }
 
-    private string LoadModuleSourceByResolvedIdOrThrow(string resolvedId)
+    private string LoadModuleSourceByResolvedIdOrThrow(JsRealm realm, string resolvedId)
     {
         try
         {
-            return LoadModuleSourceByResolvedId(resolvedId);
+            return LoadModuleSourceByResolvedId(realm, resolvedId);
         }
         catch (JsRuntimeException)
         {
@@ -1161,11 +1175,12 @@ public sealed partial class JsAgent
     {
         try
         {
-            return ModuleGraph.GetOrCreate(
-                resolvedId,
-                PrepareSourceForModuleParsing(resolvedId, source, realm),
-                new(realm)
-            );
+            return GetModuleCache(realm)
+                .Graph.GetOrCreate(
+                    resolvedId,
+                    PrepareSourceForModuleParsing(resolvedId, source, realm),
+                    new(realm)
+                );
         }
         catch (JsParseException ex)
         {
@@ -1245,6 +1260,7 @@ public sealed partial class JsAgent
     }
 
     private bool CanResolveExportName(
+        RealmModuleCache cache,
         string moduleResolvedId,
         string exportName,
         string? importType = null
@@ -1252,6 +1268,7 @@ public sealed partial class JsAgent
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
         return TryResolvePlannedExportBindingIdentity(
+                cache,
                 moduleResolvedId,
                 exportName,
                 importType,
@@ -1262,6 +1279,7 @@ public sealed partial class JsAgent
     }
 
     private bool TryResolvePlannedExportBindingIdentity(
+        RealmModuleCache cache,
         string moduleResolvedId,
         string exportName,
         string? importType,
@@ -1292,9 +1310,9 @@ public sealed partial class JsAgent
         if (!visited.Add(visitKey))
             return false;
 
-        if (!ModuleGraph.TryGet(moduleResolvedId, out var node))
+        if (!cache.Graph.TryGet(moduleResolvedId, out var node))
             return false;
-        var plan = node.LinkPlan ?? BuildModuleLinkPlan(node);
+        var plan = node.LinkPlan ?? BuildModuleLinkPlan(cache, node);
 
         if (plan.ExecutionPlan.ExportLocalByName.TryGetValue(exportName, out var localName))
         {
@@ -1314,6 +1332,7 @@ public sealed partial class JsAgent
                 }
 
                 return TryResolvePlannedExportBindingIdentity(
+                    cache,
                     binding.ResolvedDependencyId,
                     binding.ImportedName,
                     binding.ImportType,
@@ -1345,6 +1364,7 @@ public sealed partial class JsAgent
             if (!string.Equals(binding.ExportedName, exportName, StringComparison.Ordinal))
                 continue;
             return TryResolvePlannedExportBindingIdentity(
+                cache,
                 binding.ResolvedDependencyId,
                 binding.ImportedName,
                 binding.ImportType,
@@ -1363,6 +1383,7 @@ public sealed partial class JsAgent
         {
             if (
                 !TryResolvePlannedExportBindingIdentity(
+                    cache,
                     plan.ExportStarResolvedIds[i],
                     exportName,
                     null,
@@ -1765,7 +1786,8 @@ public sealed partial class JsAgent
     )
     {
         var bindings = context?.ModuleBindings ?? GetCurrentModuleRuntimeBindings();
-        var resolvedId = ModuleSourceLoader.ResolveSpecifier(specifier, bindings.ModuleResolvedId);
+        var resolvedId = GetModuleCache(realm)
+            .Loader.ResolveSpecifier(specifier, bindings.ModuleResolvedId);
         if (
             bindings.Imports.TryGetObject(out var importsObject)
             && importsObject is JsPlainObject imports

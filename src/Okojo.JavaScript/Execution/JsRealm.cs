@@ -23,11 +23,13 @@ public sealed partial class JsRealm
     private readonly JsPlainObject bootstrapObjectPrototype;
     private readonly Action<JsRealm>? initialize;
     public readonly Intrinsics Intrinsics;
+    internal RealmModuleCache ModuleCache { get; }
 
     internal JsRealm(JsAgent agent, int id, JsRealmOptions? options = null)
     {
         Id = id;
         Agent = agent;
+        ModuleCache = new(options?.ModuleSourceLoader ?? agent.ModuleSourceLoader);
         EmptyShape = new(this, new());
         FunctionPrototypeObjectShape = new(
             this,

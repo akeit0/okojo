@@ -24,7 +24,8 @@
 
 ### Compatibility and integration
 
-- [ ] scope module loading/caches per browser realm and detach document-owned host work on navigation; `JsRuntime.ReleaseRealm` removes registry ownership only (see `docs/architecture/OKOJO_REALM_OWNERSHIP.md`)
+- [x] scope module loading/caches per realm, including async imports, diagnostics/invalidation, and collection after registry release (see `docs/architecture/OKOJO_REALM_OWNERSHIP.md`)
+- [ ] browser hosts must detach document-owned host work on navigation; `JsRuntime.ReleaseRealm` removes registry ownership without cancelling jobs or invalidating retained values
 
 - [ ] keep the non-legacy, non-staging Test262 passing baseline stable during API/compiler/runtime work
 - [ ] improve `Okojo.Node` compatibility against real Node-facing workloads

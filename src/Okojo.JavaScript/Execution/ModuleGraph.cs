@@ -3,7 +3,7 @@ using Okojo.JavaScript.Parsing;
 
 namespace Okojo.JavaScript.Execution;
 
-internal sealed class ModuleGraph(JsAgent agent)
+internal sealed class ModuleGraph(IModuleSourceLoader loader)
 {
     private readonly Dictionary<string, ModuleRecordNode> nodes = new(StringComparer.Ordinal);
 
@@ -87,7 +87,7 @@ internal sealed class ModuleGraph(JsAgent agent)
 
             if (isText)
                 continue;
-            var depResolved = agent.ModuleSourceLoader.ResolveSpecifier(
+            var depResolved = loader.ResolveSpecifier(
                 node.Program.GetString(request.SpecifierStringIndex),
                 node.ResolvedId
             );

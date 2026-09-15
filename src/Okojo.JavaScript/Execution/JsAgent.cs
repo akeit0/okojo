@@ -22,18 +22,17 @@ public sealed partial class JsAgent : IDisposable
     private readonly Dictionary<string, Symbol> globalSymbolRegistry = new(StringComparer.Ordinal);
     private readonly object jobsGate = new();
 
-    private readonly Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache = new(
-        StringComparer.Ordinal
-    );
-    private readonly Dictionary<string, JsModuleNamespaceObject> textModuleNamespaceCache = new(
-        StringComparer.Ordinal
-    );
+    private Dictionary<string, JsModuleNamespaceObject> jsonModuleNamespaceCache =>
+        MainRealm.ModuleCache.Json;
+    private Dictionary<string, JsModuleNamespaceObject> textModuleNamespaceCache =>
+        MainRealm.ModuleCache.Text;
+    private readonly ConditionalWeakTable<JsRealm, RealmModuleCache> moduleMaps = new();
 
     private readonly object lifecycleGate = new();
     private readonly Queue<PendingJob> scriptJobs = new();
     private readonly object moduleCacheGate = new();
 
-    private readonly Dictionary<string, string> moduleSourceCache = new(StringComparer.Ordinal);
+    private Dictionary<string, string> moduleSourceCache => MainRealm.ModuleCache.Sources;
 
     private readonly Queue<PendingJob> promiseJobs = new();
     private readonly List<JsRealm> realms = new();
@@ -120,8 +119,6 @@ public sealed partial class JsAgent : IDisposable
         this.createWorkerAgent = createWorkerAgent;
         Options = options.Clone();
         Atoms = new();
-        ModuleGraph = new(this);
-        ModuleLinker = new(() => ModuleSourceLoader);
         ExecutionCheckPolicy = new(Options, TimeProvider);
         ExecutionCheckInterval = Math.Min(Options.CheckInterval, Options.MaxInstructions);
         ExecutionCheckpointHookBits = (int)Options.ExecutionCheckpointHooks;
@@ -288,9 +285,15 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    internal ModuleGraph ModuleGraph { get; }
+    internal ModuleGraph ModuleGraph => MainRealm.ModuleCache.Graph;
 
-    internal ModuleLinker ModuleLinker { get; }
+    private RealmModuleCache GetModuleCache(JsRealm realm)
+    {
+        ArgumentNullException.ThrowIfNull(realm);
+        if (!ReferenceEquals(realm.Agent, this))
+            throw new ArgumentException("The realm belongs to another agent.", nameof(realm));
+        return moduleMaps.GetValue(realm, static key => key.ModuleCache);
+    }
 
     /// <summary>
     ///     Raised when work is enqueued for this agent. The host owns how this notification
@@ -866,15 +869,17 @@ public sealed partial class JsAgent : IDisposable
         return false;
     }
 
-    internal string LoadModuleSourceByResolvedId(string resolvedId)
+    internal string LoadModuleSourceByResolvedId(JsRealm realm, string resolvedId)
     {
+        var cache = GetModuleCache(realm);
+        var moduleSourceCache = cache.Sources;
         lock (moduleCacheGate)
         {
             if (moduleSourceCache.TryGetValue(resolvedId, out var cachedSource))
                 return cachedSource;
         }
 
-        var source = ModuleSourceLoader.LoadModule(resolvedId).GetRequiredSourceText();
+        var source = cache.Loader.LoadModule(resolvedId).GetRequiredSourceText();
         lock (moduleCacheGate)
         {
             moduleSourceCache.TryAdd(resolvedId, source);
@@ -882,34 +887,38 @@ public sealed partial class JsAgent : IDisposable
         }
     }
 
-    internal void ClearModuleCaches()
+    internal void ClearModuleCaches(JsRealm? realm = null)
     {
         lock (moduleCacheGate)
         {
-            moduleSourceCache.Clear();
-            ModuleGraph.Clear();
-            jsonModuleNamespaceCache.Clear();
-            textModuleNamespaceCache.Clear();
+            GetModuleCache(realm ?? MainRealm).Clear();
         }
     }
 
-    internal bool InvalidateModuleByResolvedId(string resolvedId)
+    internal bool InvalidateModuleByResolvedId(string resolvedId, JsRealm? realm = null)
     {
+        var cache = GetModuleCache(realm ?? MainRealm);
         lock (moduleCacheGate)
         {
-            var removedSource = moduleSourceCache.Remove(resolvedId);
-            var removedNode = ModuleGraph.Remove(resolvedId);
-            var removedJson = jsonModuleNamespaceCache.Remove(resolvedId);
-            var removedText = textModuleNamespaceCache.Remove(resolvedId);
+            var removedSource = cache.Sources.Remove(resolvedId);
+            var removedNode = cache.Graph.Remove(resolvedId);
+            var removedJson = cache.Json.Remove(resolvedId);
+            var removedText = cache.Text.Remove(resolvedId);
             return removedSource || removedNode || removedJson || removedText;
         }
     }
 
     internal JsAgentModuleApi.ModuleInvalidationResult InvalidateModuleByResolvedId(
         string resolvedId,
-        JsAgentModuleApi.ModuleInvalidationScope scope
+        JsAgentModuleApi.ModuleInvalidationScope scope,
+        JsRealm? realm = null
     )
     {
+        var cache = GetModuleCache(realm ?? MainRealm);
+        var ModuleGraph = cache.Graph;
+        var moduleSourceCache = cache.Sources;
+        var jsonModuleNamespaceCache = cache.Json;
+        var textModuleNamespaceCache = cache.Text;
         lock (moduleCacheGate)
         {
             var invalidatedIds = new HashSet<string>(StringComparer.Ordinal) { resolvedId };
@@ -946,9 +955,14 @@ public sealed partial class JsAgent : IDisposable
 
     internal bool TryGetCachedModuleNamespaceByResolvedId(
         string resolvedId,
-        out JsValue namespaceValue
+        out JsValue namespaceValue,
+        JsRealm? realm = null
     )
     {
+        var cache = GetModuleCache(realm ?? MainRealm);
+        var ModuleGraph = cache.Graph;
+        var jsonModuleNamespaceCache = cache.Json;
+        var textModuleNamespaceCache = cache.Text;
         lock (moduleCacheGate)
         {
             if (jsonModuleNamespaceCache.TryGetValue(resolvedId, out var jsonNamespace))
@@ -976,9 +990,13 @@ public sealed partial class JsAgent : IDisposable
 
     internal JsAgentModuleApi.ModuleStateSnapshot GetModuleStateSnapshotByResolvedId(
         string resolvedId,
-        bool includeError
+        bool includeError,
+        JsRealm? realm = null
     )
     {
+        var cache = GetModuleCache(realm ?? MainRealm);
+        var ModuleGraph = cache.Graph;
+        var moduleSourceCache = cache.Sources;
         lock (moduleCacheGate)
         {
             var hasSourceCache = moduleSourceCache.ContainsKey(resolvedId);
@@ -1300,8 +1318,9 @@ public sealed partial class JsAgent : IDisposable
 
         lock (moduleCacheGate)
         {
-            moduleSourceCache.Clear();
-            ModuleGraph.Clear();
+            foreach (var map in moduleMaps)
+                map.Value.Clear();
+            moduleMaps.Clear();
         }
 
         ClearKeptObjects();
