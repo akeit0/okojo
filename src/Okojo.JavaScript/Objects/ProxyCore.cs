@@ -950,7 +950,13 @@ internal static class ProxyObjectExtensions
         {
             GuardMemberAccess(target, realm, key);
             if (target is IProxyObject proxy)
-                return proxy.Core.TryHasPropertyViaTrap(realm, key, out result);
+            {
+                if (!proxy.Core.TryHasPropertyViaTrap(realm, key, out result))
+                    result = false;
+                if (!result && target is JsWindowProxy window)
+                    result = window.HasResolvedProperty(realm, key);
+                return true;
+            }
 
             result = false;
             return false;

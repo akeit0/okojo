@@ -21,12 +21,33 @@ public readonly record struct WindowAccessDecision(bool Allowed, JsValue ThrownV
     public static WindowAccessDecision Deny(JsValue thrown) => new(false, thrown);
 }
 
+/// <summary>
+/// Host-supplied source of a window's dynamic indexed and named properties: child browsing contexts
+/// and document named elements. The engine consults it only for a property the attached target does
+/// not already provide, so declared globals and prototypes take precedence.
+/// </summary>
+public interface IWindowPropertyResolver
+{
+    /// <summary>Resolves the child browsing context at <paramref name="index"/>, in tree order.</summary>
+    bool TryGetIndexed(uint index, out JsValue value);
+
+    /// <summary>Resolves a named child browsing context or document element.</summary>
+    bool TryGetNamed(string name, out JsValue value);
+
+    /// <summary>Appends the currently addressable child indices in tree order.</summary>
+    void CollectIndices(List<uint> indices);
+
+    /// <summary>Appends the currently addressable names in tree order.</summary>
+    void CollectNames(List<string> names);
+}
+
 /// <summary>Host integration primitive for a same-agent, navigation-stable window reference.
 /// Browser origin policy and browsing-context lifetime remain the host's responsibility.</summary>
 public sealed class JsWindowProxy : JsObject, IProxyObject
 {
     private ProxyCore core;
     private IWindowAccessPolicy? accessPolicy;
+    private IWindowPropertyResolver? propertyResolver;
 
     private readonly JsObject handler;
 
@@ -82,6 +103,14 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
     /// reference check.
     /// </summary>
     public void SetAccessPolicy(IWindowAccessPolicy? policy) => accessPolicy = policy;
+
+    /// <summary>
+    /// Installs the host's dynamic indexed/named property source for this window. Null removes it.
+    /// The resolver is consulted only when the attached target does not already provide the
+    /// property, so globals declared by scripts keep precedence over child windows and named
+    /// elements. A resolver is host state and must not outlive the document realm that installs it.
+    /// </summary>
+    public void SetPropertyResolver(IWindowPropertyResolver? resolver) => propertyResolver = resolver;
 
     // Guarded entry points, called by the proxy dispatch layer only when the receiver is a window
     // proxy. They are no-ops (and resolve no names) for the target's own realm.
@@ -174,9 +203,19 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         out SlotInfo slotInfo
     )
     {
-        var found = this.TryGetPropertyAtomViaProxy(realm, receiverValue, atom, out value, out _);
         slotInfo = SlotInfo.Invalid;
-        return found;
+        if (this.TryGetPropertyAtomViaProxy(realm, receiverValue, atom, out value, out _))
+            return true;
+        if (propertyResolver is null || atom < 0)
+        {
+            value = JsValue.Undefined;
+            return false;
+        }
+        var name = realm.Atoms.AtomToString(atom);
+        if (propertyResolver.TryGetNamed(name, out value))
+            return true;
+        value = JsValue.Undefined;
+        return false;
     }
 
     internal override bool SetPropertyAtomWithReceiver(
@@ -200,7 +239,12 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
     )
     {
         EnsureIndexAccess(realm, index);
-        return EnsureTarget(realm).TryGetElementWithReceiver(realm, receiver, index, out value);
+        if (EnsureTarget(realm).TryGetElementWithReceiver(realm, receiver, index, out value))
+            return true;
+        if (propertyResolver is not null && propertyResolver.TryGetIndexed(index, out value))
+            return true;
+        value = JsValue.Undefined;
+        return false;
     }
 
     internal override bool SetElementWithReceiver(
@@ -227,7 +271,20 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
     internal override bool TryGetOwnElementDescriptor(uint index, out PropertyDescriptor descriptor)
     {
         var target = EnsureTarget();
-        return target.TryGetOwnElementDescriptor(index, out descriptor);
+        if (target.TryGetOwnElementDescriptor(index, out descriptor))
+            return true;
+        if (propertyResolver is not null && propertyResolver.TryGetIndexed(index, out var value))
+        {
+            descriptor = PropertyDescriptor.Data(
+                value,
+                writable: false,
+                enumerable: true,
+                configurable: true
+            );
+            return true;
+        }
+        descriptor = default;
+        return false;
     }
 
     internal override bool TryGetOwnNamedPropertyDescriptorAtom(
@@ -239,12 +296,75 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
     {
         EnsureMemberAccess(realm, atom);
         var target = EnsureTarget();
-        return target.TryGetOwnNamedPropertyDescriptorAtom(
-            realm,
-            atom,
-            out descriptor,
-            needDescriptor
-        );
+        if (
+            target.TryGetOwnNamedPropertyDescriptorAtom(
+                realm,
+                atom,
+                out descriptor,
+                needDescriptor
+            )
+        )
+            return true;
+        if (propertyResolver is null || atom < 0)
+        {
+            descriptor = default;
+            return false;
+        }
+        var name = realm.Atoms.AtomToString(atom);
+        if (!propertyResolver.TryGetNamed(name, out var value))
+        {
+            descriptor = default;
+            return false;
+        }
+        descriptor = needDescriptor
+            ? PropertyDescriptor.Data(
+                value,
+                writable: false,
+                enumerable: true,
+                configurable: true
+            )
+            : default;
+        return true;
+    }
+
+    /// <summary>Appends the resolver's dynamic keys to an own-keys result.</summary>
+    internal void AppendResolvedKeys(JsRealm realm, List<JsValue> keys)
+    {
+        if (propertyResolver is null)
+            return;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in keys)
+            if (key.IsString)
+                seen.Add(key.AsString());
+        var indices = new List<uint>();
+        propertyResolver.CollectIndices(indices);
+        indices.Sort();
+        foreach (var index in indices)
+        {
+            var text = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (seen.Add(text))
+                keys.Add(JsValue.FromString(text));
+        }
+        var names = new List<string>();
+        propertyResolver.CollectNames(names);
+        foreach (var name in names)
+            if (seen.Add(name))
+                keys.Add(JsValue.FromString(name));
+    }
+
+    /// <summary>Whether the resolver currently provides <paramref name="key"/>.</summary>
+    internal bool HasResolvedProperty(JsRealm realm, in JsValue key)
+    {
+        if (propertyResolver is null || key.IsSymbol)
+            return false;
+        if (key.IsNumber)
+            return propertyResolver.TryGetIndexed((uint)key.NumberValue, out _);
+        if (!key.IsString)
+            return false;
+        var text = key.AsString();
+        return uint.TryParse(text, out var index)
+            ? propertyResolver.TryGetIndexed(index, out _)
+            : propertyResolver.TryGetNamed(text, out _);
     }
 
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
@@ -259,6 +379,22 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
     {
         var target = EnsureTarget();
         target.CollectOwnElementIndices(indicesOut, enumerableOnly);
+        propertyResolver?.CollectIndices(indicesOut);
+    }
+
+    internal override void CollectOwnNamedPropertyAtoms(
+        JsRealm realm,
+        List<int> atomsOut,
+        bool enumerableOnly
+    )
+    {
+        base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
+        if (propertyResolver is null)
+            return;
+        var names = new List<string>();
+        propertyResolver.CollectNames(names);
+        foreach (var name in names)
+            atomsOut.Add(realm.Atoms.InternNoCheck(name));
     }
 
     internal override void CollectForInEnumerableStringAtomKeys(
@@ -270,6 +406,13 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         EnsureControlAccess(realm);
         var target = EnsureTarget();
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
+        if (propertyResolver is null)
+            return;
+        var names = new List<string>();
+        propertyResolver.CollectNames(names);
+        foreach (var name in names)
+            if (visited.Add(name))
+                enumerableKeysOut.Add(name);
     }
 
     internal override bool TrySetPrototypeCore(JsObject? proto)
