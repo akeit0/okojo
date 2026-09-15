@@ -200,7 +200,7 @@ public sealed partial class JsRealm
     public string? CurrentModuleResolvedId =>
         Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
 
-    private void EnsureCompatibleValue(in JsValue value, string parameterName)
+    internal void EnsureCompatibleValue(in JsValue value, string parameterName)
     {
         if (value.TryGetObject(out var obj))
         {
