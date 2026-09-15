@@ -49,6 +49,7 @@ public class WindowPropertyResolverTests
         proxy.SetTarget(realm);
         var resolver = new Resolver();
         proxy.SetPropertyResolver(resolver);
+        ((JsGlobalObject)realm.GlobalObject).SetPropertyResolver(resolver);
         return (runtime, realm, proxy, resolver);
     }
 
@@ -124,6 +125,38 @@ public class WindowPropertyResolverTests
     }
 
     [Test]
+    public void GlobalObjectResolvesNamedPropertiesByIdentifier()
+    {
+        var (runtime, realm, _, resolver) = CreateWindow();
+        using (runtime)
+        {
+            var element = new JsPlainObject(realm);
+            element.SetProperty("marker", 42);
+            resolver.AddNamed("box", element);
+
+            Assert.That(realm.Evaluate("box.marker").NumberValue, Is.EqualTo(42));
+            Assert.That(realm.Evaluate("typeof missing === 'undefined'").IsTrue, Is.True);
+            Assert.That(realm.Evaluate("'box' in globalThis").IsTrue, Is.True);
+        }
+    }
+
+    [Test]
+    public void DeclaredGlobalShadowsTheGlobalResolver()
+    {
+        var (runtime, realm, _, resolver) = CreateWindow();
+        using (runtime)
+        {
+            resolver.AddNamed("box", new JsPlainObject(realm));
+
+            realm.Evaluate("var box = 5;");
+            Assert.That(realm.Evaluate("box === 5").IsTrue, Is.True);
+
+            realm.Evaluate("box = 7;");
+            Assert.That(realm.Evaluate("box === 7").IsTrue, Is.True);
+        }
+    }
+
+    [Test]
     public void ClearingTheResolverRestoresTheTarget()
     {
         var (runtime, realm, proxy, resolver) = CreateWindow();
@@ -135,6 +168,7 @@ public class WindowPropertyResolverTests
             Assert.That(realm.Evaluate("typeof globalThis[0] === 'object'").IsTrue, Is.True);
             Assert.That(realm.Evaluate("typeof globalThis.frame === 'object'").IsTrue, Is.True);
             proxy.SetPropertyResolver(null);
+            ((JsGlobalObject)realm.GlobalObject).SetPropertyResolver(null);
             Assert.That(realm.Evaluate("typeof globalThis[0] === 'undefined'").IsTrue, Is.True);
             Assert.That(realm.Evaluate("typeof globalThis.frame === 'undefined'").IsTrue, Is.True);
         }
