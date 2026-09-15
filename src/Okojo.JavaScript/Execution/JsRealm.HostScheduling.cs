@@ -12,7 +12,7 @@ public sealed partial class JsRealm
                 var state = (QueuedRealmCallback)stateObj!;
                 _ = state.Realm.InvokeFunction(
                     state.Callback,
-                    JsValue.FromObject(state.Realm.GlobalObject),
+                    JsValue.FromObject(state.Realm.GlobalThisObject),
                     state.Arguments
                 );
             },
@@ -60,7 +60,7 @@ public sealed partial class JsRealm
                 var state = (QueuedRealmCallback)stateObj!;
                 _ = state.Realm.InvokeFunction(
                     state.Callback,
-                    JsValue.FromObject(state.Realm.GlobalObject),
+                    JsValue.FromObject(state.Realm.GlobalThisObject),
                     state.Arguments
                 );
             },

@@ -24,6 +24,9 @@
 
 ### Compatibility and integration
 
+- [x] configurable realm global-this and host-retargetable same-agent window references (see `docs/architecture/OKOJO_HOST_GLOBAL_THIS.md`)
+- [ ] browser WindowProxy cross-origin restricted access and indexed/named child properties remain host integration work
+
 - [x] scope module loading/caches per realm, including async imports, diagnostics/invalidation, and collection after registry release (see `docs/architecture/OKOJO_REALM_OWNERSHIP.md`)
 - [ ] browser hosts must detach document-owned host work on navigation; `JsRuntime.ReleaseRealm` removes registry ownership without cancelling jobs or invalidating retained values
 

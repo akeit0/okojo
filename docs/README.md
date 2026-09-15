@@ -18,6 +18,7 @@ not rewritten. New synthesis pages distill the structural review
   - `debugging/` — debugger, checkpoint, and diagnostic notes (moved, preserved).
   - `OKOJO_LIBRARY_SPLIT_PLAN.md` — accepted package-boundary plan (active anchor).
   - `OKOJO_MODULE_EMBEDDING_API.md` — module embedding guidance.
+  - [OKOJO_HOST_GLOBAL_THIS.md](architecture/OKOJO_HOST_GLOBAL_THIS.md) — host global-this and navigation-stable same-agent window references.
   - [OKOJO_REALM_OWNERSHIP.md](architecture/OKOJO_REALM_OWNERSHIP.md) — releasing browser realm registry ownership while preserving live JavaScript references.
   - `OKOJO_EXPLICIT_RESOURCE_MANAGEMENT.md` — staging `using`/`await using` note.
 - `proposals/` — redesign proposals distilled from the 2026-09-10 structural

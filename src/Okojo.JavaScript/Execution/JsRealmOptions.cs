@@ -6,6 +6,9 @@ namespace Okojo.JavaScript.Execution;
 /// </summary>
 public sealed class JsRealmOptions
 {
+    /// <summary>Optional same-agent global-this object; binding storage remains realm-local.</summary>
+    public JsObject? GlobalThisObject { get; set; }
+
     public object? HostDefined { get; set; }
     public Action<JsRealm>? Initialize { get; set; }
 
@@ -16,6 +19,7 @@ public sealed class JsRealmOptions
     {
         return new()
         {
+            GlobalThisObject = GlobalThisObject,
             HostDefined = HostDefined,
             Initialize = Initialize,
             ModuleSourceLoader = ModuleSourceLoader,

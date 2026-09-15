@@ -156,7 +156,7 @@ public sealed partial class JsRealm
             0,
             0,
             null,
-            GlobalObject,
+            GlobalThisObject,
             JsValue.Undefined,
             CallFrameKind.ScriptFrame
         );
@@ -185,7 +185,7 @@ public sealed partial class JsRealm
         var root = new JsBytecodeFunction(script);
         var result = InvokeBytecodeFunction(
             root,
-            GlobalObject,
+            GlobalThisObject,
             ReadOnlySpan<JsValue>.Empty,
             JsValue.Undefined,
             CallFrameKind.ScriptFrame
@@ -4875,7 +4875,7 @@ public sealed partial class JsRealm
     private JsValue NormalizeSloppyThisValue(in JsValue thisValue)
     {
         if (thisValue.IsUndefined || thisValue.IsNull)
-            return GlobalObject;
+            return GlobalThisObject;
         if (thisValue.IsObject)
             return thisValue;
         return this.BoxPrimitive(thisValue);

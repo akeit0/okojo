@@ -1046,6 +1046,8 @@ internal static class ProxyObjectExtensions
             out SlotInfo slotInfo
         )
         {
+            // Target slots never belong to the proxy receiver; do not publish them to ICs.
+            slotInfo = SlotInfo.Invalid;
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomGet = IdGet;
@@ -1080,16 +1082,10 @@ internal static class ProxyObjectExtensions
                     (JsValue)receiver,
                     atom,
                     out value,
-                    out slotInfo
+                    out _
                 );
 
-            return target.TryGetPropertyAtomWithReceiver(
-                realm,
-                receiver,
-                atom,
-                out value,
-                out slotInfo
-            );
+            return target.TryGetPropertyAtomWithReceiver(realm, receiver, atom, out value, out _);
         }
 
         internal bool TryGetPropertyAtomViaProxy(
@@ -1100,6 +1096,8 @@ internal static class ProxyObjectExtensions
             out SlotInfo slotInfo
         )
         {
+            // Target slots never belong to the proxy receiver; do not publish them to ICs.
+            slotInfo = SlotInfo.Invalid;
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomGet = IdGet;
@@ -1134,7 +1132,7 @@ internal static class ProxyObjectExtensions
                     receiverValue,
                     atom,
                     out value,
-                    out slotInfo
+                    out _
                 );
 
             return target.TryGetPropertyAtomWithReceiverValue(
@@ -1142,7 +1140,7 @@ internal static class ProxyObjectExtensions
                 receiverValue,
                 atom,
                 out value,
-                out slotInfo
+                out _
             );
         }
 
@@ -1154,6 +1152,8 @@ internal static class ProxyObjectExtensions
             out SlotInfo slotInfo
         )
         {
+            // Target slots never belong to the proxy receiver; do not publish them to ICs.
+            slotInfo = SlotInfo.Invalid;
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomSet = IdSet;
@@ -1189,7 +1189,7 @@ internal static class ProxyObjectExtensions
                 return setResult;
             }
 
-            return target.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
+            return target.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out _);
         }
 
         internal bool TryGetElementViaProxy(uint index, JsObject receiver, out JsValue value)

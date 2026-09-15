@@ -24,6 +24,11 @@ their own namespaces, globals, and async evaluation. Document-specific host task
 remains an embedding prerequisite for complete iframe navigation. See
 [`OKOJO_REALM_OWNERSHIP.md`](docs/architecture/OKOJO_REALM_OWNERSHIP.md).
 
+`JsRealmOptions.GlobalThisObject` and the host `JsWindowProxy` now separate document global
+bindings from a navigation-stable window reference. Same-agent retargeting preserves descriptors
+and receivers; detachment disables access. Full cross-origin WindowProxy behavior remains host
+work. See [host global-this](docs/architecture/OKOJO_HOST_GLOBAL_THIS.md).
+
 ### Code/instance split implementation (gates green 2026-09-10)
 
 Portable compilation units and function descriptors now separate shared bytecode

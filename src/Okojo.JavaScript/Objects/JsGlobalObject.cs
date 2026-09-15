@@ -152,7 +152,7 @@ public sealed partial class JsGlobalObject : JsObject
 
         if (TryGetOwnPropertySlotInfoAtom(atom, out var ownInfo))
         {
-            value = GetNamedByCachedSlotInfo(realm, ownInfo);
+            value = GetNamedValueBySlotInfo(realm, receiverValue, ownInfo);
             slotInfo = ownInfo;
             return true;
         }

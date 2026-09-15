@@ -24,3 +24,8 @@ Module URLs and `import.meta.url` are unchanged. Cached modules do not independe
 released realm through the agent, while retained namespace/function references remain valid.
 `agent.Modules` diagnostics and invalidation default to the main realm; use their explicit
 realm overloads to inspect or invalidate a child document's map.
+
+Browser hosts can configure `JsRealmOptions.GlobalThisObject` while keeping realm-local global
+bindings. The host integration `JsWindowProxy` supports same-agent retargeting and detachment;
+create it in a long-lived anchor realm. See
+[host global-this](../../docs/architecture/OKOJO_HOST_GLOBAL_THIS.md) for the contract and example.
