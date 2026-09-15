@@ -11,56 +11,17 @@ internal interface IProxyObject
     void RevokeProxy();
 }
 
-/// <summary>
-/// Host-supplied cross-origin window access policy. The engine knows realm identity only, so the
-/// host decides which realms may reach a window's members and supplies the value thrown otherwise.
-/// </summary>
-public interface IWindowAccessPolicy
-{
-    /// <summary>
-    /// Decides access for <paramref name="accessingRealm"/>. <paramref name="member"/> is null for
-    /// enumeration, prototype, and extensibility operations.
-    /// </summary>
-    WindowAccessDecision CheckMemberAccess(JsRealm accessingRealm, string? member);
-}
-
-/// <summary>Access decision: allowed, or denied with the value thrown to the accessing realm.</summary>
-public readonly record struct WindowAccessDecision(bool Allowed, JsValue ThrownValue)
-{
-    public static WindowAccessDecision Allow => new(true, JsValue.Undefined);
-
-    public static WindowAccessDecision Deny(JsValue thrown) => new(false, thrown);
-}
-
 internal struct ProxyCore
 {
-    internal ProxyCore(JsObject target, JsObject handler, IWindowAccessPolicy? accessPolicy = null)
+    internal ProxyCore(JsObject target, JsObject handler)
     {
         CurrentTarget = target;
         CurrentHandler = handler;
-        AccessPolicy = accessPolicy;
     }
 
     internal JsObject? CurrentTarget { get; private set; }
 
     internal JsObject? CurrentHandler { get; private set; }
-
-    internal IWindowAccessPolicy? AccessPolicy { get; set; }
-
-    internal void EnsureAccess(JsRealm realm, string? member)
-    {
-        if (AccessPolicy is null || ReferenceEquals(realm, CurrentTarget?.Realm))
-            return;
-        var decision = AccessPolicy.CheckMemberAccess(realm, member);
-        if (decision.Allowed)
-            return;
-        throw new JsRuntimeException(
-            JsErrorKind.TypeError,
-            "Cross-origin window access is denied.",
-            thrownValue: decision.ThrownValue,
-            errorRealm: realm
-        );
-    }
 
     internal void Revoke(JsObject owner)
     {
@@ -187,7 +148,6 @@ internal struct ProxyCore
     internal bool TryGetOwnKeysTrapKeys(JsRealm realm, out List<JsValue>? keys)
     {
         _ = EnsureTarget(realm);
-        EnsureAccess(realm, null);
         var handler = CurrentHandler!;
         const int atomOwnKeys = IdOwnKeys;
         if (
@@ -232,7 +192,6 @@ internal struct ProxyCore
     )
     {
         _ = EnsureTarget(realm);
-        EnsureAccess(realm, ProxyObjectExtensions.MemberNameOfKey(key));
         var handler = CurrentHandler!;
         const int atomGetOwnPropertyDescriptor = IdGetOwnPropertyDescriptor;
         if (
@@ -288,7 +247,6 @@ internal struct ProxyCore
         var propertyKey = key.IsNumber
             ? JsValue.FromString(JsValue.NumberToJsString(key.NumberValue))
             : key;
-        EnsureAccess(realm, ProxyObjectExtensions.MemberNameOfKey(key));
         var handler = CurrentHandler!;
         const int atomGetOwnPropertyDescriptor = IdGetOwnPropertyDescriptor;
         if (
@@ -328,7 +286,6 @@ internal struct ProxyCore
         var propertyKey = key.IsNumber
             ? JsValue.FromString(JsValue.NumberToJsString(key.NumberValue))
             : key;
-        EnsureAccess(realm, ProxyObjectExtensions.MemberNameOfKey(key));
         var handler = CurrentHandler!;
         const int atomHas = IdHas;
         if (
@@ -377,7 +334,6 @@ internal struct ProxyCore
     )
     {
         var target = EnsureTarget(realm);
-        EnsureAccess(realm, ProxyObjectExtensions.MemberNameOfKey(key));
         var handler = CurrentHandler!;
         const int atomGetOwnPropertyDescriptor = IdGetOwnPropertyDescriptor;
         if (
@@ -423,7 +379,6 @@ internal struct ProxyCore
     internal bool SetPrototypeViaProxy(JsObject owner, JsRealm realm, JsObject? proto)
     {
         var target = EnsureTarget(realm);
-        EnsureAccess(realm, null);
         var handler = CurrentHandler!;
         const int atomSetPrototypeOf = IdSetPrototypeOf;
         if (
@@ -471,7 +426,6 @@ internal struct ProxyCore
     internal bool PreventExtensionsViaProxy(JsRealm realm)
     {
         var target = EnsureTarget(realm);
-        EnsureAccess(realm, null);
         var handler = CurrentHandler!;
         const int atomPreventExtensions = IdPreventExtensions;
         if (
@@ -732,15 +686,6 @@ internal struct ProxyCore
 
 internal static class ProxyObjectExtensions
 {
-    private static string? MemberName(JsRealm realm, int atom) =>
-        atom < 0 ? null : realm.Atoms.AtomToString(atom);
-
-    internal static string? MemberNameOfKey(in JsValue key) =>
-        key.IsSymbol ? null
-        : key.IsString ? key.AsString()
-        : key.IsNumber ? JsValue.NumberToJsString(key.NumberValue)
-        : null;
-
     private static JsValue GetPropertyKey(JsRealm realm, int atom)
     {
         return atom < 0
@@ -750,6 +695,32 @@ internal static class ProxyObjectExtensions
                     : new(atom, realm.Atoms.AtomToString(atom))
             )
             : JsValue.FromString(realm.Atoms.AtomToString(atom));
+    }
+
+    // Cross-origin window policy dispatch. Only JsWindowProxy carries a policy, so non-window
+    // proxies pay one type check and never materialize a member name.
+    private static void GuardMemberAccess(JsObject target, JsRealm realm, int atom)
+    {
+        if (target is JsWindowProxy window)
+            window.EnsureMemberAccess(realm, atom);
+    }
+
+    private static void GuardMemberAccess(JsObject target, JsRealm realm, in JsValue key)
+    {
+        if (target is JsWindowProxy window)
+            window.EnsureMemberAccess(realm, key);
+    }
+
+    private static void GuardControlAccess(JsObject target, JsRealm realm)
+    {
+        if (target is JsWindowProxy window)
+            window.EnsureControlAccess(realm);
+    }
+
+    private static void GuardIndexAccess(JsObject target, JsRealm realm, uint index)
+    {
+        if (target is JsWindowProxy window)
+            window.EnsureIndexAccess(realm, index);
     }
 
     private static bool SamePrototype(JsObject? left, JsObject? right)
@@ -923,6 +894,7 @@ internal static class ProxyObjectExtensions
 
         internal bool TryGetOwnKeysTrapKeys(JsRealm realm, out List<JsValue>? keys)
         {
+            GuardControlAccess(target, realm);
             if (target is IProxyObject proxy)
                 return proxy.Core.TryGetOwnKeysTrapKeys(realm, out keys);
 
@@ -946,6 +918,7 @@ internal static class ProxyObjectExtensions
             out bool enumerable
         )
         {
+            GuardMemberAccess(target, realm, key);
             if (target is IProxyObject proxy)
                 return proxy.Core.TryGetOwnEnumerableDescriptorViaTrap(
                     realm,
@@ -965,6 +938,7 @@ internal static class ProxyObjectExtensions
             out JsValue descriptor
         )
         {
+            GuardMemberAccess(target, realm, key);
             if (target is IProxyObject proxy)
                 return proxy.Core.TryGetOwnPropertyDescriptorViaTrap(realm, key, out descriptor);
 
@@ -974,6 +948,7 @@ internal static class ProxyObjectExtensions
 
         internal bool TryHasPropertyViaTrap(JsRealm realm, in JsValue key, out bool result)
         {
+            GuardMemberAccess(target, realm, key);
             if (target is IProxyObject proxy)
                 return proxy.Core.TryHasPropertyViaTrap(realm, key, out result);
 
@@ -1103,7 +1078,7 @@ internal static class ProxyObjectExtensions
         {
             // Target slots never belong to the proxy receiver; do not publish them to ICs.
             slotInfo = SlotInfo.Invalid;
-            proxy.Core.EnsureAccess(realm, MemberName(realm, atom));
+            GuardMemberAccess(proxy.ProxyOwner, realm, atom);
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomGet = IdGet;
@@ -1154,7 +1129,7 @@ internal static class ProxyObjectExtensions
         {
             // Target slots never belong to the proxy receiver; do not publish them to ICs.
             slotInfo = SlotInfo.Invalid;
-            proxy.Core.EnsureAccess(realm, MemberName(realm, atom));
+            GuardMemberAccess(proxy.ProxyOwner, realm, atom);
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomGet = IdGet;
@@ -1211,7 +1186,7 @@ internal static class ProxyObjectExtensions
         {
             // Target slots never belong to the proxy receiver; do not publish them to ICs.
             slotInfo = SlotInfo.Invalid;
-            proxy.Core.EnsureAccess(realm, MemberName(realm, atom));
+            GuardMemberAccess(proxy.ProxyOwner, realm, atom);
             var target = proxy.Core.EnsureTarget(realm);
             var handler = proxy.Core.CurrentHandler!;
             const int atomSet = IdSet;
@@ -1370,8 +1345,8 @@ internal static class ProxyObjectExtensions
 
         internal bool DeletePropertyAtomViaProxy(JsRealm realm, int atom)
         {
+            GuardMemberAccess(proxy.ProxyOwner, realm, atom);
             var target = proxy.Core.EnsureTarget(realm);
-            proxy.Core.EnsureAccess(realm, MemberName(realm, atom));
             var handler = proxy.Core.CurrentHandler!;
             const int atomDeleteProperty = IdDeleteProperty;
             if (
@@ -1408,9 +1383,9 @@ internal static class ProxyObjectExtensions
 
         internal bool SetPrototypeViaProxy(JsRealm realm, JsObject? proto)
         {
+            GuardControlAccess(proxy.ProxyOwner, realm);
             var owner = proxy.ProxyOwner;
             var target = proxy.Core.EnsureTarget(realm);
-            proxy.Core.EnsureAccess(realm, null);
             var handler = proxy.Core.CurrentHandler!;
             const int atomSetPrototypeOf = IdSetPrototypeOf;
             if (
@@ -1461,8 +1436,8 @@ internal static class ProxyObjectExtensions
 
         internal bool PreventExtensionsViaProxy(JsRealm realm)
         {
+            GuardControlAccess(proxy.ProxyOwner, realm);
             var target = proxy.Core.EnsureTarget(realm);
-            proxy.Core.EnsureAccess(realm, null);
             var handler = proxy.Core.CurrentHandler!;
             const int atomPreventExtensions = IdPreventExtensions;
             if (
@@ -1504,8 +1479,8 @@ internal static class ProxyObjectExtensions
             out bool isAccessor
         )
         {
+            GuardMemberAccess(proxy.ProxyOwner, realm, key);
             var target = proxy.Core.EnsureTarget(realm);
-            proxy.Core.EnsureAccess(realm, MemberNameOfKey(key));
             var handler = proxy.Core.CurrentHandler!;
             const int atomGetOwnPropertyDescriptor = IdGetOwnPropertyDescriptor;
             if (

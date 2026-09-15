@@ -1,5 +1,26 @@
 namespace Okojo.JavaScript.Objects;
 
+/// <summary>
+/// Host-supplied cross-origin window access policy. The engine knows realm identity only, so the
+/// host decides which realms may reach a window's members and supplies the value thrown otherwise.
+/// </summary>
+public interface IWindowAccessPolicy
+{
+    /// <summary>
+    /// Decides access for <paramref name="accessingRealm"/>. <paramref name="member"/> is null for
+    /// enumeration, prototype, and extensibility operations.
+    /// </summary>
+    WindowAccessDecision CheckMemberAccess(JsRealm accessingRealm, string? member);
+}
+
+/// <summary>Access decision: allowed, or denied with the value thrown to the accessing realm.</summary>
+public readonly record struct WindowAccessDecision(bool Allowed, JsValue ThrownValue)
+{
+    public static WindowAccessDecision Allow => new(true, JsValue.Undefined);
+
+    public static WindowAccessDecision Deny(JsValue thrown) => new(false, thrown);
+}
+
 /// <summary>Host integration primitive for a same-agent, navigation-stable window reference.
 /// Browser origin policy and browsing-context lifetime remain the host's responsibility.</summary>
 public sealed class JsWindowProxy : JsObject, IProxyObject
@@ -51,19 +72,69 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
                 "A window target must belong to the same agent.",
                 nameof(target)
             );
-        core = target is null ? default : new ProxyCore(target.GlobalObject, handler, accessPolicy);
+        core = target is null ? default : new ProxyCore(target.GlobalObject, handler);
     }
 
     /// <summary>
-    /// Installs the host's cross-origin member policy. Null restores unrestricted access.
+    /// Installs the host's cross-origin member policy. Null restores unrestricted access. The policy
+    /// is evaluated only for accesses from a realm other than the attached target, and a member name
+    /// is materialized only when a policy exists and would deny; unrestricted access pays one
+    /// reference check.
     /// </summary>
-    public void SetAccessPolicy(IWindowAccessPolicy? policy)
+    public void SetAccessPolicy(IWindowAccessPolicy? policy) => accessPolicy = policy;
+
+    // Guarded entry points, called by the proxy dispatch layer only when the receiver is a window
+    // proxy. They are no-ops (and resolve no names) for the target's own realm.
+
+    internal void EnsureMemberAccess(JsRealm realm, int atom)
     {
-        accessPolicy = policy;
-        core.AccessPolicy = policy;
+        if (accessPolicy is null || !NeedsPolicy(realm))
+            return;
+        CheckAccess(realm, atom < 0 ? null : realm.Atoms.AtomToString(atom));
     }
 
-    private void EnsureAccess(JsRealm realm, string? member) => core.EnsureAccess(realm, member);
+    internal void EnsureMemberAccess(JsRealm realm, in JsValue key)
+    {
+        if (accessPolicy is null || !NeedsPolicy(realm))
+            return;
+        CheckAccess(realm, MemberNameOfKey(key));
+    }
+
+    internal void EnsureControlAccess(JsRealm realm)
+    {
+        if (accessPolicy is null || !NeedsPolicy(realm))
+            return;
+        CheckAccess(realm, member: null);
+    }
+
+    internal void EnsureIndexAccess(JsRealm realm, uint index)
+    {
+        if (accessPolicy is null || !NeedsPolicy(realm))
+            return;
+        CheckAccess(realm, index.ToString());
+    }
+
+    private bool NeedsPolicy(JsRealm realm) =>
+        !ReferenceEquals(realm, core.CurrentTarget?.Realm);
+
+    private void CheckAccess(JsRealm realm, string? member)
+    {
+        var decision = accessPolicy!.CheckMemberAccess(realm, member);
+        if (decision.Allowed)
+            return;
+        throw new JsRuntimeException(
+            JsErrorKind.TypeError,
+            "Cross-origin window access is denied.",
+            thrownValue: decision.ThrownValue,
+            errorRealm: realm
+        );
+    }
+
+    private static string? MemberNameOfKey(in JsValue key) =>
+        key.IsSymbol ? null
+        : key.IsString ? key.AsString()
+        : key.IsNumber ? JsValue.NumberToJsString(key.NumberValue)
+        : null;
 
     public override bool IsExtensible => EnsureTarget().IsExtensible;
     JsObject IProxyObject.ProxyOwner => this;
@@ -81,7 +152,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
 
     internal override JsObject? GetPrototypeOf(JsRealm realm)
     {
-        EnsureAccess(realm, null);
+        EnsureControlAccess(realm);
         return core.GetPrototypeOf(realm);
     }
 
@@ -128,7 +199,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         out JsValue value
     )
     {
-        EnsureAccess(realm, index.ToString());
+        EnsureIndexAccess(realm, index);
         return EnsureTarget(realm).TryGetElementWithReceiver(realm, receiver, index, out value);
     }
 
@@ -139,7 +210,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         JsValue value
     )
     {
-        EnsureAccess(realm, index.ToString());
+        EnsureIndexAccess(realm, index);
         return this.SetElementWithReceiverViaProxy(realm, receiver, index, value);
     }
 
@@ -166,7 +237,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         bool needDescriptor = true
     )
     {
-        EnsureAccess(realm, atom < 0 ? null : realm.Atoms.AtomToString(atom));
+        EnsureMemberAccess(realm, atom);
         var target = EnsureTarget();
         return target.TryGetOwnNamedPropertyDescriptorAtom(
             realm,
@@ -196,7 +267,7 @@ public sealed class JsWindowProxy : JsObject, IProxyObject
         List<string> enumerableKeysOut
     )
     {
-        EnsureAccess(realm, null);
+        EnsureControlAccess(realm);
         var target = EnsureTarget();
         target.CollectForInEnumerableStringAtomKeys(realm, visited, enumerableKeysOut);
     }
