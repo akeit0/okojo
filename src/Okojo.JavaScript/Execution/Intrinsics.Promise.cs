@@ -258,18 +258,14 @@ public partial class Intrinsics
             (in info) =>
             {
                 var realm = info.Realm;
-                if (
-                    !info.ThisValue.TryGetObject(out var thisObj)
-                    || thisObj is not JsFunction ctor
-                    || !ctor.IsConstructor
-                )
+                if (!info.ThisValue.TryGetObject(out var thisObj))
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
-                        "Promise.resolve requires a constructor receiver"
+                        "Promise.resolve requires an object receiver"
                     );
                 var args = info.Arguments;
                 var value = args.Length > 0 ? args[0] : JsValue.Undefined;
-                return realm.Intrinsics.PromiseResolveByConstructor(ctor, value);
+                return realm.Intrinsics.PromiseResolveByConstructor(thisObj, value);
             },
             "resolve",
             1
@@ -303,43 +299,34 @@ public partial class Intrinsics
             (in info) =>
             {
                 var realm = info.Realm;
-                if (
-                    !info.ThisValue.TryGetObject(out var thisObj)
-                    || thisObj is not JsFunction ctor
-                    || !ctor.IsConstructor
-                )
+                if (!info.ThisValue.TryGetObject(out var thisObj))
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
-                        "Promise.try requires a constructor receiver"
+                        "Promise.try requires an object receiver"
                     );
 
                 var args = info.Arguments;
                 var callback = args.Length > 0 ? args[0] : JsValue.Undefined;
-                if (
-                    !callback.TryGetObject(out var callbackObj)
-                    || callbackObj is not JsFunction callbackFn
-                )
-                    throw new JsRuntimeException(
-                        JsErrorKind.TypeError,
-                        "Promise.try callback is not a function"
-                    );
-
-                var capability = realm.CreatePromiseCapability(ctor);
+                JsValue value;
                 try
                 {
                     var callbackArgs = args.Length > 1 ? args[1..] : ReadOnlySpan<JsValue>.Empty;
-                    var value = realm.InvokeFunction(callbackFn, JsValue.Undefined, callbackArgs);
-                    realm.Intrinsics.ResolvePromiseCapability(capability, value);
+                    value = realm.Call(callback, JsValue.Undefined, callbackArgs);
                 }
                 catch (JsRuntimeException ex)
                 {
-                    realm.Intrinsics.RejectPromiseCapability(
-                        capability,
-                        ex.ThrownValue ?? realm.CreateErrorObjectFromException(ex)
+                    if (thisObj is not JsFunction ctor || !ctor.IsConstructor)
+                        throw new JsRuntimeException(
+                            JsErrorKind.TypeError,
+                            "Promise.try receiver cannot construct a Promise"
+                        );
+                    return realm.Intrinsics.PromiseRejectByConstructor(
+                        ctor,
+                        realm.Intrinsics.GetPromiseAbruptReason(ex)
                     );
                 }
 
-                return JsValue.FromObject(capability.Promise);
+                return realm.Intrinsics.PromiseResolveByConstructor(thisObj, value);
             },
             "try",
             1
@@ -737,7 +724,7 @@ public partial class Intrinsics
         return Realm.CreateErrorObjectFromException(ex);
     }
 
-    internal JsValue PromiseResolveByConstructor(JsFunction ctor, in JsValue value)
+    internal JsValue PromiseResolveByConstructor(JsObject ctor, in JsValue value)
     {
         if (value.TryGetObject(out var valueObj) && valueObj is JsPromiseObject)
             if (
@@ -754,7 +741,12 @@ public partial class Intrinsics
             return wrapped;
         }
 
-        var capability = CreatePromiseCapability(ctor);
+        if (ctor is not JsFunction constructor || !constructor.IsConstructor)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Promise receiver cannot construct a Promise"
+            );
+        var capability = CreatePromiseCapability(constructor);
         ResolvePromiseCapability(capability, value);
         return JsValue.FromObject(capability.Promise);
     }
@@ -979,28 +971,21 @@ public partial class Intrinsics
             return;
         }
 
-        if (
-            resolutionObj is JsPromiseObject resolvedPromise
-            && ReferenceEquals(resolutionObj.Prototype, PromisePrototype)
-            && !resolutionObj.TryGetOwnNamedPropertyDescriptorAtom(Realm, IdThen, out _)
-        )
+        // Self-resolution rejects before looking up then, including when then or the
+        // prototype has been replaced. Other native promises use the ordinary thenable
+        // path: skipping that job also skips observable then/species operations.
+        if (ReferenceEquals(resolutionObj, target))
         {
-            if (ReferenceEquals(resolvedPromise, target))
-            {
-                RejectPromise(
-                    target,
-                    Realm.CreateErrorObjectFromException(
-                        new(
-                            JsErrorKind.TypeError,
-                            "Chaining cycle detected for promise",
-                            "PROMISE_CHAIN_CYCLE"
-                        )
+            RejectPromise(
+                target,
+                Realm.CreateErrorObjectFromException(
+                    new(
+                        JsErrorKind.TypeError,
+                        "Chaining cycle detected for promise",
+                        "PROMISE_CHAIN_CYCLE"
                     )
-                );
-                return;
-            }
-
-            PromiseThenAssimilate(resolvedPromise, target);
+                )
+            );
             return;
         }
 
@@ -1137,17 +1122,6 @@ public partial class Intrinsics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PromiseThenAssimilate(JsPromiseObject promise, JsPromiseObject targetPromise)
-    {
-        promise.IsHandled = true;
-        var reaction = new JsPromiseObject.Reaction(targetPromise);
-        if (promise.State == JsPromiseObject.PromiseState.Pending)
-            promise.AddReaction(reaction);
-        else
-            EnqueuePromiseReactionJob(promise, reaction);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void PromiseThenNoCapability(
         JsPromiseObject promise,
         in JsValue onFulfilled,
@@ -1219,15 +1193,6 @@ public partial class Intrinsics
         var settledResult = sourcePromise.Result;
         switch (reaction.Kind)
         {
-            case JsPromiseObject.Reaction.ReactionKind.AssimilateToPromise:
-            {
-                var target = reaction.TargetPromise!;
-                if (settledState == JsPromiseObject.PromiseState.Fulfilled)
-                    Realm.ResolvePromiseWithAssimilation(target, settledResult);
-                else
-                    Realm.RejectPromise(target, settledResult);
-                return;
-            }
             case JsPromiseObject.Reaction.ReactionKind.ResumeAsyncDriver:
             {
                 var generator = reaction.AsyncGenerator!;

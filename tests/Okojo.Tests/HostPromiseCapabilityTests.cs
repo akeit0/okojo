@@ -7,6 +7,137 @@ namespace Okojo.Tests;
 public class HostPromiseCapabilityTests
 {
     [Test]
+    public void PromiseTryPreservesIdentityAndInvokesCallbackBeforeConstruction()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        Assert.That(
+            realm
+                .Evaluate(
+                    """
+                    const order = [];
+                    class P extends Promise { constructor(executor) { order.push('construct'); super(executor); } }
+                    const p = P.resolve(1);
+                    order.length = 0;
+                    const same = P.try(() => { order.push('callback'); return p; }) === p;
+                    P.try(() => { order.push('callback'); return 42; });
+                    same && order.join(',') === 'callback,callback,construct'
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
+    }
+
+    [Test]
+    public void PromiseTryRejectsNonCallableCallbackAndPropagatesConversionErrorsSynchronously()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        realm.Evaluate(
+            "Promise.try(null).catch(e => globalThis.rejected = e instanceof TypeError);"
+        );
+        Assert.That(realm.Evaluate("rejected").IsTrue, Is.True);
+        Assert.That(
+            realm
+                .Evaluate(
+                    """
+                    const reason = {};
+                    const p = Promise.resolve(1);
+                    Object.defineProperty(p, 'constructor', { get() { throw reason; } });
+                    let caught = false;
+                    try { Promise.try(() => p); } catch (e) { caught = e === reason; }
+                    caught;
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
+    }
+
+    [Test]
+    public void PromiseResolveAndTryAcceptMatchingNonConstructorObject()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        Assert.That(
+            realm
+                .Evaluate(
+                    """
+                    const p = Promise.resolve(1);
+                    const receiver = {};
+                    p.constructor = receiver;
+                    Promise.resolve.call(receiver, p) === p && Promise.try.call(receiver, () => p) === p;
+                    """
+                )
+                .IsTrue,
+            Is.True
+        );
+    }
+
+    private sealed class Trace : IDebuggerSession
+    {
+        internal readonly List<string> Instructions = [];
+
+        public void OnCheckpoint(in ExecutionCheckpoint checkpoint) =>
+            Instructions.Add($"{checkpoint.ProgramCounter}: {checkpoint.CurrentOpcode}");
+    }
+
+    [Test]
+    public void NativePromiseAdoptionObservesPrototypeThenWithVmTrace()
+    {
+        var trace = new Trace();
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseAgent(agent =>
+            {
+                agent.DebuggerSession = trace;
+                agent.SetCheckInterval(1);
+            })
+            .Build();
+        var realm = runtime.MainRealm;
+        realm.Evaluate(
+            """
+            const source = Promise.resolve('original');
+            const observe = Promise.prototype.then;
+            Promise.prototype.then = function(resolve) { resolve('custom'); };
+            const result = new Promise(resolve => resolve(source));
+            observe.call(result, value => { globalThis.observed = value; });
+            """
+        );
+        Assert.That(trace.Instructions, Is.Not.Empty);
+        TestContext.Out.WriteLine(string.Join("\n", trace.Instructions));
+        Assert.That(realm.Global["observed"].AsString(), Is.EqualTo("custom"));
+    }
+
+    [Test]
+    public void IntrinsicPromiseConversionChecksConstructorAndPreservesIdentity()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        var promise = realm.CreateResolvedPromise(42);
+        Assert.That(realm.CreateResolvedPromise(promise), Is.EqualTo(promise));
+        realm.Global["value"] = promise;
+        realm.Evaluate(
+            "Object.defineProperty(value, 'constructor', {get() { throw 'constructor'; }});"
+        );
+        var error = Assert.Throws<JsRuntimeException>(() => realm.CreateResolvedPromise(promise));
+        Assert.That(error!.ThrownValue!.Value.AsString(), Is.EqualTo("constructor"));
+    }
+
+    [Test]
+    public void RelatedRealmPromiseConversionCreatesPromiseInTargetRealm()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        var other = runtime.CreateRealm();
+        var promise = other.CreateResolvedPromise(42);
+        var converted = realm.CreateResolvedPromise(promise);
+        Assert.That(converted, Is.Not.EqualTo(promise));
+        Assert.That(converted.AsObject().Realm, Is.SameAs(realm));
+    }
+
+    [Test]
     public void ResolutionLocksBeforeThenableSettlesAndReactionsAreJobs()
     {
         using var runtime = JsRuntime.CreateBuilder().Build();
@@ -24,6 +155,68 @@ public class HostPromiseCapabilityTests
         realm.Evaluate("complete('first')");
         Assert.That(seen, Is.EqualTo(new[] { "first" }));
         Assert.That(realm.Evaluate("result instanceof Promise").IsTrue, Is.True);
+    }
+
+    [Test]
+    public void NativePromiseAdoptionPreservesThenableJobOrdering()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        realm.Evaluate(
+            """
+            globalThis.order = [];
+            const source = Promise.resolve(1);
+            const target = new Promise(resolve => resolve(source));
+            target.then(() => order.push('adopted'));
+            Promise.resolve().then(() => order.push('one'))
+                .then(() => order.push('two')).then(() => order.push('three'));
+            """
+        );
+        Assert.That(
+            realm.Evaluate("order.join(',')").AsString(),
+            Is.EqualTo("one,two,adopted,three")
+        );
+    }
+
+    [Test]
+    public void SelfResolutionRejectsBeforeOwnThenGetter()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        realm.Evaluate(
+            """
+            let resolve;
+            const promise = new Promise(r => resolve = r);
+            globalThis.readThen = false;
+            Object.defineProperty(promise, 'then', {get() { readThen = true; return null; }});
+            resolve(promise);
+            Promise.prototype.then.call(promise, () => globalThis.result = 'fulfilled', e => globalThis.result = e.name);
+            """
+        );
+        Assert.That(realm.Evaluate("!readThen && result === 'TypeError'").IsTrue, Is.True);
+    }
+
+    [Test]
+    public void HostObservationAddsOneReactionJobWithoutPromiseConversion()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.MainRealm;
+        var promise = realm.CreateResolvedPromise(42);
+        realm.Global["value"] = promise;
+        realm.Evaluate(
+            "Object.defineProperty(value, 'constructor', {get() {throw 'constructor';}}); value.then = () => { throw 'then'; };"
+        );
+        var order = new List<string>();
+        realm.Agent.EnqueuePromiseJob(() => order.Add("before"));
+        realm.ObservePromise(
+            promise,
+            _ => order.Add("observed"),
+            _ => Assert.Fail("Unexpected rejection")
+        );
+        realm.Agent.EnqueuePromiseJob(() => order.Add("after"));
+        Assert.That(order, Is.Empty);
+        realm.Agent.RunPromiseJobs();
+        Assert.That(order, Is.EqualTo(new[] { "before", "observed", "after" }));
     }
 
     [Test]

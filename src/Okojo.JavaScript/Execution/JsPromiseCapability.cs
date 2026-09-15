@@ -44,32 +44,6 @@ public sealed class JsPromiseCapability
     /// Registers host reactions without creating a derived Promise. Host callbacks must not
     /// throw; they are responsible for settling their own operation's result.
     /// </summary>
-    public void Observe(Action<JsValue> onFulfilled, Action<JsValue> onRejected)
-    {
-        ArgumentNullException.ThrowIfNull(onFulfilled);
-        ArgumentNullException.ThrowIfNull(onRejected);
-        _realm.Intrinsics.PromiseThenNoCapability(
-            _promise,
-            new JsHostFunction(
-                _realm,
-                (in CallInfo info) =>
-                {
-                    onFulfilled(info.GetArgument(0));
-                    return JsValue.Undefined;
-                },
-                string.Empty,
-                1
-            ),
-            new JsHostFunction(
-                _realm,
-                (in CallInfo info) =>
-                {
-                    onRejected(info.GetArgument(0));
-                    return JsValue.Undefined;
-                },
-                string.Empty,
-                1
-            )
-        );
-    }
+    public void Observe(Action<JsValue> onFulfilled, Action<JsValue> onRejected) =>
+        _realm.ObservePromise(Promise, onFulfilled, onRejected);
 }
