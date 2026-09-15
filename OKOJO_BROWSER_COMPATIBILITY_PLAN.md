@@ -14,6 +14,15 @@ Target outcome:
 
 ## Current status
 
+### Host Promise operations
+
+The low-level host API now provides pending intrinsic Promise capabilities, intrinsic
+PromiseResolve conversion, and internal reactions without derived promises or then/species
+lookup. Native Promise resolution uses the required thenable jobs and observable property
+operations. `Promise.try` follows the current ECMA-262 callback-result conversion rules.
+See [host Promise capabilities](docs/guides/HOST_PROMISE_CAPABILITIES.md) for the API boundary,
+reference observations, and focused conformance evidence.
+
 ### Browser realm ownership
 
 `JsRuntime.ReleaseRealm` lets browser hosts release an additional realm's registry ownership
