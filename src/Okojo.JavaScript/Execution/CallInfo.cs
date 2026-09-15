@@ -10,14 +10,21 @@ public readonly ref struct CallInfo
     internal CallInfo(JsRealm realm, int framePointer)
         : this(realm, framePointer, framePointer + FrameLayout.HeaderSize) { }
 
-    internal CallInfo(JsRealm realm, int framePointer, int argOffset)
+    internal CallInfo(JsRealm realm, int framePointer, int argOffset, JsRealm? callerRealm = null)
     {
         Realm = realm;
         this.framePointer = framePointer;
         ArgumentOffset = argOffset;
+        CallerRealm = callerRealm;
     }
 
     public JsRealm Realm { get; }
+
+    /// <summary>
+    /// The realm that initiated a cross-realm call, or null for a same-realm call. Host functions
+    /// such as <c>postMessage</c> use it to attribute the operation to the calling document.
+    /// </summary>
+    public JsRealm? CallerRealm { get; }
 
     public JsFunction Function => Realm.GetCallFrameAt(framePointer).Function;
     public JsContext? Context => Realm.GetCallFrameAt(framePointer).Context;
