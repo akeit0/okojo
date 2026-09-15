@@ -26,6 +26,32 @@ public class HostGlobalThisTests
         }
     }
 
+    private sealed class ModuleLoader(string source) : IModuleSourceLoader
+    {
+        public string ResolveSpecifier(string specifier, string? referrer) => specifier;
+
+        public string LoadSource(string resolvedId) => source;
+    }
+
+    [TestCase(false), TestCase(true)]
+    public void ModuleEntryThisIsUndefined(bool asyncModule)
+    {
+        using var runtime = JsRuntime
+            .CreateBuilder()
+            .UseModuleSourceLoader(
+                new ModuleLoader(
+                    "globalThis.before = this === undefined; "
+                        + (asyncModule ? "await 0; " : "")
+                        + "globalThis.after = this === undefined; export const moduleThis = this;"
+                )
+            )
+            .Build();
+        var window = new JsWindowProxy(runtime.MainRealm);
+        var realm = Attach(runtime, window);
+        realm.Import("https://example.test/module.js");
+        Assert.That(realm.Evaluate("before && after && this === globalThis").IsTrue, Is.True);
+    }
+
     [Test]
     public void GlobalAccessorUsesReflectReceiverWithVmTrace()
     {

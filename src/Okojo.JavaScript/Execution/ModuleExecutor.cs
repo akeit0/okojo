@@ -22,7 +22,7 @@ internal static class ModuleExecutor
             throw new InvalidOperationException(
                 "Module evaluation requires an instantiated compilation."
             );
-        realm.Execute(moduleCompilation.Script, waitForTopLevelAwaitCompletion);
+        realm.ExecuteModule(moduleCompilation.Script, waitForTopLevelAwaitCompletion);
         var result = realm.Accumulator;
 
         if (

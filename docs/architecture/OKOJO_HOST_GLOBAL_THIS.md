@@ -73,3 +73,18 @@ throw TypeError, a conservative capability gate rather than HTML's restricted cr
 Validation: nine focused regressions pass; full Okojo suite passes 2,331 tests with four existing
 skips and no build warnings. Accessor and warm-property bytecode snapshots preserve the existing
 instruction sequence; the correction is in receiver forwarding and proxy cache feedback.
+
+### Follow-up: module entry this
+
+The Falconet consumer test exposed a preexisting module-entry bug: `ModuleExecutor` used the
+classic script entry point, so module top-level this received the global object (now the proxy).
+Scope: pass undefined explicitly at module entry, retaining classic script this and strict
+function behavior. Add synchronous and top-level-await module cases to `HostGlobalThisTests`.
+Node `--input-type=module` is the reference; both module entry forms must observe undefined.
+Keep compilation/opcodes unchanged and select the entry receiver at the execution boundary.
+
+Module reference: Node prints true before and after top-level await. V8 reads `Ldar <this>` in
+its module body; Okojo's `--module-disasm` emits `LdaThis; StaModuleVariable`. Supply undefined
+at the module entry boundary, matching the reference without rewriting expressions. Snapshots
+are under `20260915-100745`. Eleven focused cases and the full 2,333-test suite pass (four
+existing skips, zero build warnings) after the module-entry correction.

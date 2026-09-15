@@ -143,23 +143,20 @@ public sealed partial class JsRealm
 
     public event Action<JsValue>? FinalizationRegistryCleanupError;
 
-    public void Execute(JsScript script, bool pumpJobsAfterRun = true)
+    public void Execute(JsScript script, bool pumpJobsAfterRun = true) =>
+        ExecuteProgram(script, GlobalThisObject, pumpJobsAfterRun);
+
+    internal void ExecuteModule(JsScript script, bool pumpJobsAfterRun) =>
+        ExecuteProgram(script, JsValue.Undefined, pumpJobsAfterRun);
+
+    private void ExecuteProgram(JsScript script, JsValue thisValue, bool pumpJobsAfterRun)
     {
         script = script.PrepareForExecution(this);
         StackTop = 0;
         fp = 0;
         ClearExceptionHandlers();
         var rootFunc = new JsBytecodeFunction(script);
-        PushFrame(
-            rootFunc,
-            0,
-            0,
-            0,
-            null,
-            GlobalThisObject,
-            JsValue.Undefined,
-            CallFrameKind.ScriptFrame
-        );
+        PushFrame(rootFunc, 0, 0, 0, null, thisValue, JsValue.Undefined, CallFrameKind.ScriptFrame);
         BeginExecutionPhase();
         try
         {
