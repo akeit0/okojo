@@ -2735,62 +2735,6 @@ public class TypedArrayFeatureTests
     }
 
     [Test]
-    public void TypedArray_Test262_Combined_ReflectSet_Valid_Index_Altered_Receiver_Case_Passes_Locally()
-    {
-        var repoRoot = GetRepoRoot();
-        var assertSource = File.ReadAllText(
-            Path.Combine(repoRoot, "test262", "harness", "assert.js")
-        );
-        var typedArraySource = File.ReadAllText(
-            Path.Combine(repoRoot, "test262", "harness", "testTypedArray.js")
-        );
-        var testSource = File.ReadAllText(
-            Path.Combine(
-                repoRoot,
-                "test262",
-                "test",
-                "built-ins",
-                "TypedArrayConstructors",
-                "internals",
-                "Set",
-                "key-is-valid-index-reflect-set.js"
-            )
-        );
-
-        var fullSource = new StringBuilder();
-        fullSource.AppendLine(assertSource);
-        fullSource.AppendLine(typedArraySource);
-        fullSource.Append(testSource);
-
-        var realm = JsRuntime.Create().DefaultRealm;
-        var test262Error = new JsHostFunction(
-            realm,
-            (in info) =>
-            {
-                var innerVm = info.Realm;
-                var args = info.Arguments;
-                var callee = info.Function;
-                var err = new JsPlainObject(innerVm);
-                var msg = args.Length > 0 ? args[0].ToString() : string.Empty;
-                err.SetProperty("name", "Test262Error");
-                err.SetProperty("message", msg);
-                err.SetProperty("constructor", callee);
-                return err;
-            },
-            "Test262Error",
-            1
-        );
-        var test262Proto = new JsPlainObject(realm);
-        test262Proto.SetProperty("constructor", test262Error);
-        test262Error.SetProperty("prototype", test262Proto);
-        realm.Global["Test262Error"] = test262Error;
-
-        var script = realm.CompileScript(fullSource.ToString());
-
-        Assert.DoesNotThrow(() => realm.Execute(script));
-    }
-
-    [Test]
     public void Debug_TypedArray_ReflectSet_ValueOf_Case_Breakdown_For_Float64Array()
     {
         var realm = JsRuntime.Create().DefaultRealm;
