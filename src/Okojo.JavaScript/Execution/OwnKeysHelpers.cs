@@ -1,4 +1,5 @@
 using System.Globalization;
+using Okojo.JavaScript.Objects;
 
 namespace Okojo.JavaScript.Execution;
 
@@ -20,7 +21,10 @@ internal static class OwnKeysHelpers
                 || proxyTarget.TryGetOwnKeysTrapKeys(realm, out _)
             )
                 return CollectForProxy(realm, proxyTarget);
-            return CollectOrdinaryOwnPropertyKeys(realm, proxyTarget);
+            var keys = CollectOrdinaryOwnPropertyKeys(realm, proxyTarget);
+            if (proxy is JsWindowProxy window)
+                window.AppendResolvedKeys(realm, keys);
+            return keys;
         }
 
         return CollectOrdinaryOwnPropertyKeys(realm, proxy);

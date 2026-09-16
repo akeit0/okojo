@@ -138,11 +138,11 @@ public sealed partial class JsRealm
         return this.ToJsStringSlowPath(value);
     }
 
-    /// <summary>Creates a Promise resolved with the supplied value.</summary>
+    /// <summary>Performs PromiseResolve with this realm's intrinsic Promise constructor.</summary>
     public JsValue CreateResolvedPromise(in JsValue value)
     {
         EnsureCompatibleValue(value, nameof(value));
-        return this.PromiseResolveValue(value);
+        return this.PromiseResolveByConstructor(Intrinsics.PromiseConstructor, value);
     }
 
     /// <summary>Creates a Promise rejected with the supplied reason.</summary>
@@ -200,7 +200,7 @@ public sealed partial class JsRealm
     public string? CurrentModuleResolvedId =>
         Agent.TryGetCurrentModuleResolvedId(out var resolvedId) ? resolvedId : null;
 
-    private void EnsureCompatibleValue(in JsValue value, string parameterName)
+    internal void EnsureCompatibleValue(in JsValue value, string parameterName)
     {
         if (value.TryGetObject(out var obj))
         {

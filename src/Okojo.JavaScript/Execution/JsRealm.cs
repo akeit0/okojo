@@ -23,11 +23,13 @@ public sealed partial class JsRealm
     private readonly JsPlainObject bootstrapObjectPrototype;
     private readonly Action<JsRealm>? initialize;
     public readonly Intrinsics Intrinsics;
+    internal RealmModuleCache ModuleCache { get; }
 
     internal JsRealm(JsAgent agent, int id, JsRealmOptions? options = null)
     {
         Id = id;
         Agent = agent;
+        ModuleCache = new(options?.ModuleSourceLoader ?? agent.ModuleSourceLoader);
         EmptyShape = new(this, new());
         FunctionPrototypeObjectShape = new(
             this,
@@ -107,11 +109,17 @@ public sealed partial class JsRealm
         bootstrapObjectPrototype = new(this, false);
         Intrinsics = new(this, bootstrapObjectPrototype);
         GlobalObject = new(this);
+        GlobalThisObject = options?.GlobalThisObject ?? GlobalObject;
+        if (!ReferenceEquals(GlobalThisObject.Realm.Agent, agent))
+            throw new ArgumentException(
+                "The global-this object must belong to the same agent.",
+                nameof(options)
+            );
         Global = new(this);
         GlobalObject.DefineDataPropertyAtom(
             this,
             IdGlobalThis,
-            JsValue.FromObject(GlobalObject),
+            JsValue.FromObject(GlobalThisObject),
             JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
         );
 
@@ -204,6 +212,9 @@ public sealed partial class JsRealm
 
     public GlobalBindingsView Global { get; }
     public JsGlobalObject GlobalObject { get; }
+
+    /// <summary>The realm's this binding, independent of its global property storage.</summary>
+    public JsObject GlobalThisObject { get; }
     public StaticNamedPropertyLayout EmptyShape { get; }
     internal StaticNamedPropertyLayout FunctionPrototypeObjectShape { get; }
     internal StaticNamedPropertyLayout FunctionPrototypeObjectShapeNoConstructor { get; }

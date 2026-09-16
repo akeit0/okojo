@@ -6,6 +6,7 @@ It provides:
 
 - script and module evaluation
 - promises and async execution
+- host-owned Promise capabilities, intrinsic callback-result conversion, and host reactions
 - realms, agents, modules, values, objects, intrinsics, and execution
 
 Embedding composition lives in `Okojo.JavaScript.Embedding`:

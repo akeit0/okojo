@@ -51,6 +51,7 @@ public partial class Intrinsics
                         );
                         if (
                             state.Realm.Agent.TryGetPendingModuleEvaluationPromise(
+                                state.Realm,
                                 state.Specifier,
                                 state.Referrer,
                                 out var pendingPromise

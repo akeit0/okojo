@@ -14,6 +14,30 @@ Target outcome:
 
 ## Current status
 
+### Host Promise operations
+
+The low-level host API now provides pending intrinsic Promise capabilities, intrinsic
+PromiseResolve conversion, and internal reactions without derived promises or then/species
+lookup. Native Promise resolution uses the required thenable jobs and observable property
+operations. `Promise.try` follows the current ECMA-262 callback-result conversion rules.
+See [host Promise capabilities](docs/guides/HOST_PROMISE_CAPABILITIES.md) for the API boundary,
+reference observations, and focused conformance evidence.
+
+### Browser realm ownership
+
+`JsRuntime.ReleaseRealm` lets browser hosts release an additional realm's registry ownership
+while saved JavaScript objects/functions and pending jobs remain valid. Same-agent realms use
+direct references, with monotonic realm IDs. Each realm now has an independent module map and
+an optional `JsRealmOptions.ModuleSourceLoader`; identical URLs in related documents preserve
+their own namespaces, globals, and async evaluation. Document-specific host task teardown
+remains an embedding prerequisite for complete iframe navigation. See
+[`OKOJO_REALM_OWNERSHIP.md`](docs/architecture/OKOJO_REALM_OWNERSHIP.md).
+
+`JsRealmOptions.GlobalThisObject` and the host `JsWindowProxy` now separate document global
+bindings from a navigation-stable window reference. Same-agent retargeting preserves descriptors
+and receivers; detachment disables access. Full cross-origin WindowProxy behavior remains host
+work. See [host global-this](docs/architecture/OKOJO_HOST_GLOBAL_THIS.md).
+
 ### Code/instance split implementation (gates green 2026-09-10)
 
 Portable compilation units and function descriptors now separate shared bytecode

@@ -57,6 +57,10 @@ Arrows point from a dependency to a consumer. Cycles are forbidden.
   embedder run or await one host task between Promise-job checkpoints without moving host-task
   policy into the engine.
 - No engine evaluation API may silently run an unrelated host task.
+- Low-level host Promise operations live on `JsRealm`: `CreatePromiseCapability` supplies a
+  pending intrinsic Promise, `CreateResolvedPromise` performs intrinsic PromiseResolve, and
+  `ObservePromise` attaches internal reactions without a derived Promise or then/species lookup.
+  Runtime reaction records remain internal; see [host Promise capabilities](../guides/HOST_PROMISE_CAPABILITIES.md).
 - Node-specific policy such as `nextTick` priority must not be imposed on
   browser hosts.
 - Host-owned dynamic non-index string property collections extend

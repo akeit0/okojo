@@ -12,10 +12,30 @@ internal enum GlobalStoreResult : byte
 
 public sealed partial class JsGlobalObject : JsObject
 {
+    private IWindowPropertyResolver? propertyResolver;
+
     public JsGlobalObject(JsRealm realm)
         : base(realm)
     {
         Prototype = realm.ObjectPrototype;
+    }
+
+    /// <summary>
+    /// Installs the host's source of Window named properties for bare-identifier resolution. The
+    /// resolver is consulted only after own and inherited properties miss, so declared globals,
+    /// intrinsics, and prototypes keep precedence. Null restores ordinary global lookup.
+    /// </summary>
+    public void SetPropertyResolver(IWindowPropertyResolver? resolver) => propertyResolver = resolver;
+
+    private bool TryGetHostNamedProperty(JsRealm realm, int atom, out JsValue value)
+    {
+        if (propertyResolver is null || atom < 0)
+        {
+            value = JsValue.Undefined;
+            return false;
+        }
+
+        return propertyResolver.TryGetNamed(realm.Atoms.AtomToString(atom), out value);
     }
 
     internal bool TryGetPropertyAtom(JsRealm realm, int atom, out JsValue value)
@@ -55,6 +75,9 @@ public sealed partial class JsGlobalObject : JsObject
             Prototype is not null
             && Prototype.TryGetPropertyAtomWithReceiver(realm, this, atom, out value, out _)
         )
+            return true;
+
+        if (TryGetHostNamedProperty(realm, atom, out value))
             return true;
 
         value = JsValue.Undefined;
@@ -111,6 +134,9 @@ public sealed partial class JsGlobalObject : JsObject
         )
             return true;
 
+        if (TryGetHostNamedProperty(realm, atom, out value))
+            return true;
+
         value = JsValue.Undefined;
         return false;
     }
@@ -152,7 +178,7 @@ public sealed partial class JsGlobalObject : JsObject
 
         if (TryGetOwnPropertySlotInfoAtom(atom, out var ownInfo))
         {
-            value = GetNamedByCachedSlotInfo(realm, ownInfo);
+            value = GetNamedValueBySlotInfo(realm, receiverValue, ownInfo);
             slotInfo = ownInfo;
             return true;
         }
@@ -167,6 +193,12 @@ public sealed partial class JsGlobalObject : JsObject
                 out _
             )
         )
+        {
+            slotInfo = SlotInfo.Invalid;
+            return true;
+        }
+
+        if (TryGetHostNamedProperty(realm, atom, out value))
         {
             slotInfo = SlotInfo.Invalid;
             return true;

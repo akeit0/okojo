@@ -143,23 +143,20 @@ public sealed partial class JsRealm
 
     public event Action<JsValue>? FinalizationRegistryCleanupError;
 
-    public void Execute(JsScript script, bool pumpJobsAfterRun = true)
+    public void Execute(JsScript script, bool pumpJobsAfterRun = true) =>
+        ExecuteProgram(script, GlobalThisObject, pumpJobsAfterRun);
+
+    internal void ExecuteModule(JsScript script, bool pumpJobsAfterRun) =>
+        ExecuteProgram(script, JsValue.Undefined, pumpJobsAfterRun);
+
+    private void ExecuteProgram(JsScript script, JsValue thisValue, bool pumpJobsAfterRun)
     {
         script = script.PrepareForExecution(this);
         StackTop = 0;
         fp = 0;
         ClearExceptionHandlers();
         var rootFunc = new JsBytecodeFunction(script);
-        PushFrame(
-            rootFunc,
-            0,
-            0,
-            0,
-            null,
-            GlobalObject,
-            JsValue.Undefined,
-            CallFrameKind.ScriptFrame
-        );
+        PushFrame(rootFunc, 0, 0, 0, null, thisValue, JsValue.Undefined, CallFrameKind.ScriptFrame);
         BeginExecutionPhase();
         try
         {
@@ -185,7 +182,7 @@ public sealed partial class JsRealm
         var root = new JsBytecodeFunction(script);
         var result = InvokeBytecodeFunction(
             root,
-            GlobalObject,
+            GlobalThisObject,
             ReadOnlySpan<JsValue>.Empty,
             JsValue.Undefined,
             CallFrameKind.ScriptFrame
@@ -655,6 +652,18 @@ public sealed partial class JsRealm
         if (!ReferenceEquals(fn.Realm, this) && fn is not JsProxyFunction)
         {
             var args = Stack.AsSpan(argOffset, argCount).ToArray();
+            // Attribute a cross-realm host call (for example window.postMessage on another
+            // document's global) to the calling realm; bytecode/proxy calls switch realms normally.
+            if (fn is JsHostFunction host)
+                return fn.Realm.InvokeHostFunctionWithExitFrame(
+                    host,
+                    thisValue,
+                    args,
+                    callerPc,
+                    JsValue.Undefined,
+                    CallFrameFlag.None,
+                    callerRealm: this
+                );
             return fn.Realm.InvokeFunction(fn, thisValue, args);
         }
 
@@ -725,7 +734,8 @@ public sealed partial class JsRealm
         ReadOnlySpan<JsValue> args,
         int callerPc,
         JsValue newTarget,
-        CallFrameFlag flags = CallFrameFlag.None
+        CallFrameFlag flags = CallFrameFlag.None,
+        JsRealm? callerRealm = null
     )
     {
         var hostArgOffset = StackTop + HeaderSize;
@@ -756,7 +766,7 @@ public sealed partial class JsRealm
 
         try
         {
-            var info = new CallInfo(this, hostFp, hostArgOffset);
+            var info = new CallInfo(this, hostFp, hostArgOffset, callerRealm);
             return hostFunc.BodyField(in info);
         }
         finally
@@ -772,7 +782,8 @@ public sealed partial class JsRealm
         JsValue newTarget,
         CallFrameFlag flags,
         int argOffset,
-        int argCount
+        int argCount,
+        JsRealm? callerRealm = null
     )
     {
         var callerFp = fp;
@@ -800,7 +811,7 @@ public sealed partial class JsRealm
 
         try
         {
-            return hostFunc.BodyField(new(this, hostFp, argOffset));
+            return hostFunc.BodyField(new(this, hostFp, argOffset, callerRealm));
         }
         finally
         {
@@ -1413,7 +1424,18 @@ public sealed partial class JsRealm
         {
             var crossRealmThisValue =
                 receiverReg < 0 ? JsValue.Undefined : Unsafe.Add(ref registers, receiverReg);
-            acc = callee.Realm.InvokeFunction(callee, crossRealmThisValue, args);
+            if (callee is JsHostFunction host)
+                acc = callee.Realm.InvokeHostFunctionWithExitFrame(
+                    host,
+                    crossRealmThisValue,
+                    args,
+                    callerPc,
+                    JsValue.Undefined,
+                    CallFrameFlag.None,
+                    callerRealm: this
+                );
+            else
+                acc = callee.Realm.InvokeFunction(callee, crossRealmThisValue, args);
         }
     }
 
@@ -4875,7 +4897,7 @@ public sealed partial class JsRealm
     private JsValue NormalizeSloppyThisValue(in JsValue thisValue)
     {
         if (thisValue.IsUndefined || thisValue.IsNull)
-            return GlobalObject;
+            return GlobalThisObject;
         if (thisValue.IsObject)
             return thisValue;
         return this.BoxPrimitive(thisValue);

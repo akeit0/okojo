@@ -61,7 +61,7 @@ public partial class Intrinsics
                     // both sloppy and strict eval sources.
                     result = realm.InvokeBytecodeFunction(
                         root,
-                        realm.GlobalObject,
+                        realm.GlobalThisObject,
                         ReadOnlySpan<JsValue>.Empty,
                         JsValue.Undefined
                     );

@@ -94,14 +94,6 @@ public sealed class JsPromiseObject : JsObject
             Data = capability;
         }
 
-        public Reaction(JsPromiseObject targetPromise)
-        {
-            Kind = ReactionKind.AssimilateToPromise;
-            OnFulfilled = JsValue.Undefined;
-            OnRejected = JsValue.Undefined;
-            Data = targetPromise;
-        }
-
         public Reaction(JsGeneratorObject asyncGenerator)
         {
             Kind = ReactionKind.ResumeAsyncDriver;
@@ -128,9 +120,6 @@ public sealed class JsPromiseObject : JsObject
 
         public PromiseCapability? Capability =>
             Kind == ReactionKind.UserHandlers ? (PromiseCapability?)Data : null;
-
-        public JsPromiseObject? TargetPromise =>
-            Kind == ReactionKind.AssimilateToPromise ? (JsPromiseObject?)Data : null;
 
         public JsGeneratorObject? AsyncGenerator =>
             Kind == ReactionKind.ResumeAsyncDriver ? (JsGeneratorObject?)Data : null;
@@ -182,7 +171,6 @@ public sealed class JsPromiseObject : JsObject
         internal enum ReactionKind : byte
         {
             UserHandlers = 0,
-            AssimilateToPromise = 1,
             ResumeAsyncDriver = 2,
             InvokeHandlersOnly = 3,
             ResumeAsyncGeneratorReturn = 4,
