@@ -1202,45 +1202,6 @@ public class ClassTests
     }
 
     [Test]
-    public void NestedClass_Can_Access_Outer_Static_Private_Method_From_Exact_Test262_Fixture()
-    {
-        var realm = JsRuntime.Create().DefaultRealm;
-        var repoRoot = TestContext.CurrentContext.TestDirectory;
-        while (!File.Exists(Path.Combine(repoRoot, "Okojo.slnx")))
-            repoRoot = Directory.GetParent(repoRoot)!.FullName;
-
-        var sourcePath = Path.Combine(
-            repoRoot,
-            "test262",
-            "test",
-            "language",
-            "expressions",
-            "class",
-            "elements",
-            "private-static-method-usage-inside-nested-class.js"
-        );
-        var source =
-            """
-                var assert = {
-                  sameValue(actual, expected) {
-                    if (actual !== expected) throw new Error("sameValue");
-                  },
-                  throws(ctor, fn) {
-                    var threw = false;
-                    try { fn(); } catch (e) { threw = e instanceof ctor; }
-                    if (!threw) throw new Error("throws");
-                  }
-                };
-                """
-            + Environment.NewLine
-            + File.ReadAllText(sourcePath);
-        var script = realm.CompileScript(source, sourcePath);
-
-        realm.Execute(script);
-        Assert.That(realm.Accumulator.IsUndefined, Is.True);
-    }
-
-    [Test]
     public void CrossRealm_PrivateBrandMismatch_Uses_DefiningRealm_TypeError()
     {
         var engine = JsRuntime.Create();
