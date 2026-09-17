@@ -189,6 +189,30 @@ public readonly struct JsValue : IEquatable<JsValue>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void FillUndefined(Span<JsValue> destination) =>
+        FillNoReferences(destination, JsUndefinedBits);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void FillTheHole(Span<JsValue> destination) =>
+        FillNoReferences(destination, JsTheHoleBits);
+
+    // The dedicated helpers above keep the ref-free value invariant at the
+    // call sites. This scalar loop avoids reference assignments and write
+    // barrier helpers while also clearing stale object references.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void FillNoReferences(Span<JsValue> destination, ulong valueBits)
+    {
+        ref var first = ref MemoryMarshal.GetReference(destination);
+        for (var i = 0; i < destination.Length; i++)
+        {
+            ref var dst = ref Unsafe.Add(ref first, i);
+            ref var dstBits = ref Unsafe.As<JsValue, ulong>(ref dst);
+            dstBits = valueBits;
+            Unsafe.Add(ref dstBits, 1) = 0;
+        }
+    }
+
     // Canonicalizes a numeric result in the integer domain (no xmm-to-flags
     // dependency): any exponent-all-ones value with a nonzero mantissa is a
     // NaN and becomes the canonical JsNan bit pattern. Callers that write the

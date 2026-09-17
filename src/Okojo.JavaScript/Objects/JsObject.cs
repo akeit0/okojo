@@ -680,7 +680,7 @@ public class JsObject
         var count = shape.StorageSlotCount;
         SlotsArray = count == 0 ? Array.Empty<JsValue>() : new JsValue[count];
         if (count != 0)
-            SlotsArray.AsSpan().Fill(JsValue.Undefined);
+            JsValue.FillUndefined(SlotsArray);
     }
 
     internal bool TryGetOwnPropertySlotInfoAtom(int atom, out SlotInfo info)

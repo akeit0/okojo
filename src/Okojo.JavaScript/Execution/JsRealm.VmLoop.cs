@@ -3135,7 +3135,7 @@ public sealed partial class JsRealm
                             RemoveExceptionHandlersForFrame(fp);
                             fp = callFrame.CallerFp;
                             startPc = callFrame.CallerPc;
-                            fullStack[StackTop..intNum1].Fill(JsValue.Undefined); // Clear registers of the frame being popped to avoid keeping references to objects longer than needed.
+                            JsValue.FillUndefined(fullStack[StackTop..intNum1]); // Clear registers of the frame being popped to avoid keeping references to objects longer than needed.
 
                             if (!generatorReturn && boolTemp)
                                 acc = CompleteConstructResult(

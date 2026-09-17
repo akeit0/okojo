@@ -65,7 +65,7 @@ internal static class DenseArrayFastPath
         var grown = new JsValue[capacity];
         if (store is not null)
             Array.Copy(store, grown, store.Length);
-        grown.AsSpan(store?.Length ?? 0).Fill(JsValue.TheHole);
+        JsValue.FillTheHole(grown.AsSpan(store?.Length ?? 0));
         array.Dense = grown;
     }
 }

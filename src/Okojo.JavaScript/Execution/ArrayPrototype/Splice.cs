@@ -55,7 +55,7 @@ public partial class Intrinsics
                 (int)(actualStart + itemCount),
                 (int)(length - actualStart - actualDeleteCount)
             );
-            store.AsSpan((int)newLength, (int)shift).Fill(JsValue.TheHole);
+            JsValue.FillTheHole(store.AsSpan((int)newLength, (int)shift));
         }
         else if (itemCount > actualDeleteCount)
         {

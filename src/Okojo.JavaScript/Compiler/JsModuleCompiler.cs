@@ -94,7 +94,7 @@ internal sealed class JsModuleCompiler : JsCompilerBase
         var additionalFunctions = hoistedFunctions.Select(static h => h.Template).ToArray();
         var script = new JsCompilationUnit(entry, additionalFunctions).Link(TargetRealm);
         var initialContextSlots = new JsValue[rootContextSlotCount];
-        Array.Fill(initialContextSlots, JsValue.Undefined);
+        JsValue.FillUndefined(initialContextSlots);
         var bindings = GetPlannedBindings(0);
         for (var i = 0; i < bindings.Length; i++)
             if (

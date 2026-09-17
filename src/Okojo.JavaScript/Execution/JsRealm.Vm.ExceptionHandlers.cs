@@ -186,7 +186,7 @@ public sealed partial class JsRealm
                 StackTop = poppedFp;
                 fp = poppedFrame.CallerFp;
                 pc = poppedFrame.CallerPc;
-                fullStack[StackTop..top].Fill(JsValue.Undefined);
+                JsValue.FillUndefined(fullStack[StackTop..top]);
                 RemoveExceptionHandlersForFrame(poppedFp);
                 if (TryGetActiveGeneratorForFrame(poppedFp, out var poppedGenerator))
                 {
