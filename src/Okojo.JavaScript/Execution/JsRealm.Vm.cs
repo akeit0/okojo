@@ -829,7 +829,7 @@ public sealed partial class JsRealm
         fp = callerFp;
         acc = callerAcc;
         if (top > StackTop)
-            Stack.AsSpan(StackTop, top - StackTop).Fill(JsValue.Undefined);
+            JsValue.FillUndefined(Stack.AsSpan(StackTop, top - StackTop));
     }
 
     internal JsValue InvokeBytecodeFunction(
@@ -868,9 +868,9 @@ public sealed partial class JsRealm
 
         for (var i = 0; i < args.Length; i++)
             fullStack[newFp + HeaderSize + i] = args[i];
-        fullStack
-            .Slice(newFp + HeaderSize + args.Length, registerWindowSize - args.Length)
-            .Fill(JsValue.Undefined);
+        JsValue.FillUndefined(
+            fullStack.Slice(newFp + HeaderSize + args.Length, registerWindowSize - args.Length)
+        );
 
         func.Script.ArmBreakpoints();
         PushFrame(
@@ -999,9 +999,9 @@ public sealed partial class JsRealm
         var mergedArgs = fullStack.Slice(newFp + HeaderSize, totalArgCount);
         prependedArgs.CopyTo(mergedArgs);
         args.CopyTo(mergedArgs[prependedArgs.Length..]);
-        fullStack
-            .Slice(newFp + HeaderSize + totalArgCount, registerWindowSize - totalArgCount)
-            .Fill(JsValue.Undefined);
+        JsValue.FillUndefined(
+            fullStack.Slice(newFp + HeaderSize + totalArgCount, registerWindowSize - totalArgCount)
+        );
 
         if (
             TryInvokeBytecodeNonOrdinary(
@@ -1013,7 +1013,7 @@ public sealed partial class JsRealm
             )
         )
         {
-            mergedArgs.Fill(JsValue.Undefined);
+            JsValue.FillUndefined(mergedArgs);
             return specialResult;
         }
 
@@ -1073,9 +1073,9 @@ public sealed partial class JsRealm
         var mergedArgs = fullStack.Slice(newFp + HeaderSize, totalArgCount);
         prependedArgs.CopyTo(mergedArgs);
         fullStack.Slice(argOffset, argCount).CopyTo(mergedArgs[prependedArgs.Length..]);
-        fullStack
-            .Slice(newFp + HeaderSize + totalArgCount, registerWindowSize - totalArgCount)
-            .Fill(JsValue.Undefined);
+        JsValue.FillUndefined(
+            fullStack.Slice(newFp + HeaderSize + totalArgCount, registerWindowSize - totalArgCount)
+        );
 
         if (
             TryInvokeBytecodeNonOrdinary(
@@ -1087,7 +1087,7 @@ public sealed partial class JsRealm
             )
         )
         {
-            mergedArgs.Fill(JsValue.Undefined);
+            JsValue.FillUndefined(mergedArgs);
             return specialResult;
         }
 
@@ -1354,7 +1354,7 @@ public sealed partial class JsRealm
         StackTop = invokedFrameFp;
         fp = callerFp;
         if (top > invokedFrameFp)
-            fullStack[invokedFrameFp..top].Fill(JsValue.Undefined);
+            JsValue.FillUndefined(fullStack[invokedFrameFp..top]);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1678,9 +1678,12 @@ public sealed partial class JsRealm
                 .Slice(bytecodeArgOffset, bytecodeArgCount)
                 .CopyTo(fullStack[finalArgOffset..]);
         if (clearUnusedRegisters)
-            fullStack
-                .Slice(finalArgOffset + bytecodeArgCount, registerWindowSize - bytecodeArgCount)
-                .Fill(JsValue.Undefined);
+            JsValue.FillUndefined(
+                fullStack.Slice(
+                    finalArgOffset + bytecodeArgCount,
+                    registerWindowSize - bytecodeArgCount
+                )
+            );
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1720,7 +1723,7 @@ public sealed partial class JsRealm
         fullStack[newFp + OffsetExtra0] = JsValue.Undefined;
         acc = JsValue.Undefined;
         if (currentTop > newTop)
-            fullStack[newTop..currentTop].Fill(JsValue.Undefined);
+            JsValue.FillUndefined(fullStack[newTop..currentTop]);
         StackTop = newTop;
     }
 
@@ -1851,14 +1854,14 @@ public sealed partial class JsRealm
                 }
 
                 if (hasPrependedArgs)
-                    args.Fill(JsValue.Undefined);
+                    JsValue.FillUndefined(args);
                 return generator;
             }
             case JsBytecodeFunctionKind.Async:
             {
                 var result = StartAsyncBytecodeFunction(bytecodeTarget, thisValue, args);
                 if (hasPrependedArgs)
-                    args.Fill(JsValue.Undefined);
+                    JsValue.FillUndefined(args);
                 return result;
             }
             default:
@@ -2239,7 +2242,7 @@ public sealed partial class JsRealm
             top = savedSp;
         StackTop = savedSp;
         if (top > savedSp)
-            Stack.AsSpan(savedSp, top - savedSp).Fill(JsValue.Undefined);
+            JsValue.FillUndefined(Stack.AsSpan(savedSp, top - savedSp));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2457,7 +2460,7 @@ public sealed partial class JsRealm
         var array = CreateArrayObject();
         var dense = array.InitializeDenseElementsNoCollision(length);
         if (length > 0)
-            Array.Fill(dense, JsValue.TheHole);
+            JsValue.FillTheHole(dense);
         return array;
     }
 
@@ -3753,7 +3756,7 @@ public sealed partial class JsRealm
         ref var frame = ref Unsafe.As<JsValue, CallFrame>(ref fullStack[StackTop]);
         fp = frame.CallerFp;
         pc = frame.CallerPc;
-        fullStack[StackTop..top].Fill(JsValue.Undefined);
+        JsValue.FillUndefined(fullStack[StackTop..top]);
 
         if (stopAtCallerFp >= 0 && fp == stopAtCallerFp)
             return GeneratorDispatchResult.ReturnFromRun;

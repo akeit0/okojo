@@ -197,7 +197,7 @@ public sealed partial class JsAgent
             if (slots is null)
             {
                 slots = new JsValue[minimumLength];
-                slots.AsSpan().Fill(JsValue.TheHole);
+                JsValue.FillTheHole(slots);
                 return slots;
             }
 
@@ -206,7 +206,7 @@ public sealed partial class JsAgent
 
             var oldLength = slots.Length;
             Array.Resize(ref slots, minimumLength);
-            slots.AsSpan(oldLength).Fill(JsValue.TheHole);
+            JsValue.FillTheHole(slots.AsSpan(oldLength));
             return slots;
         }
     }

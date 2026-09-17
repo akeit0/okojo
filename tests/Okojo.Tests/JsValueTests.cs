@@ -56,6 +56,27 @@ public class JsValueTests
     }
 
     [Test]
+    public void TestRefFreeFillClearsExistingReferences()
+    {
+        var values = new JsValue[4];
+        values.AsSpan().Fill(JsValue.FromString("stale"));
+
+        JsValue.FillUndefined(values);
+        foreach (var value in values)
+        {
+            Assert.That(value.IsUndefined, Is.True);
+            Assert.That(value.Obj, Is.Null);
+        }
+
+        JsValue.FillTheHole(values);
+        foreach (var value in values)
+        {
+            Assert.That(value.IsTheHole, Is.True);
+            Assert.That(value.Obj, Is.Null);
+        }
+    }
+
+    [Test]
     public void TestString()
     {
         var val = JsValue.FromString("Hello");
