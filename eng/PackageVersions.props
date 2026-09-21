@@ -4,8 +4,8 @@
         <OkojoPackageVersion_Okojo_SourceGenerator>0.2.0-preview.1</OkojoPackageVersion_Okojo_SourceGenerator>
         <OkojoPackageVersion_Okojo_DocGenerator_Annotations>0.2.0-preview.1</OkojoPackageVersion_Okojo_DocGenerator_Annotations>
         <OkojoPackageVersion_Okojo_DocGenerator_Cli>0.2.0-preview.1</OkojoPackageVersion_Okojo_DocGenerator_Cli>
-        <OkojoPackageVersion_Okojo_JavaScript>0.2.0-preview.1</OkojoPackageVersion_Okojo_JavaScript>
-        <OkojoPackageVersion_Okojo_JavaScript_Embedding>0.2.0-preview.1</OkojoPackageVersion_Okojo_JavaScript_Embedding>
+        <OkojoPackageVersion_Okojo_JavaScript>0.2.0-preview.2</OkojoPackageVersion_Okojo_JavaScript>
+        <OkojoPackageVersion_Okojo_JavaScript_Embedding>0.2.0-preview.2</OkojoPackageVersion_Okojo_JavaScript_Embedding>
         <OkojoPackageVersion_Okojo_Hosting>0.2.0-preview.1</OkojoPackageVersion_Okojo_Hosting>
         <OkojoPackageVersion_Okojo_Diagnostics>0.2.0-preview.1</OkojoPackageVersion_Okojo_Diagnostics>
         <OkojoPackageVersion_Okojo_DotNet_Modules>0.2.0-preview.1</OkojoPackageVersion_Okojo_DotNet_Modules>

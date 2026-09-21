@@ -12,29 +12,10 @@ on:
           - pack
           - publish
       package:
-        description: "Package or package group to process"
+        description: "Package ids to process (comma/space separated), or 'all'"
         required: true
         default: all
-        type: choice
-        options:
-          - all
-          - Okojo.Annotations
-          - Okojo.SourceGenerator
-          - Okojo.DocGenerator.Annotations
-          - Okojo.DocGenerator.Cli
-          - Okojo.JavaScript
-          - Okojo.JavaScript.Embedding
-          - Okojo.Numerics
-          - Okojo.Text.Unicode
-          - Okojo.Text.RegularExpressions
-          - Okojo.Globalization
-          - Okojo.DotNet.Modules
-          - Okojo.Hosting
-          - Okojo.Diagnostics
-          - Okojo.Reflection
-          - Okojo.WebPlatform
-          - Okojo.WebAssembly
-          - Okojo.WebAssembly.Wasmtime
+        type: string
 
 jobs:
   pack:
@@ -52,8 +33,10 @@ jobs:
       - name: Select packages
         id: select
         shell: pwsh
+        env:
+          PACKAGE_SELECTION: ${{ inputs.package }}
         run: |
-          $selected = "${{ inputs.package }}"
+          $selectedRaw = $env:PACKAGE_SELECTION
           $repoRoot = $PWD.Path
           $sourceRoot = Join-Path $repoRoot 'src'
 
@@ -76,11 +59,46 @@ jobs:
               }
           ) | Sort-Object Id
 
-          if ($selected -eq "all") {
-            $packages = @($all)
-          } else {
-            $packages = @($all | Where-Object { $_.Id -eq $selected })
+          # Pack/publish in dependency order so newly published dependency ranges stay resolvable.
+          $dependencyRank = @{
+            'Okojo.Annotations'              = 0
+            'Okojo.DocGenerator.Annotations' = 0
+            'Okojo.Numerics'                 = 0
+            'Okojo.Text.Unicode'             = 0
+            'Okojo.Text.RegularExpressions'  = 0
+            'Okojo.Globalization'            = 0
+            'Okojo.JavaScript'               = 1
+            'Okojo.SourceGenerator'          = 2
+            'Okojo.DocGenerator.Cli'         = 2
+            'Okojo.Diagnostics'              = 2
+            'Okojo.JavaScript.Embedding'     = 2
+            'Okojo.Hosting'                  = 3
+            'Okojo.Reflection'               = 3
+            'Okojo.WebAssembly'              = 3
+            'Okojo.WebPlatform'              = 4
+            'Okojo.DotNet.Modules'           = 4
+            'Okojo.WebAssembly.Wasmtime'     = 4
           }
+
+          if ($selectedRaw.Trim() -eq 'all') {
+            $selected = @($all.Id)
+          } else {
+            $selected = @($selectedRaw -split '[,\s]+' | Where-Object { $_ } | Select-Object -Unique)
+            $unknown = @($selected | Where-Object { $_ -notin $all.Id })
+            if ($unknown.Count -gt 0) {
+              throw "Unknown package(s): $($unknown -join ', '). Available: $($all.Id -join ', ')"
+            }
+          }
+
+          $packages = @(
+            $all |
+              Where-Object { $_.Id -in $selected } |
+              Sort-Object -Property @{
+                Expression = {
+                  if ($dependencyRank.ContainsKey($_.Id)) { $dependencyRank[$_.Id] } else { [int]::MaxValue }
+                }
+              }, 'Id'
+          )
 
           if ($packages.Count -eq 0) {
             throw "No packages selected. Available: $($all.Id -join ', ')"
