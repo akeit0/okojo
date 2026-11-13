@@ -854,6 +854,32 @@ public class ClassTests
     }
 
     [Test]
+    public void InstanceFields_ReadSuperFromTheCurrentHomeObjectPrototype()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            class Base { get value() { return 1; } }
+            class C extends Base {
+              change = Object.setPrototypeOf(C.prototype, {
+                get value() { return 2; },
+                set value(v) { this.written = v; }
+              });
+              direct = super.value;
+              read = () => super['value'];
+              write = () => { super.value = 4; };
+            }
+            const c = new C();
+            const first = c.read();
+            c.write();
+            Object.setPrototypeOf(C.prototype, { get value() { return 3; } });
+            [c.direct, first, c.written, c.read()].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("2,2,4,3"));
+    }
+
+    [Test]
     public void InstanceFieldInitializer_CanConstructInstancesRecursively()
     {
         using var runtime = JsRuntime.Create();

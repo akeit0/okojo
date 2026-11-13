@@ -89,18 +89,12 @@ public sealed partial class JsRealm
         generator.FastForOfStepMode = true;
         try
         {
-            if (generator.State == GeneratorState.SuspendedStart)
-            {
-                generator.PendingResumeMode = GeneratorResumeMode.Next;
-                generator.PendingResumeValue = JsValue.Undefined; // first next(value) arg is ignored by spec
-                var value = ExecuteGeneratorFromStart(generator);
-                done = generator.FastForOfStepDone;
-                return value;
-            }
-
             generator.PendingResumeMode = GeneratorResumeMode.Next;
             generator.PendingResumeValue = JsValue.Undefined;
-            var resumedValue = ExecuteGeneratorFromContinuation(generator);
+            var resumedValue =
+                generator.State == GeneratorState.SuspendedStart && !generator.HasContinuation
+                    ? ExecuteGeneratorFromStart(generator)
+                    : ExecuteGeneratorFromContinuation(generator);
             done = generator.FastForOfStepDone;
             return resumedValue;
         }

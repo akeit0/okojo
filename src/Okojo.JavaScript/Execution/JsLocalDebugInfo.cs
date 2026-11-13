@@ -27,6 +27,9 @@ public readonly record struct JsLocalDebugInfo(
     JsLocalDebugFlags Flags
 )
 {
+    // Zero-based position among contexts created by this frame, starting at its outermost scope.
+    internal int ContextLevel { get; init; }
+
     public bool IsLiveAt(int pc)
     {
         return pc >= StartPc && pc < EndPc;

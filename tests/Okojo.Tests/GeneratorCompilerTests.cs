@@ -11,6 +11,29 @@ namespace Okojo.Tests;
 public class GeneratorCompilerTests
 {
     [Test]
+    public void Generator_FastIteration_ResumesAfterDefaultParameterInitialization()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let defaults = 0;
+            function* values(x = ++defaults, read = () => x) {
+              var x = 10;
+              yield x++;
+              yield (() => [x, read()])();
+            }
+            const first = values();
+            const before = defaults;
+            const spread = [...first];
+            const [one, two] = values();
+            JSON.stringify([before, defaults, spread, one, two]);
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("[1,2,[10,[11,1]],10,[11,2]]"));
+    }
+
+    [Test]
     public void Generator_Call_DoesNotExecuteBody_UntilNext()
     {
         var realm = JsRuntime.Create().DefaultRealm;

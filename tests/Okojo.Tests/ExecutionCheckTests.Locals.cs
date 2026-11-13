@@ -9,6 +9,45 @@ namespace Okojo.Tests;
 public partial class ExecutionCheckTests
 {
     [Test]
+    public void DebuggerStatement_ReadsCapturedLocalsFromTheirOwningContexts()
+    {
+        var debugger = new RecordingDebugger();
+        using var runtime = JsRuntime.Create(builder =>
+            builder.UseAgent(agent =>
+            {
+                agent.DebuggerSession = debugger;
+                agent.EnableDebuggerStatementHook();
+            })
+        );
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function f(x, read = () => x) {
+              var y = 99;
+              const readY = () => y;
+              {
+                let z = 42;
+                const readZ = () => z;
+                debugger;
+                return read() + readY() + readZ();
+              }
+            }
+            f(7);
+            """
+        );
+
+        var checkpoint = debugger.Checkpoints.Single(checkpoint =>
+            checkpoint.Kind == ExecutionCheckpointKind.DebuggerStatement
+        );
+        Assert.That(checkpoint.TryGetLocalValue("x", out var x), Is.True);
+        Assert.That(checkpoint.TryGetLocalValue("y", out var y), Is.True);
+        Assert.That(checkpoint.TryGetLocalValue("z", out var z), Is.True);
+        Assert.That(x.Value.Int32Value, Is.EqualTo(7));
+        Assert.That(y.Value.Int32Value, Is.EqualTo(99));
+        Assert.That(z.Value.Int32Value, Is.EqualTo(42));
+        Assert.That(result.Int32Value, Is.EqualTo(148));
+    }
+
+    [Test]
     public void DebuggerStatement_Exposes_Named_Locals_And_ContextSlots()
     {
         var debugger = new RecordingDebugger();

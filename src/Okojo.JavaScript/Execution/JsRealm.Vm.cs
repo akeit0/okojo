@@ -7334,14 +7334,19 @@ public sealed partial class JsRealm
         if (callFrame.Function is not JsBytecodeFunction bytecodeFunction)
             throw TypeError("SUPER_BASE", "super base is not available");
 
-        var superBaseSlot = bytecodeFunction.SuperBaseContextSlot;
-        if (superBaseSlot >= 0)
+        var homeObjectSlot = bytecodeFunction.SuperBaseContextSlot;
+        if (homeObjectSlot >= 0)
         {
             var context = GetFunctionRootContext(callFrame, bytecodeFunction);
-            if (context is null || (uint)superBaseSlot >= (uint)context.Slots.Length)
-                ThrowTypeError("SUPER_BASE", "super base is not available");
+            if (
+                context is null
+                || (uint)homeObjectSlot >= (uint)context.Slots.Length
+                || !context.Slots[homeObjectSlot].TryGetObject(out var homeObject)
+            )
+                throw TypeError("SUPER_BASE", "super base is not available");
 
-            return context.Slots[superBaseSlot];
+            var prototype = homeObject.GetPrototypeOf(this);
+            return prototype is null ? JsValue.Null : JsValue.FromObject(prototype);
         }
 
         if (bytecodeFunction.IsClassConstructor)
@@ -7512,6 +7517,14 @@ public sealed partial class JsRealm
 
         var values = new List<PausedLocalValue>(localInfos.Count + 8);
         var seenRegisters = new HashSet<int>();
+        var contextCount = 0;
+        var parentContext = bytecodeFunction.BoundParentContext;
+        for (
+            var context = callFrame.Context;
+            context is not null && context != parentContext;
+            context = context.Parent
+        )
+            contextCount++;
         for (var i = 0; i < localInfos.Count; i++)
         {
             var local = localInfos[i];
@@ -7520,7 +7533,7 @@ public sealed partial class JsRealm
                     local.Name,
                     local.StorageKind,
                     local.StorageIndex,
-                    ReadPausedLocalValue(fullStack, callFrame, framePointer, local),
+                    ReadPausedLocalValue(fullStack, callFrame, framePointer, local, contextCount),
                     local.StartPc,
                     local.EndPc,
                     local.Flags
@@ -7575,13 +7588,20 @@ public sealed partial class JsRealm
         Span<JsValue> fullStack,
         in CallFrame callFrame,
         int framePointer,
-        JsLocalDebugInfo local
+        JsLocalDebugInfo local,
+        int contextCount
     )
     {
         if (local.StorageKind == JsLocalDebugStorageKind.ContextSlot)
         {
-            var context = callFrame.Context;
-            if (context is null)
+            if (
+                local.ContextLevel >= contextCount
+                || !TryResolveContextChain(
+                    callFrame.Context,
+                    contextCount - 1 - local.ContextLevel,
+                    out var context
+                )
+            )
                 return JsValue.Undefined;
             if ((uint)local.StorageIndex >= (uint)context.Slots.Length)
                 return JsValue.Undefined;

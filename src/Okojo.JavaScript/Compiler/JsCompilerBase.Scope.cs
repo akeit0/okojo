@@ -140,7 +140,12 @@ internal abstract partial class JsCompilerBase
         if (scope.ScopeId == 0)
             throw new InvalidOperationException("Cannot leave root scope.");
 
-        EmitLocalDebugInfos(scope.Bindings, scope.DebugStartPc, builder.CodeLength);
+        EmitLocalDebugInfos(
+            scope.Bindings,
+            scope.DebugStartPc,
+            builder.CodeLength,
+            CurrentContextDepth
+        );
         RemoveKnownInitializedLexicals(scope.Bindings);
 
         for (var i = 0; i < scope.Bindings.Count; i++)

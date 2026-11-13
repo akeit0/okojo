@@ -136,7 +136,7 @@ internal sealed partial class JsFunctionCompiler
         }
         EmitScopeLexicalHoleInitialization();
         if (superBaseContextSlot >= 0)
-            EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
+            EmitSuperHomeObjectInitialization(metadata, superBaseContextSlot);
         if (hasClassInstanceInitializer && !metadata.IsDerivedConstructor)
         {
             builder.EmitLda(JsOpCode.LdaThis);
@@ -268,7 +268,7 @@ internal sealed partial class JsFunctionCompiler
         return -1;
     }
 
-    private void EmitSuperBaseContextInitialization(
+    private void EmitSuperHomeObjectInitialization(
         in FunctionCompileMetadata metadata,
         int superBaseContextSlot
     )
@@ -286,10 +286,7 @@ internal sealed partial class JsFunctionCompiler
             EmitLdaContextSlot(capture.Slot, depth);
         }
         else
-        {
             EmitLdaContextSlot(0, 1);
-            builder.EmitCallRuntime((int)RuntimeId.GetObjectPrototypeForSuper, 0, 0);
-        }
         EmitStaCurrentContextSlot(superBaseContextSlot);
     }
 

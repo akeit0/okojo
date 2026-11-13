@@ -147,13 +147,14 @@ internal abstract partial class JsCompilerBase
         if (endPc == 0)
             return;
 
-        EmitLocalDebugInfos(activeScopes.Peek().Bindings, 0, endPc);
+        EmitLocalDebugInfos(activeScopes.Peek().Bindings, 0, endPc, contextLevel: 0);
     }
 
     protected void EmitLocalDebugInfos(
         IReadOnlyList<BindingStorage> bindings,
         int startPc,
-        int endPc
+        int endPc,
+        int contextLevel
     )
     {
         if (endPc <= startPc)
@@ -206,7 +207,12 @@ internal abstract partial class JsCompilerBase
             if (binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf)
                 flags |= JsLocalDebugFlags.ImmutableFunctionName;
 
-            builder.AddLocalDebugInfo(new(name, storageKind, storageIndex, startPc, endPc, flags));
+            builder.AddLocalDebugInfo(
+                new(name, storageKind, storageIndex, startPc, endPc, flags)
+                {
+                    ContextLevel = contextLevel,
+                }
+            );
         }
     }
 
