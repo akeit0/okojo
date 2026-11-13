@@ -25,7 +25,7 @@ internal abstract partial class JsCompilerBase
     protected int derivedThisContextSlot = -1;
     internal const string DerivedThisBindingName = "\0derived-this";
     protected bool emittingParameterInitializers;
-    protected bool emittingInstanceFieldInitializer;
+    private int instanceFieldInitializerScopeDepth = -1;
 
     /// <summary>
     ///     Register receiving the script completion value while the script root

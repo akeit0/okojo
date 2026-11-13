@@ -923,6 +923,7 @@ internal static partial class CompilerBindingCollector
                 VisitExpression(ast, info.ExtendsNode, classScopeId);
 
             var visitedConstructor = false;
+            var instanceInitializerScopeId = -1;
             var elements = ast.GetClassElements(info);
             for (var i = 0; i < elements.Length; i++)
             {
@@ -932,7 +933,16 @@ internal static partial class CompilerBindingCollector
                 if (element.Kind == JsClassElementKind.Field && !element.IsStatic)
                 {
                     if (element.ValueNode >= 0)
-                        VisitExpression(ast, element.ValueNode, classScopeId);
+                    {
+                        // Field values run during construction, while computed keys run here.
+                        if (instanceInitializerScopeId < 0)
+                            instanceInitializerScopeId = AddScope(
+                                classScopeId,
+                                CompilerCollectedScopeKind.Function,
+                                info.Position
+                            );
+                        VisitExpression(ast, element.ValueNode, instanceInitializerScopeId);
+                    }
                     continue;
                 }
                 VisitFunctionExpression(ast, ast[element.ValueNode], classScopeId);

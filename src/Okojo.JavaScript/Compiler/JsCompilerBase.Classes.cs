@@ -26,7 +26,9 @@ internal abstract partial class JsCompilerBase
         var info = ast.GetClass(classIndex);
 
         var classScope = FindChildScope(
-            activeScopes.Peek().ScopeId,
+            activeScopes.Count == instanceFieldInitializerScopeDepth
+                ? 0
+                : activeScopes.Peek().ScopeId,
             CompilerCollectedScopeKind.Class,
             info.Position
         );
@@ -65,6 +67,8 @@ internal abstract partial class JsCompilerBase
             );
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
+            if (declaredName.Length == 0 && inferredNameRegister >= 0)
+                EmitSetFunctionName(inferredNameRegister);
 
             if (heritageRegister >= 0)
             {
@@ -164,11 +168,6 @@ internal abstract partial class JsCompilerBase
                         );
                     EmitLdar(constructorRegister);
                     EmitStore(classAlias, isInitialization: true);
-                }
-                else if (inferredNameRegister >= 0)
-                {
-                    EmitLdar(constructorRegister);
-                    EmitSetFunctionName(inferredNameRegister);
                 }
 
                 for (var i = 0; i < elements.Length; i++)
@@ -562,22 +561,7 @@ internal abstract partial class JsCompilerBase
                 {
                     if (element.ValueNode >= 0)
                     {
-                        emittingInstanceFieldInitializer = true;
-                        try
-                        {
-                            if (!element.IsComputed)
-                                EmitExpressionWithInferredName(
-                                    ast,
-                                    element.ValueNode,
-                                    ast.GetString(element.Key)
-                                );
-                            else
-                                EmitExpression(ast, element.ValueNode);
-                        }
-                        finally
-                        {
-                            emittingInstanceFieldInitializer = false;
-                        }
+                        EmitInstanceFieldValue(ast, element);
                     }
                     else
                         builder.EmitLda(JsOpCode.LdaUndefined);
@@ -605,22 +589,7 @@ internal abstract partial class JsCompilerBase
                 EmitStar(arguments + 1);
                 if (element.ValueNode >= 0)
                 {
-                    emittingInstanceFieldInitializer = true;
-                    try
-                    {
-                        if (!element.IsComputed)
-                            EmitExpressionWithInferredName(
-                                ast,
-                                element.ValueNode,
-                                ast.GetString(element.Key)
-                            );
-                        else
-                            EmitExpressionWithComputedName(ast, element.ValueNode, arguments + 1);
-                    }
-                    finally
-                    {
-                        emittingInstanceFieldInitializer = false;
-                    }
+                    EmitInstanceFieldValue(ast, element, arguments + 1);
                 }
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);
@@ -631,6 +600,24 @@ internal abstract partial class JsCompilerBase
             {
                 builder.ReleaseTemporaryRegistersToMarker(marker);
             }
+        }
+    }
+
+    private void EmitInstanceFieldValue(JsAst ast, in JsClassElement element, int keyRegister = -1)
+    {
+        // A derived constructor may call super() inside a block with its own bindings.
+        // Those contexts still count toward the depth of a captured field binding.
+        instanceFieldInitializerScopeDepth = activeScopes.Count;
+        try
+        {
+            if (!element.IsComputed)
+                EmitExpressionWithInferredName(ast, element.ValueNode, ast.GetString(element.Key));
+            else
+                EmitExpressionWithComputedName(ast, element.ValueNode, keyRegister);
+        }
+        finally
+        {
+            instanceFieldInitializerScopeDepth = -1;
         }
     }
 

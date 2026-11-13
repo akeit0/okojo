@@ -27,13 +27,13 @@ internal abstract partial class JsCompilerBase
     )
     {
         contextDepth = 0;
+        var scopeDepth = activeScopes.Count;
         foreach (var scope in activeScopes)
         {
+            var isConstructorScope = scopeDepth-- <= instanceFieldInitializerScopeDepth;
             BindingStorage? selfShadowCandidate = null;
-            for (var i = 0; i < scope.Bindings.Count; i++)
+            for (var i = 0; !isConstructorScope && i < scope.Bindings.Count; i++)
             {
-                if (emittingInstanceFieldInitializer && scope.ScopeId == 0)
-                    continue;
                 if (
                     emittingParameterInitializers
                     && scope.ScopeId == 0
@@ -176,10 +176,14 @@ internal abstract partial class JsCompilerBase
         var captures = childCaptureScratch ??= new(StringComparer.Ordinal);
         captures.Clear();
         var captureCapacity = 0;
+        var scopeDepth = activeScopes.Count;
         foreach (var scope in activeScopes)
+        {
+            var isConstructorScope = scopeDepth-- <= instanceFieldInitializerScopeDepth;
             for (var i = 0; i < scope.Bindings.Count; i++)
-                if (IsChildCaptureBinding(scope, scope.Bindings[i]))
+                if (IsChildCaptureBinding(scope, scope.Bindings[i], isConstructorScope))
                     captureCapacity++;
+        }
         if (
             ExternalCaptures
             is IReadOnlyCollection<KeyValuePair<string, CapturedBindingAccess>> externalCaptures
@@ -191,12 +195,14 @@ internal abstract partial class JsCompilerBase
             captures.EnsureCapacity(captureCapacity);
 
         var currentDepth = 0;
+        scopeDepth = activeScopes.Count;
         foreach (var scope in activeScopes)
         {
+            var isConstructorScope = scopeDepth-- <= instanceFieldInitializerScopeDepth;
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
                 var binding = scope.Bindings[i];
-                if (!IsChildCaptureBinding(scope, binding))
+                if (!IsChildCaptureBinding(scope, binding, isConstructorScope))
                     continue;
                 var access = new CapturedBindingAccess(
                     binding.Planned.StorageIndex,
@@ -242,13 +248,13 @@ internal abstract partial class JsCompilerBase
         return captures;
     }
 
-    private bool IsChildCaptureBinding(in ActiveScope scope, in BindingStorage binding)
+    private bool IsChildCaptureBinding(
+        in ActiveScope scope,
+        in BindingStorage binding,
+        bool isConstructorScope
+    )
     {
-        if (
-            emittingInstanceFieldInitializer
-            && scope.ScopeId == 0
-            && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
-        )
+        if (isConstructorScope && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase)
             return false;
         if (
             emittingParameterInitializers

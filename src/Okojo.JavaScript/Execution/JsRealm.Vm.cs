@@ -6270,7 +6270,7 @@ public sealed partial class JsRealm
         if (keyValue.IsSymbol)
         {
             var description = keyValue.AsSymbol().Description;
-            keyText = string.IsNullOrEmpty(description) ? string.Empty : $"[{description}]";
+            keyText = description is null ? string.Empty : $"[{description}]";
         }
         else if (keyValue.IsString)
         {

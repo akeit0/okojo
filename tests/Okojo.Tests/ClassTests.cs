@@ -794,6 +794,66 @@ public class ClassTests
     }
 
     [Test]
+    public void ClassInstanceField_CapturesEnclosingLocalAndParameter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function make(parameter) {
+              let local = 1;
+              const key = 'computed';
+              class C {
+                field = local;
+                #privateField = parameter;
+                [key] = ++local;
+                readPrivate() { return this.#privateField; }
+              }
+              local = 10;
+              parameter = 20;
+              return C;
+            }
+            const C = make(2);
+            const first = new C();
+            const second = new C();
+            [first.field, first.computed, first.readPrivate(), second.field, second.computed].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("10,11,20,11,12"));
+    }
+
+    [Test]
+    public void ClassInstanceField_IgnoresConstructorScopesAroundSuper()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function make() {
+              const value = 1;
+              const blockValue = 2;
+              const nestedValue = 3;
+              return class Derived extends class {} {
+                field = value + blockValue;
+                arrow = () => blockValue;
+                nested = class Inner { inner = nestedValue; self = Inner; };
+                constructor(value) {
+                  {
+                    const blockValue = 99;
+                    super();
+                    this.fromConstructor = () => value + blockValue;
+                  }
+                }
+              };
+            }
+            const instance = new (make())(100);
+            const nested = new instance.nested();
+            [instance.field, instance.arrow(), nested.inner, nested.self === instance.nested,
+              instance.fromConstructor()].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("3,2,3,true,199"));
+    }
+
+    [Test]
     public void ClassPublicInstanceField_DerivedConstructor_RunsAfterSuper()
     {
         var realm = JsRuntime.Create().DefaultRealm;

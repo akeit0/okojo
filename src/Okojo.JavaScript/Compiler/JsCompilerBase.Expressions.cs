@@ -90,7 +90,9 @@ internal abstract partial class JsCompilerBase
                 return;
             case AstKind.NewTargetExpression:
                 builder.EmitLda(
-                    emittingInstanceFieldInitializer ? JsOpCode.LdaUndefined : JsOpCode.LdaNewTarget
+                    instanceFieldInitializerScopeDepth >= 0
+                        ? JsOpCode.LdaUndefined
+                        : JsOpCode.LdaNewTarget
                 );
                 return;
             case AstKind.ImportMetaExpression:
@@ -654,8 +656,23 @@ internal abstract partial class JsCompilerBase
                     EmitObjectLiteralAccessor(ast, objectRegister, keyRegister, property);
                     continue;
                 }
+                var inferFunctionName = false;
                 if (property.IsComputed)
-                    EmitExpression(ast, property.ValueNode);
+                {
+                    ref readonly var value = ref ast[property.ValueNode];
+                    if (value.Kind == AstKind.ClassExpression)
+                        EmitExpressionWithComputedName(ast, property.ValueNode, keyRegister);
+                    else
+                    {
+                        inferFunctionName =
+                            value.Kind
+                                is AstKind.FunctionExpression
+                                    or AstKind.ArrowFunctionExpression
+                            && ast.GetString(ast.GetFunction(value.Arg0).NameStringIndex).Length
+                                == 0;
+                        EmitExpression(ast, property.ValueNode);
+                    }
+                }
                 else
                     EmitExpressionWithInferredName(
                         ast,
@@ -663,7 +680,10 @@ internal abstract partial class JsCompilerBase
                         ast.GetString(property.Key)
                     );
                 EmitAttachMethodEnvironmentIfNeeded(ast, property.ValueNode, objectRegister);
-                builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
+                if (inferFunctionName)
+                    builder.EmitDefineOwnKeyedProperty(objectRegister, keyRegister);
+                else
+                    builder.EmitDefineOwnKeyedPropertyNoName(objectRegister, keyRegister);
             }
             if (targetRegister < 0)
                 EmitLdar(objectRegister);
