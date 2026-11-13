@@ -19,6 +19,7 @@ public sealed class JsContext
     internal sealed class FunctionMetadata
     {
         internal JsValue[]? PrecomputedPrivateMethodValues;
+        internal JsBytecodeFunction? ClassInstanceInitializer;
         internal JsObject? PrivateBrandToken;
         internal Dictionary<int, JsObject>? PrivateBrandTokensByBrandId;
 
@@ -26,6 +27,7 @@ public sealed class JsContext
         {
             return new()
             {
+                ClassInstanceInitializer = ClassInstanceInitializer,
                 PrecomputedPrivateMethodValues = PrecomputedPrivateMethodValues is null
                     ? null
                     : (JsValue[])PrecomputedPrivateMethodValues.Clone(),

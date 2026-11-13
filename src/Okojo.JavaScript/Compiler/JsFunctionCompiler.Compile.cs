@@ -14,13 +14,13 @@ internal sealed partial class JsFunctionCompiler
         int bodyRoot,
         bool hasSelfBinding = false,
         string? inferredName = null,
-        int instanceFieldClassIndex = -1
+        int instanceFieldClassIndex = -1,
+        bool initializeBaseInstance = false
     )
     {
         var declaredName = ast.GetString(function.NameStringIndex);
         var name = declaredName.Length == 0 ? inferredName ?? string.Empty : declaredName;
         InitializeParameterRegisterMap(ast, function);
-        InstanceFieldClassIndex = instanceFieldClassIndex;
         using var collected = CompilerBindingCollector.CollectFunction(
             ast,
             function,
@@ -47,7 +47,9 @@ internal sealed partial class JsFunctionCompiler
             collected,
             ast,
             bodyRoot,
-            function
+            function,
+            instanceFieldClassIndex,
+            initializeBaseInstance
         );
     }
 
@@ -56,12 +58,15 @@ internal sealed partial class JsFunctionCompiler
         CompilerBindingCollectionResult collected,
         JsAst ast,
         int bodyRoot,
-        JsFunctionInfo? functionInfo
+        JsFunctionInfo? functionInfo,
+        int instanceFieldClassIndex = -1,
+        bool initializeBaseInstance = false
     )
     {
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
         isAsync = metadata.IsAsync;
+        InheritsLexicalThis = metadata.IsArrow;
         if (!metadata.HasSimpleParameterList && functionInfo is null)
             throw new NotSupportedException("Advanced parameters require function metadata.");
         strictDeclared = metadata.StrictDeclared;
@@ -77,7 +82,11 @@ internal sealed partial class JsFunctionCompiler
         InitializeRootBindings(parameterRegisterByName);
         if (metadata.HasSimpleParameterList)
             MarkInitializedParameters();
-        PrepareLexicalHoleInitializationSkips(ast, bodyRoot);
+        var hasParameterExpressions =
+            functionInfo is { } parameterFunction
+            && CompilerBindingCollector.HasParameterExpressions(ast, parameterFunction);
+        if (!hasParameterExpressions)
+            PrepareLexicalHoleInitializationSkips(ast, bodyRoot);
         if (!metadata.IsArrow && metadata.IsDerivedConstructor)
         {
             derivedThisContextSlot = rootContextSlotCount;
@@ -127,19 +136,27 @@ internal sealed partial class JsFunctionCompiler
         EmitScopeLexicalHoleInitialization();
         if (superBaseContextSlot >= 0)
             EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
+        if (initializeBaseInstance)
+            builder.EmitCallRuntime((int)RuntimeId.InitializeClassInstance, 0, 0);
         if (argumentsMaterialized >= 0)
             EmitArgumentsBinding(argumentsMaterialized);
         EmitFunctionSelfBinding();
         if (functionInfo is { } function)
             EmitParameterPrologue(ast, function, restMaterialized);
+        if (hasParameterExpressions)
+        {
+            functionBodyScopeId = FindChildScope(
+                0,
+                CompilerCollectedScopeKind.FunctionBody,
+                ast.GetPosition(bodyRoot)
+            ).ScopeId;
+            EnterScope(functionBodyScopeId);
+        }
         EmitDeclarationPrologue(ast, bodyRoot);
         if (metadata.EmitImplicitSuperForwardAll)
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructorForwardAll, 0, 0);
-        if (
-            InstanceFieldClassIndex >= 0
-            && (!metadata.IsDerivedConstructor || metadata.EmitImplicitSuperForwardAll)
-        )
-            EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
+        if (instanceFieldClassIndex >= 0)
+            EmitInstanceFieldInitializers(ast, instanceFieldClassIndex);
         if (isGenerator && !metadata.HasSimpleParameterList)
             EmitGeneratorPrestartSuspend();
 
@@ -158,6 +175,8 @@ internal sealed partial class JsFunctionCompiler
             builder.EmitLda(JsOpCode.LdaUndefined);
             builder.Emit(JsOpCode.Return);
         }
+        if (hasParameterExpressions)
+            LeaveScope(emitPopContext: false);
         EmitRootLocalDebugInfos();
         PatchGeneratorSwitchTable();
         var functionSourceStart = functionInfo?.Position ?? -1;

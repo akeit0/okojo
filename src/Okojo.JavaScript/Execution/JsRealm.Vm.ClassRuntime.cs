@@ -6,6 +6,44 @@ namespace Okojo.JavaScript.Execution;
 
 public sealed partial class JsRealm
 {
+    private static void HandleRuntimeSetClassInstanceInitializer(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        var constructor = (JsBytecodeFunction)Unsafe.Add(ref registers, argRegStart).AsObject();
+        var initializer = (JsBytecodeFunction)Unsafe.Add(ref registers, argRegStart + 1).AsObject();
+        constructor.ClassInstanceInitializer = initializer;
+    }
+
+    private static void HandleRuntimeInitializeClassInstance(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        ref readonly var frame = ref realm.GetCallFrameAt(fp);
+        var constructor = (JsBytecodeFunction)frame.Function;
+        realm.InitializeClassInstance(constructor, frame.ThisValue);
+    }
+
+    private void InitializeClassInstance(JsBytecodeFunction constructor, JsValue receiver)
+    {
+        if (constructor.ClassInstanceInitializer is { } initializer)
+            InvokeFunction(initializer, receiver, ReadOnlySpan<JsValue>.Empty);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void HandleRuntimeSetClassHeritage(
         JsRealm realm,
@@ -250,7 +288,15 @@ public sealed partial class JsRealm
 
         var superCtor = (JsFunction)currentFunction.Prototype;
         var thisValue = realm.ConstructWithExplicitNewTarget(superCtor, args, newTarget, opcodePc);
-        if (thisAlreadyInitialized)
+        // The base constructor can invoke a saved super() arrow before returning.
+        if (
+            thisAlreadyInitialized
+            || (
+                thisFramePointer >= 0 && !realm.GetCallFrameAt(thisFramePointer).ThisValue.IsTheHole
+            )
+            || derivedSuperState is { DerivedThisContext: { } context, DerivedThisSlot: >= 0 }
+                && !context.Slots[derivedSuperState.DerivedThisSlot].IsTheHole
+        )
             ThrowReferenceError("SUPER_CALL_TWICE", "Super constructor may only be called once");
         if (thisFramePointer >= 0)
         {
@@ -268,6 +314,7 @@ public sealed partial class JsRealm
                 thisValue;
         }
 
+        realm.InitializeClassInstance(currentFunction, thisValue);
         return thisValue;
     }
 
@@ -285,6 +332,13 @@ public sealed partial class JsRealm
             && ReferenceEquals(
                 realm.GetCallFrameAt(framePointer).Function,
                 state.ConstructorFunction
+            )
+            && ReferenceEquals(
+                GetFunctionRootContext(
+                    realm.GetCallFrameAt(framePointer),
+                    state.ConstructorFunction
+                ),
+                state.DerivedThisContext
             )
         )
         {

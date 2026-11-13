@@ -95,6 +95,11 @@ public sealed class JsBytecodeFunction : JsFunction
     public JsValue BoundNewTargetValue { get; set; } = JsValue.Undefined;
     internal DerivedSuperCallState? BoundDerivedSuperCallState { get; set; }
     internal JsValue[]? PrecomputedInstanceFieldKeys { get; set; }
+    internal JsBytecodeFunction? ClassInstanceInitializer
+    {
+        get => functionMetadataContext?.Metadata?.ClassInstanceInitializer;
+        set => GetOrCreateFunctionMetadata().ClassInstanceInitializer = value;
+    }
 
     public bool IsStrict => functionTemplate.IsStrict;
     public int PrivateBrandId => functionTemplate.PrivateBrandId;

@@ -206,4 +206,7 @@ internal enum RuntimeId : byte
     // Resolve an identifier against the executing realm, then delete its global binding.
     // Appended to preserve existing RuntimeId values. Args: [name].
     DeleteGlobalBinding,
+
+    SetClassInstanceInitializer,
+    InitializeClassInstance,
 }

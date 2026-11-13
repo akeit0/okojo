@@ -236,15 +236,6 @@ internal static class CompilerStoragePlanner
                 candidate = nextBinding[candidate]
             )
             {
-                if (
-                    scopeId == reference.ExcludedBodyScopeId
-                    && bindings[candidate].Kind
-                        is not (
-                            CompilerCollectedBindingKind.Parameter
-                            or CompilerCollectedBindingKind.FunctionNameSelf
-                        )
-                )
-                    continue;
                 if (bindings[candidate].NameId != reference.NameId)
                     continue;
                 if (bindings[candidate].Kind == CompilerCollectedBindingKind.FunctionNameSelf)

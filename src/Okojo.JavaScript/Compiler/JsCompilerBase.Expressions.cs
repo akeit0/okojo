@@ -89,11 +89,7 @@ internal abstract partial class JsCompilerBase
                 builder.EmitLda(JsOpCode.LdaThis);
                 return;
             case AstKind.NewTargetExpression:
-                builder.EmitLda(
-                    instanceFieldInitializerScopeDepth >= 0
-                        ? JsOpCode.LdaUndefined
-                        : JsOpCode.LdaNewTarget
-                );
+                builder.EmitLda(JsOpCode.LdaNewTarget);
                 return;
             case AstKind.ImportMetaExpression:
                 builder.EmitCallRuntime((int)RuntimeId.GetCurrentModuleImportMeta, 0, 0);
@@ -359,7 +355,8 @@ internal abstract partial class JsCompilerBase
         string? inferredName = null,
         int instanceFieldClassIndex = -1,
         BindingStorage? deferredBinding = null,
-        bool suppressSelfBinding = false
+        bool suppressSelfBinding = false,
+        bool initializeBaseInstance = false
     )
     {
         var function = ast.GetFunction(functionIndex);
@@ -377,7 +374,8 @@ internal abstract partial class JsCompilerBase
             bodyRoot,
             hasSelfBinding,
             inferredName,
-            instanceFieldClassIndex
+            instanceFieldClassIndex,
+            initializeBaseInstance
         );
         if (deferredBinding is { } binding && DeferHoistedFunction(binding, functionObject))
             return true;
@@ -1311,8 +1309,6 @@ internal abstract partial class JsCompilerBase
         {
             var argumentStart = EmitCallArguments(ast, offset, count);
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructor, argumentStart, count);
-            if (InstanceFieldClassIndex >= 0)
-                EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
             return;
         }
 
@@ -1326,8 +1322,6 @@ internal abstract partial class JsCompilerBase
             runtimeArguments,
             count + 1
         );
-        if (InstanceFieldClassIndex >= 0)
-            EmitInstanceFieldInitializers(ast, InstanceFieldClassIndex);
     }
 
     private void EmitNewExpression(JsAst ast, AstNode node)

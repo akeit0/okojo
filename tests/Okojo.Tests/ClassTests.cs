@@ -854,6 +854,75 @@ public class ClassTests
     }
 
     [Test]
+    public void InstanceFields_RunOnceWhenSuperIsCalledThroughAnArrow()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let late, count = 0;
+            const key = 'field';
+            class Base { constructor(value) { this.value = value; } }
+            class C extends Base {
+              #method() { return this.value; }
+              [key] = (++count, this.#method());
+              constructor(value, defer) {
+                const initialize = (...args) => (() => super(...args))();
+                if (defer) { late = initialize; return {}; }
+                initialize(value);
+              }
+            }
+            const first = new C(7);
+            const empty = new C(0, true);
+            const second = late(8);
+            let twice;
+            try { late(9); } catch (e) { twice = e.name; }
+            [first.field, Object.hasOwn(empty, key), second.field, count, twice].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("7,false,8,2,ReferenceError"));
+    }
+
+    [Test]
+    public void InstanceFields_HaveTheirOwnNewTargetAndSuperEnvironment()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let order = [];
+            class Base {
+              ownTarget = new.target;
+              constructor(value = order.push('parameter')) { order.push('body'); }
+              field = order.push('field');
+              get value() { return 8; }
+            }
+            class C extends Base {
+              direct = super.value;
+              read = () => [super.value, this, new.target];
+              constructor() {
+                { let local = 9; super(); this.local = () => local; }
+                this.ctorTarget = new.target;
+              }
+            }
+            const c = new C();
+            const [value, receiver, target] = c.read();
+            class Outer extends Base {
+              constructor() {
+                super(0);
+                class Inner { read = () => this; }
+                const inner = new Inner();
+                this.innerReceiverIsCorrect = inner.read() === inner;
+              }
+            }
+            const correctOrder = order.join(',') === 'field,parameter,body';
+            c.ownTarget === undefined && c.ctorTarget === C && target === undefined &&
+              value === 8 && c.direct === 8 && receiver === c && c.local() === 9 &&
+              correctOrder && new Outer().innerReceiverIsCorrect;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ClassPublicInstanceField_DerivedConstructor_RunsAfterSuper()
     {
         var realm = JsRuntime.Create().DefaultRealm;

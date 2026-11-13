@@ -10,6 +10,26 @@ namespace Okojo.Tests;
 public class FunctionParameterDestructuringTests
 {
     [Test]
+    public void ParameterClosures_KeepTheirBindingsWhenBodyDeclaresSameName()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function read(x, { read = () => ++x } = {}, C = class { field = x; }) {
+              var x;
+              const initial = x;
+              x = 99;
+              return [initial, x, read(), new C().field];
+            }
+            function destructured(x, { read = () => x }) { var x = 99; return read(); }
+            function noExpressions({ x }) { var x; return x; }
+            [...read(4), destructured(5, {}), noExpressions({ x: 6 })].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("4,99,5,5,5,6"));
+    }
+
+    [Test]
     public void Function_ObjectPattern_Property_Default_Binds_Local()
     {
         var realm = JsRuntime.Create().DefaultRealm;

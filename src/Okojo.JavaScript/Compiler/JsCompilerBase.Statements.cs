@@ -1966,8 +1966,12 @@ internal abstract partial class JsCompilerBase
         for (var i = 0; i < scope.Bindings.Count; i++)
             if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.Var)
             {
-                builder.EmitLda(JsOpCode.LdaUndefined);
-                EmitStore(scope.Bindings[i], isInitialization: true);
+                var bodyBinding = scope.Bindings[i];
+                if (scope.ScopeId == functionBodyScopeId)
+                    EmitInitialBodyVarValue(bodyBinding.Planned.Name, scope.HasContext);
+                else
+                    builder.EmitLda(JsOpCode.LdaUndefined);
+                EmitStore(bodyBinding, isInitialization: true);
             }
 
         var statements = ast.ChildRange(offset, count);
@@ -1979,6 +1983,33 @@ internal abstract partial class JsCompilerBase
             else if (statement.Kind == AstKind.ExportDeclaration && statement.Arg0 >= 0)
                 EmitExportDeclarationPrologue(ast, statement);
         }
+    }
+
+    private void EmitInitialBodyVarValue(string name, bool bodyHasContext)
+    {
+        var scopes = activeScopes.GetEnumerator();
+        scopes.MoveNext();
+        scopes.MoveNext();
+        var root = scopes.Current;
+        for (var i = 0; i < root.Bindings.Count; i++)
+        {
+            var binding = root.Bindings[i];
+            if (
+                binding.Planned.Kind
+                    is not (
+                        CompilerCollectedBindingKind.Parameter
+                        or CompilerCollectedBindingKind.Arguments
+                    )
+                || !string.Equals(binding.Planned.Name, name, StringComparison.Ordinal)
+            )
+                continue;
+            if (binding.Planned.StorageKind == CompilerPlannedStorageKind.ContextSlot)
+                EmitLdaContextSlot(binding.Planned.StorageIndex, bodyHasContext ? 1 : 0);
+            else
+                EmitLdar(binding.Register);
+            return;
+        }
+        builder.EmitLda(JsOpCode.LdaUndefined);
     }
 
     private void EmitExportDeclarationPrologue(JsAst ast, AstNode export)

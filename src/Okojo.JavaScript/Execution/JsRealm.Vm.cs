@@ -95,6 +95,8 @@ public sealed partial class JsRealm
         HandleRuntimeMaterializeSpreadArgument, // MaterializeSpreadArgument = 78
         HandleRuntimeGetCurrentModuleNamespace, // GetCurrentModuleNamespace = 79
         HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
+        HandleRuntimeSetClassInstanceInitializer,
+        HandleRuntimeInitializeClassInstance,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -4036,25 +4038,12 @@ public sealed partial class JsRealm
                 && currentBytecodeFunction.IsDerivedConstructor
             )
             {
-                JsContext? derivedThisContext = null;
-                var derivedThisSlot = -1;
-                if (
-                    currentContext is not null
-                    && currentBytecodeFunction.DerivedThisContextSlot >= 0
-                    && (uint)currentBytecodeFunction.DerivedThisContextSlot
-                        < (uint)currentContext.Slots.Length
-                )
-                {
-                    derivedThisContext = currentContext;
-                    derivedThisSlot = currentBytecodeFunction.DerivedThisContextSlot;
-                }
-
                 derivedSuperCallState = new(
                     fp,
                     currentBytecodeFunction,
                     Stack[fp + OffsetExtra0],
-                    derivedThisContext,
-                    derivedThisSlot
+                    GetFunctionRootContext(CurrentCallFrame, currentBytecodeFunction),
+                    currentBytecodeFunction.DerivedThisContextSlot
                 );
             }
         }
@@ -7317,11 +7306,25 @@ public sealed partial class JsRealm
             return;
 
         ref readonly var frame = ref GetCallFrameAt(framePointer);
-        var context = frame.Context;
+        var context = GetFunctionRootContext(frame, function);
         if (context is null || (uint)slot >= (uint)context.Slots.Length)
             return;
 
         context.Slots[slot] = thisValue;
+    }
+
+    private static JsContext? GetFunctionRootContext(
+        in CallFrame frame,
+        JsBytecodeFunction function
+    )
+    {
+        var context = frame.Context;
+        var parent = function.BoundParentContext;
+        if (ReferenceEquals(context, parent))
+            return null;
+        while (context is not null && !ReferenceEquals(context.Parent, parent))
+            context = context.Parent;
+        return context;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -7334,7 +7337,7 @@ public sealed partial class JsRealm
         var superBaseSlot = bytecodeFunction.SuperBaseContextSlot;
         if (superBaseSlot >= 0)
         {
-            var context = callFrame.Context;
+            var context = GetFunctionRootContext(callFrame, bytecodeFunction);
             if (context is null || (uint)superBaseSlot >= (uint)context.Slots.Length)
                 ThrowTypeError("SUPER_BASE", "super base is not available");
 
