@@ -854,6 +854,42 @@ public class ClassTests
     }
 
     [Test]
+    public void SuperAssignment_KeepsThePreparedBaseAcrossUserCode()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const events = [];
+            const replacement = { set x(value) { events.push('replacement', value); } };
+            const original = {
+              get x() { Object.setPrototypeOf(obj, replacement); return 2; },
+              set x(value) { events.push('original', value); }
+            };
+            const obj = {
+              assign() { super.x = (Object.setPrototypeOf(obj, replacement), 3); },
+              update() { super.x += 3; },
+              computed(key) { super[key] = (events.push('rhs'), 7); },
+              compound(key) { super[key] += 6; }
+            };
+            const key = { toString() { events.push('key'); return 'x'; } };
+            Object.setPrototypeOf(obj, original);
+            obj.assign();
+            Object.setPrototypeOf(obj, original);
+            obj.update();
+            Object.setPrototypeOf(obj, original);
+            obj.computed(key);
+            Object.setPrototypeOf(obj, original);
+            obj.compound(key);
+            events.join(',');
+            """
+        );
+        Assert.That(
+            result.AsString(),
+            Is.EqualTo("original,3,original,5,rhs,key,original,7,key,key,original,8")
+        );
+    }
+
+    [Test]
     public void InstanceFields_ReadSuperFromTheCurrentHomeObjectPrototype()
     {
         using var runtime = JsRuntime.Create();

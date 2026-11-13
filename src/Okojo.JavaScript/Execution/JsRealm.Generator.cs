@@ -86,23 +86,34 @@ public sealed partial class JsRealm
             return JsValue.Undefined;
         }
 
+        JsValue resumedValue;
         generator.FastForOfStepMode = true;
         try
         {
             generator.PendingResumeMode = GeneratorResumeMode.Next;
             generator.PendingResumeValue = JsValue.Undefined;
-            var resumedValue =
+            resumedValue =
                 generator.State == GeneratorState.SuspendedStart && !generator.HasContinuation
                     ? ExecuteGeneratorFromStart(generator)
                     : ExecuteGeneratorFromContinuation(generator);
             done = generator.FastForOfStepDone;
-            return resumedValue;
         }
         finally
         {
             generator.FastForOfStepMode = false;
             generator.FastForOfStepDone = false;
         }
+
+        if (done || !generator.HasActiveDelegateIterator)
+            return resumedValue;
+
+        // Delegation yields the original iterator result. Fast iteration consumes it here.
+        var result = resumedValue.AsObject();
+        _ = result.TryGetPropertyAtom(this, IdDone, out var doneValue, out _);
+        done = ToBoolean(doneValue);
+        return !done && result.TryGetPropertyAtom(this, IdValue, out var value, out _)
+            ? value
+            : JsValue.Undefined;
     }
 
     internal JsValue ExecuteGeneratorFromStart(JsGeneratorObject generator)

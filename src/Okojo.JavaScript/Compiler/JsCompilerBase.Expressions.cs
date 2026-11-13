@@ -2090,16 +2090,19 @@ internal abstract partial class JsCompilerBase
     {
         if (ast[member.Arg0].Kind == AstKind.SuperExpression)
         {
+            var receiverRegister = builder.AllocateTemporaryRegisterBlock(4);
             builder.EmitLda(JsOpCode.LdaThis);
-            var receiverRegister = builder.AllocateTemporaryRegister();
             EmitStar(receiverRegister);
-            if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
+            var isComputed = ((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0;
+            if (isComputed)
                 EmitExpression(ast, member.Arg1);
             else
                 EmitStringLiteral(ast.GetString(member.Arg1));
-            var superKeyRegister = builder.AllocateTemporaryRegister();
+            var superKeyRegister = receiverRegister + 1;
             EmitStar(superKeyRegister);
-            return new(receiverRegister, superKeyRegister, -1, -1, true, true);
+            builder.EmitCallRuntime((int)RuntimeId.GetCurrentFunctionSuperBase, 0, 0);
+            EmitStar(receiverRegister + 2);
+            return new(receiverRegister, superKeyRegister, -1, -1, isComputed, IsSuper: true);
         }
         var objectRegister = builder.AllocateTemporaryRegister();
         if (TryGetDirectLocalRegister(ast, member.Arg0, out var directObjectRegister))
@@ -2118,9 +2121,8 @@ internal abstract partial class JsCompilerBase
                 -1,
                 -1,
                 false,
-                false,
-                binding.BrandId,
-                binding.SlotIndex
+                PrivateBrandId: binding.BrandId,
+                PrivateSlotIndex: binding.SlotIndex
             );
         }
         if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
@@ -2134,11 +2136,11 @@ internal abstract partial class JsCompilerBase
                 builder.EmitCallRuntime((byte)RuntimeId.NormalizePropertyKey, keyRegister, 1);
                 EmitStar(keyRegister);
             }
-            return new(objectRegister, keyRegister, -1, -1, true, false);
+            return new(objectRegister, keyRegister, -1, -1, true);
         }
 
         var nameIndex = builder.AddAtomizedStringConstant(ast.GetString(member.Arg1));
-        return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false, false);
+        return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false);
     }
 
     private bool IsSideEffectFreeExpression(JsAst ast, int nodeIndex)
@@ -2170,12 +2172,7 @@ internal abstract partial class JsCompilerBase
         }
         if (reference.IsSuper)
         {
-            var arguments = builder.AllocateTemporaryRegisterBlock(2);
-            EmitLdar(reference.ObjectRegister);
-            EmitStar(arguments);
-            EmitLdar(reference.KeyRegister);
-            EmitStar(arguments + 1);
-            builder.EmitCallRuntime((int)RuntimeId.LoadKeyedFromSuper, arguments, 2);
+            builder.EmitCallRuntime((int)RuntimeId.LoadKeyedFromSuper, reference.ObjectRegister, 3);
             return;
         }
         if (reference.IsComputed)
@@ -2207,13 +2204,8 @@ internal abstract partial class JsCompilerBase
         }
         if (reference.IsSuper)
         {
-            var arguments = builder.AllocateTemporaryRegisterBlock(3);
-            EmitStar(arguments + 2);
-            EmitLdar(reference.ObjectRegister);
-            EmitStar(arguments);
-            EmitLdar(reference.KeyRegister);
-            EmitStar(arguments + 1);
-            builder.EmitCallRuntime((int)RuntimeId.SuperSet, arguments, 3);
+            EmitStar(reference.ObjectRegister + 3);
+            builder.EmitCallRuntime((int)RuntimeId.SuperSet, reference.ObjectRegister, 4);
             return;
         }
         if (reference.IsComputed)
@@ -2232,7 +2224,7 @@ internal abstract partial class JsCompilerBase
         int NameIndex,
         int FeedbackSlot,
         bool IsComputed,
-        bool IsSuper,
+        bool IsSuper = false,
         int PrivateBrandId = -1,
         int PrivateSlotIndex = -1
     );

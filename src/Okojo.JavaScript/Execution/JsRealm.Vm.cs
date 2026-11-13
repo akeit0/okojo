@@ -5563,8 +5563,11 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 2)
-            ThrowTypeError("SUPER_KEYED_GET_ARGC", "LoadKeyedFromSuper requires two arguments");
+        if (argCount is not (2 or 3))
+            ThrowTypeError(
+                "SUPER_KEYED_GET_ARGC",
+                "LoadKeyedFromSuper requires receiver, key, and optional base"
+            );
 
         var thisValue = Unsafe.Add(ref registers, argRegStart);
         var keyValue = Unsafe.Add(ref registers, argRegStart + 1);
@@ -5573,7 +5576,10 @@ public sealed partial class JsRealm
         if (!thisValue.TryGetObject(out var receiver))
             ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
 
-        var superBase = realm.RequireObjectSuperBaseForFrame(fp);
+        var superBase =
+            argCount == 3
+                ? RequireObjectSuperBase(Unsafe.Add(ref registers, argRegStart + 2))
+                : realm.RequireObjectSuperBaseForFrame(fp);
         if (TryResolveRuntimePropertyKey(realm, keyValue, out var index, out var atom))
         {
             if (superBase.TryGetElementWithReceiver(realm, receiver, index, out var indexedValue))
@@ -7071,18 +7077,24 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 3)
-            ThrowTypeError("SUPER_SET_ARGC", "SuperSet requires three arguments");
+        if (argCount is not (3 or 4))
+            ThrowTypeError(
+                "SUPER_SET_ARGC",
+                "SuperSet requires receiver, key, value, and optional base"
+            );
 
         var thisValue = Unsafe.Add(ref registers, argRegStart);
         var keyValue = Unsafe.Add(ref registers, argRegStart + 1);
-        var value = Unsafe.Add(ref registers, argRegStart + 2);
+        var value = Unsafe.Add(ref registers, argRegStart + argCount - 1);
         if (thisValue.IsTheHole)
             ThrowSuperNotCalled();
         if (!thisValue.TryGetObject(out var receiver))
             ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
 
-        var superBase = realm.RequireObjectSuperBaseForFrame(fp);
+        var superBase =
+            argCount == 4
+                ? RequireObjectSuperBase(Unsafe.Add(ref registers, argRegStart + 2))
+                : realm.RequireObjectSuperBaseForFrame(fp);
         var succeeded = TryResolveRuntimePropertyKey(realm, keyValue, out var index, out var atom)
             ? superBase.SetElementWithReceiver(realm, receiver, index, value)
             : superBase.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out _);
@@ -7386,9 +7398,12 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private JsObject RequireObjectSuperBaseForFrame(int framePointer)
+    private JsObject RequireObjectSuperBaseForFrame(int framePointer) =>
+        RequireObjectSuperBase(ResolveSuperBaseValueForFrame(framePointer));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsObject RequireObjectSuperBase(in JsValue superBaseValue)
     {
-        var superBaseValue = ResolveSuperBaseValueForFrame(framePointer);
         if (!superBaseValue.TryGetObject(out var superBaseObject))
             ThrowTypeError("SUPER_BASE", "super base is not available");
 
