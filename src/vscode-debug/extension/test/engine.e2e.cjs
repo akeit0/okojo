@@ -97,7 +97,8 @@ test('real engine: replaced breakpoints bind at script compilation with Unicode 
   assert.equal(changed.body.breakpoint.verified, true);
   const trace = ok(await client.send('stackTrace', { threadId: 1 }));
   assert.equal(trace.stackFrames[0].line, 3);
-  assert.equal(trace.stackFrames[0].source.path, process.platform === 'win32' ? ws.program.toLowerCase() : ws.program);
+  // Windows may report the long form of an 8.3 path used by the test workspace.
+  assert.equal(fs.realpathSync.native(trace.stackFrames[0].source.path), fs.realpathSync.native(ws.program));
   ok(await client.send('setBreakpoints', { source: { path: ws.program }, breakpoints: [] }));
   ok(await client.send('continue', { threadId: 1 }));
   await client.event('terminated');
