@@ -11,6 +11,96 @@ namespace Okojo.Tests;
 public class GeneratorCompilerTests
 {
     [Test]
+    public void Generator_FastIteration_ConsumesDelegatedIteratorResults()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const log = [];
+            const delegated = {
+              get done() { log.push('done'); return false; },
+              get value() { log.push('value'); return 3; }
+            };
+            function* outer() {
+              yield yield* {
+                [Symbol.iterator]() {
+                  let first = true;
+                  return { next() {
+                    if (!first) return { done: true, value: 5 };
+                    first = false;
+                    return delegated;
+                  } };
+                }
+              };
+            }
+            const same = outer().next() === delegated;
+            const nextLog = log.splice(0);
+            const spread = [...outer()];
+            const spreadLog = log.splice(0);
+            const [first, second] = outer();
+            JSON.stringify([same, nextLog, spread, spreadLog, first, second, log]);
+            """
+        );
+
+        Assert.That(
+            result.AsString(),
+            Is.EqualTo(
+                "[true,[\"done\"],[3,5],[\"done\",\"done\",\"value\"],3,5,[\"done\",\"done\",\"value\"]]"
+            )
+        );
+    }
+
+    [Test]
+    public void Generator_FastIteration_AllowsReentryFromDelegatedValueGetter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let first = true;
+            const delegate = {
+              [Symbol.iterator]() { return this; },
+              next() {
+                if (!first) return { done: true, value: 5 };
+                first = false;
+                return { done: false, get value() {
+                  const result = generator.next();
+                  return [result.value, result.done];
+                } };
+              }
+            };
+            function* outer() { yield yield* delegate; }
+            const generator = outer();
+            JSON.stringify([...generator]);
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("[[5,false]]"));
+    }
+
+    [Test]
+    public void Generator_FastIteration_ResumesAfterDefaultParameterInitialization()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let defaults = 0;
+            function* values(x = ++defaults, read = () => x) {
+              var x = 10;
+              yield x++;
+              yield (() => [x, read()])();
+            }
+            const first = values();
+            const before = defaults;
+            const spread = [...first];
+            const [one, two] = values();
+            JSON.stringify([before, defaults, spread, one, two]);
+            """
+        );
+
+        Assert.That(result.AsString(), Is.EqualTo("[1,2,[10,[11,1]],10,[11,2]]"));
+    }
+
+    [Test]
     public void Generator_Call_DoesNotExecuteBody_UntilNext()
     {
         var realm = JsRuntime.Create().DefaultRealm;

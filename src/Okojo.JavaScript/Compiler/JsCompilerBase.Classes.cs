@@ -61,10 +61,12 @@ internal abstract partial class JsCompilerBase
                 constructor.Arg0,
                 constructor.Arg1,
                 constructorName.Length == 0 ? null : constructorName,
-                classIndex
+                hasClassInstanceInitializer: info.InstanceInitializerNode >= 0
             );
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
+            if (declaredName.Length == 0 && inferredNameRegister >= 0)
+                EmitSetFunctionName(inferredNameRegister);
 
             if (heritageRegister >= 0)
             {
@@ -99,6 +101,32 @@ internal abstract partial class JsCompilerBase
             EmitLdar(constructorRegister);
             EmitAttachMethodEnvironmentIfNeeded(ast, info.ConstructorNode, prototypeRegister);
 
+            var initializerRegister = -1;
+            if (info.InstanceInitializerNode >= 0)
+            {
+                ref readonly var initializer = ref ast[info.InstanceInitializerNode];
+                EmitFunctionExpression(
+                    ast,
+                    initializer.Arg0,
+                    initializer.Arg1,
+                    constructorName,
+                    classIndex
+                );
+                EmitAttachMethodEnvironmentIfNeeded(
+                    ast,
+                    info.InstanceInitializerNode,
+                    prototypeRegister
+                );
+                initializerRegister = builder.AllocateTemporaryRegister();
+                EmitStar(initializerRegister);
+                var argumentsMarker = builder.GetTemporaryRegisterScopeMarker();
+                var arguments = builder.AllocateTemporaryRegisterBlock(2);
+                EmitMove(constructorRegister, arguments);
+                EmitMove(initializerRegister, arguments + 1);
+                builder.EmitCallRuntime((int)RuntimeId.SetClassInstanceInitializer, arguments, 2);
+                builder.ReleaseTemporaryRegistersToMarker(argumentsMarker);
+            }
+
             var staticFieldKeyRegisters = ArrayPool<int>.Shared.Rent(Math.Max(1, elements.Length));
             Array.Fill(staticFieldKeyRegisters, -1, 0, elements.Length);
             Dictionary<string, PrivateAccessorRegisters>? staticPrivateAccessors = null;
@@ -119,6 +147,7 @@ internal abstract partial class JsCompilerBase
                             EmitPreparePrivateMethod(
                                 ast,
                                 element,
+                                initializerRegister,
                                 constructorRegister,
                                 prototypeRegister
                             );
@@ -126,6 +155,7 @@ internal abstract partial class JsCompilerBase
                             EmitPreparePrivateAccessor(
                                 ast,
                                 element,
+                                initializerRegister,
                                 constructorRegister,
                                 prototypeRegister,
                                 ref staticPrivateAccessors
@@ -137,7 +167,7 @@ internal abstract partial class JsCompilerBase
                         if (!element.IsStatic)
                         {
                             if (element.IsComputed)
-                                EmitCacheInstanceFieldKey(ast, element, constructorRegister);
+                                EmitCacheInstanceFieldKey(ast, element, initializerRegister);
                             continue;
                         }
                         var keyRegister = builder.AllocateTemporaryRegister();
@@ -164,11 +194,6 @@ internal abstract partial class JsCompilerBase
                         );
                     EmitLdar(constructorRegister);
                     EmitStore(classAlias, isInitialization: true);
-                }
-                else if (inferredNameRegister >= 0)
-                {
-                    EmitLdar(constructorRegister);
-                    EmitSetFunctionName(inferredNameRegister);
                 }
 
                 for (var i = 0; i < elements.Length; i++)
@@ -210,6 +235,7 @@ internal abstract partial class JsCompilerBase
     private void EmitPreparePrivateMethod(
         JsAst ast,
         in JsClassElement element,
+        int initializerRegister,
         int constructorRegister,
         int prototypeRegister
     )
@@ -229,12 +255,13 @@ internal abstract partial class JsCompilerBase
             );
             return;
         }
-        EmitSetFunctionPrivateMethodValue(constructorRegister, binding.SlotIndex * 2);
+        EmitSetFunctionPrivateMethodValue(initializerRegister, binding.SlotIndex * 2);
     }
 
     private void EmitPreparePrivateAccessor(
         JsAst ast,
         in JsClassElement element,
+        int initializerRegister,
         int constructorRegister,
         int prototypeRegister,
         ref Dictionary<string, PrivateAccessorRegisters>? staticAccessors
@@ -247,7 +274,7 @@ internal abstract partial class JsCompilerBase
         if (!element.IsStatic)
         {
             EmitSetFunctionPrivateMethodValue(
-                constructorRegister,
+                initializerRegister,
                 binding.SlotIndex * 2 + (element.Kind == JsClassElementKind.Getter ? 0 : 1)
             );
             return;
@@ -505,6 +532,25 @@ internal abstract partial class JsCompilerBase
         }
     }
 
+    protected void EmitCallClassInstanceInitializer(bool mayBeMissing = false)
+    {
+        // The receiver arrives in the accumulator, which also holds the result of super().
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        var receiver = builder.AllocateTemporaryRegister();
+        EmitStar(receiver);
+        builder.EmitCallRuntime((int)RuntimeId.LoadClassInstanceInitializer, 0, 0);
+        var done = mayBeMissing ? builder.CreateLabel() : default;
+        if (mayBeMissing)
+            EmitJumpIfUndefined(done);
+        var initializer = builder.AllocateTemporaryRegister();
+        EmitStar(initializer);
+        builder.EmitCallProperty(initializer, receiver, 0, 0);
+        if (mayBeMissing)
+            builder.BindLabel(done);
+        EmitLdar(receiver);
+        builder.ReleaseTemporaryRegistersToMarker(marker);
+    }
+
     protected void EmitInstanceFieldInitializers(JsAst ast, int classIndex)
     {
         var elements = ast.GetClassElements(ast.GetClass(classIndex));
@@ -562,22 +608,11 @@ internal abstract partial class JsCompilerBase
                 {
                     if (element.ValueNode >= 0)
                     {
-                        emittingInstanceFieldInitializer = true;
-                        try
-                        {
-                            if (!element.IsComputed)
-                                EmitExpressionWithInferredName(
-                                    ast,
-                                    element.ValueNode,
-                                    ast.GetString(element.Key)
-                                );
-                            else
-                                EmitExpression(ast, element.ValueNode);
-                        }
-                        finally
-                        {
-                            emittingInstanceFieldInitializer = false;
-                        }
+                        EmitExpressionWithInferredName(
+                            ast,
+                            element.ValueNode,
+                            ast.GetString(element.Key)
+                        );
                     }
                     else
                         builder.EmitLda(JsOpCode.LdaUndefined);
@@ -605,22 +640,14 @@ internal abstract partial class JsCompilerBase
                 EmitStar(arguments + 1);
                 if (element.ValueNode >= 0)
                 {
-                    emittingInstanceFieldInitializer = true;
-                    try
-                    {
-                        if (!element.IsComputed)
-                            EmitExpressionWithInferredName(
-                                ast,
-                                element.ValueNode,
-                                ast.GetString(element.Key)
-                            );
-                        else
-                            EmitExpressionWithComputedName(ast, element.ValueNode, arguments + 1);
-                    }
-                    finally
-                    {
-                        emittingInstanceFieldInitializer = false;
-                    }
+                    if (element.IsComputed)
+                        EmitExpressionWithComputedName(ast, element.ValueNode, arguments + 1);
+                    else
+                        EmitExpressionWithInferredName(
+                            ast,
+                            element.ValueNode,
+                            ast.GetString(element.Key)
+                        );
                 }
                 else
                     builder.EmitLda(JsOpCode.LdaUndefined);

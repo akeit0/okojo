@@ -95,6 +95,8 @@ public sealed partial class JsRealm
         HandleRuntimeMaterializeSpreadArgument, // MaterializeSpreadArgument = 78
         HandleRuntimeGetCurrentModuleNamespace, // GetCurrentModuleNamespace = 79
         HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
+        HandleRuntimeSetClassInstanceInitializer,
+        HandleRuntimeLoadClassInstanceInitializer,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -4036,25 +4038,12 @@ public sealed partial class JsRealm
                 && currentBytecodeFunction.IsDerivedConstructor
             )
             {
-                JsContext? derivedThisContext = null;
-                var derivedThisSlot = -1;
-                if (
-                    currentContext is not null
-                    && currentBytecodeFunction.DerivedThisContextSlot >= 0
-                    && (uint)currentBytecodeFunction.DerivedThisContextSlot
-                        < (uint)currentContext.Slots.Length
-                )
-                {
-                    derivedThisContext = currentContext;
-                    derivedThisSlot = currentBytecodeFunction.DerivedThisContextSlot;
-                }
-
                 derivedSuperCallState = new(
                     fp,
                     currentBytecodeFunction,
                     Stack[fp + OffsetExtra0],
-                    derivedThisContext,
-                    derivedThisSlot
+                    GetFunctionRootContext(CurrentCallFrame, currentBytecodeFunction),
+                    currentBytecodeFunction.DerivedThisContextSlot
                 );
             }
         }
@@ -5574,8 +5563,11 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 2)
-            ThrowTypeError("SUPER_KEYED_GET_ARGC", "LoadKeyedFromSuper requires two arguments");
+        if (argCount is not (2 or 3))
+            ThrowTypeError(
+                "SUPER_KEYED_GET_ARGC",
+                "LoadKeyedFromSuper requires receiver, key, and optional base"
+            );
 
         var thisValue = Unsafe.Add(ref registers, argRegStart);
         var keyValue = Unsafe.Add(ref registers, argRegStart + 1);
@@ -5584,7 +5576,10 @@ public sealed partial class JsRealm
         if (!thisValue.TryGetObject(out var receiver))
             ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
 
-        var superBase = realm.RequireObjectSuperBaseForFrame(fp);
+        var superBase =
+            argCount == 3
+                ? RequireObjectSuperBase(Unsafe.Add(ref registers, argRegStart + 2))
+                : realm.RequireObjectSuperBaseForFrame(fp);
         if (TryResolveRuntimePropertyKey(realm, keyValue, out var index, out var atom))
         {
             if (superBase.TryGetElementWithReceiver(realm, receiver, index, out var indexedValue))
@@ -6270,7 +6265,7 @@ public sealed partial class JsRealm
         if (keyValue.IsSymbol)
         {
             var description = keyValue.AsSymbol().Description;
-            keyText = string.IsNullOrEmpty(description) ? string.Empty : $"[{description}]";
+            keyText = description is null ? string.Empty : $"[{description}]";
         }
         else if (keyValue.IsString)
         {
@@ -7082,18 +7077,24 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 3)
-            ThrowTypeError("SUPER_SET_ARGC", "SuperSet requires three arguments");
+        if (argCount is not (3 or 4))
+            ThrowTypeError(
+                "SUPER_SET_ARGC",
+                "SuperSet requires receiver, key, value, and optional base"
+            );
 
         var thisValue = Unsafe.Add(ref registers, argRegStart);
         var keyValue = Unsafe.Add(ref registers, argRegStart + 1);
-        var value = Unsafe.Add(ref registers, argRegStart + 2);
+        var value = Unsafe.Add(ref registers, argRegStart + argCount - 1);
         if (thisValue.IsTheHole)
             ThrowSuperNotCalled();
         if (!thisValue.TryGetObject(out var receiver))
             ThrowTypeError("SUPER_RECEIVER", "super receiver must be object");
 
-        var superBase = realm.RequireObjectSuperBaseForFrame(fp);
+        var superBase =
+            argCount == 4
+                ? RequireObjectSuperBase(Unsafe.Add(ref registers, argRegStart + 2))
+                : realm.RequireObjectSuperBaseForFrame(fp);
         var succeeded = TryResolveRuntimePropertyKey(realm, keyValue, out var index, out var atom)
             ? superBase.SetElementWithReceiver(realm, receiver, index, value)
             : superBase.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out _);
@@ -7317,11 +7318,25 @@ public sealed partial class JsRealm
             return;
 
         ref readonly var frame = ref GetCallFrameAt(framePointer);
-        var context = frame.Context;
+        var context = GetFunctionRootContext(frame, function);
         if (context is null || (uint)slot >= (uint)context.Slots.Length)
             return;
 
         context.Slots[slot] = thisValue;
+    }
+
+    private static JsContext? GetFunctionRootContext(
+        in CallFrame frame,
+        JsBytecodeFunction function
+    )
+    {
+        var context = frame.Context;
+        var parent = function.BoundParentContext;
+        if (ReferenceEquals(context, parent))
+            return null;
+        while (context is not null && !ReferenceEquals(context.Parent, parent))
+            context = context.Parent;
+        return context;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -7331,14 +7346,19 @@ public sealed partial class JsRealm
         if (callFrame.Function is not JsBytecodeFunction bytecodeFunction)
             throw TypeError("SUPER_BASE", "super base is not available");
 
-        var superBaseSlot = bytecodeFunction.SuperBaseContextSlot;
-        if (superBaseSlot >= 0)
+        var homeObjectSlot = bytecodeFunction.SuperBaseContextSlot;
+        if (homeObjectSlot >= 0)
         {
-            var context = callFrame.Context;
-            if (context is null || (uint)superBaseSlot >= (uint)context.Slots.Length)
-                ThrowTypeError("SUPER_BASE", "super base is not available");
+            var context = GetFunctionRootContext(callFrame, bytecodeFunction);
+            if (
+                context is null
+                || (uint)homeObjectSlot >= (uint)context.Slots.Length
+                || !context.Slots[homeObjectSlot].TryGetObject(out var homeObject)
+            )
+                throw TypeError("SUPER_BASE", "super base is not available");
 
-            return context.Slots[superBaseSlot];
+            var prototype = homeObject.GetPrototypeOf(this);
+            return prototype is null ? JsValue.Null : JsValue.FromObject(prototype);
         }
 
         if (bytecodeFunction.IsClassConstructor)
@@ -7378,9 +7398,12 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private JsObject RequireObjectSuperBaseForFrame(int framePointer)
+    private JsObject RequireObjectSuperBaseForFrame(int framePointer) =>
+        RequireObjectSuperBase(ResolveSuperBaseValueForFrame(framePointer));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsObject RequireObjectSuperBase(in JsValue superBaseValue)
     {
-        var superBaseValue = ResolveSuperBaseValueForFrame(framePointer);
         if (!superBaseValue.TryGetObject(out var superBaseObject))
             ThrowTypeError("SUPER_BASE", "super base is not available");
 
@@ -7509,6 +7532,14 @@ public sealed partial class JsRealm
 
         var values = new List<PausedLocalValue>(localInfos.Count + 8);
         var seenRegisters = new HashSet<int>();
+        var contextCount = 0;
+        var parentContext = bytecodeFunction.BoundParentContext;
+        for (
+            var context = callFrame.Context;
+            context is not null && context != parentContext;
+            context = context.Parent
+        )
+            contextCount++;
         for (var i = 0; i < localInfos.Count; i++)
         {
             var local = localInfos[i];
@@ -7517,7 +7548,7 @@ public sealed partial class JsRealm
                     local.Name,
                     local.StorageKind,
                     local.StorageIndex,
-                    ReadPausedLocalValue(fullStack, callFrame, framePointer, local),
+                    ReadPausedLocalValue(fullStack, callFrame, framePointer, local, contextCount),
                     local.StartPc,
                     local.EndPc,
                     local.Flags
@@ -7572,13 +7603,20 @@ public sealed partial class JsRealm
         Span<JsValue> fullStack,
         in CallFrame callFrame,
         int framePointer,
-        JsLocalDebugInfo local
+        JsLocalDebugInfo local,
+        int contextCount
     )
     {
         if (local.StorageKind == JsLocalDebugStorageKind.ContextSlot)
         {
-            var context = callFrame.Context;
-            if (context is null)
+            if (
+                local.ContextLevel >= contextCount
+                || !TryResolveContextChain(
+                    callFrame.Context,
+                    contextCount - 1 - local.ContextLevel,
+                    out var context
+                )
+            )
                 return JsValue.Undefined;
             if ((uint)local.StorageIndex >= (uint)context.Slots.Length)
                 return JsValue.Undefined;

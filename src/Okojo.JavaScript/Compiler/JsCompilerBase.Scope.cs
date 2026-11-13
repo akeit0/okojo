@@ -32,19 +32,6 @@ internal abstract partial class JsCompilerBase
             BindingStorage? selfShadowCandidate = null;
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
-                if (emittingInstanceFieldInitializer && scope.ScopeId == 0)
-                    continue;
-                if (
-                    emittingParameterInitializers
-                    && scope.ScopeId == 0
-                    && scope.Bindings[i].Planned.Kind
-                        is not (
-                            CompilerCollectedBindingKind.Parameter
-                            or CompilerCollectedBindingKind.FunctionNameSelf
-                            or CompilerCollectedBindingKind.Arguments
-                        )
-                )
-                    continue;
                 var planned = scope.Bindings[i].Planned;
                 if (nameId >= 0 && planned.NameId >= 0 && planned.NameId != nameId)
                     continue;
@@ -77,7 +64,7 @@ internal abstract partial class JsCompilerBase
         return false;
     }
 
-    private CompilerCollectedScope FindChildScope(
+    protected CompilerCollectedScope FindChildScope(
         int parentScopeId,
         CompilerCollectedScopeKind kind,
         int position
@@ -111,7 +98,7 @@ internal abstract partial class JsCompilerBase
         Pool.ReturnCompileList(list);
     }
 
-    private void EnterScope(int scopeId)
+    protected void EnterScope(int scopeId)
     {
         var debugStartPc = builder.CodeLength;
         var bindings = GetPlannedBindings(scopeId);
@@ -147,13 +134,18 @@ internal abstract partial class JsCompilerBase
         EmitScopeLexicalHoleInitialization();
     }
 
-    private void LeaveScope()
+    protected void LeaveScope(bool emitPopContext = true)
     {
         var scope = activeScopes.Pop();
         if (scope.ScopeId == 0)
             throw new InvalidOperationException("Cannot leave root scope.");
 
-        EmitLocalDebugInfos(scope.Bindings, scope.DebugStartPc, builder.CodeLength);
+        EmitLocalDebugInfos(
+            scope.Bindings,
+            scope.DebugStartPc,
+            builder.CodeLength,
+            CurrentContextDepth
+        );
         RemoveKnownInitializedLexicals(scope.Bindings);
 
         for (var i = 0; i < scope.Bindings.Count; i++)
@@ -163,7 +155,7 @@ internal abstract partial class JsCompilerBase
         if (scope.Bindings is List<BindingStorage> pooledList)
             ReturnBindingStorageList(pooledList);
 
-        if (scope.HasContext)
+        if (emitPopContext && scope.HasContext)
             EmitPopContext();
     }
 
@@ -178,7 +170,7 @@ internal abstract partial class JsCompilerBase
         var captureCapacity = 0;
         foreach (var scope in activeScopes)
             for (var i = 0; i < scope.Bindings.Count; i++)
-                if (IsChildCaptureBinding(scope, scope.Bindings[i]))
+                if (IsChildCaptureBinding(scope.Bindings[i]))
                     captureCapacity++;
         if (
             ExternalCaptures
@@ -196,7 +188,7 @@ internal abstract partial class JsCompilerBase
             for (var i = 0; i < scope.Bindings.Count; i++)
             {
                 var binding = scope.Bindings[i];
-                if (!IsChildCaptureBinding(scope, binding))
+                if (!IsChildCaptureBinding(binding))
                     continue;
                 var access = new CapturedBindingAccess(
                     binding.Planned.StorageIndex,
@@ -221,6 +213,9 @@ internal abstract partial class JsCompilerBase
         }
 
         foreach (var pair in ExternalCaptures)
+        {
+            if (pair.Key == DerivedThisBindingName && !InheritsLexicalThis)
+                continue;
             captures.TryAdd(
                 pair.Key,
                 new CapturedBindingAccess(
@@ -232,39 +227,28 @@ internal abstract partial class JsCompilerBase
                     pair.Value.NeedsTdzWriteCheck
                 )
             );
+        }
 
         if (derivedThisContextSlot >= 0)
             captures.TryAdd(
                 DerivedThisBindingName,
-                new CapturedBindingAccess(derivedThisContextSlot, 0, true, false, false, false)
+                new CapturedBindingAccess(
+                    derivedThisContextSlot,
+                    currentDepth - 1,
+                    true,
+                    false,
+                    false,
+                    false
+                )
             );
 
         return captures;
     }
 
-    private bool IsChildCaptureBinding(in ActiveScope scope, in BindingStorage binding)
-    {
-        if (
-            emittingInstanceFieldInitializer
-            && scope.ScopeId == 0
-            && binding.Planned.Kind != CompilerCollectedBindingKind.SuperBase
-        )
-            return false;
-        if (
-            emittingParameterInitializers
-            && scope.ScopeId == 0
-            && binding.Planned.Kind
-                is not (
-                    CompilerCollectedBindingKind.Parameter
-                    or CompilerCollectedBindingKind.FunctionNameSelf
-                    or CompilerCollectedBindingKind.Arguments
-                )
-        )
-            return false;
-        return binding.Planned.StorageKind
+    private static bool IsChildCaptureBinding(in BindingStorage binding) =>
+        binding.Planned.StorageKind
             is CompilerPlannedStorageKind.ContextSlot
                 or CompilerPlannedStorageKind.ModuleBinding;
-    }
 
     private static bool NeedsTdzWriteCheck(CompilerCollectedBindingKind kind) =>
         kind

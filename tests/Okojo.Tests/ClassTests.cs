@@ -794,6 +794,212 @@ public class ClassTests
     }
 
     [Test]
+    public void ClassInstanceField_CapturesEnclosingLocalAndParameter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function make(parameter) {
+              let local = 1;
+              const key = 'computed';
+              class C {
+                field = local;
+                #privateField = parameter;
+                [key] = ++local;
+                readPrivate() { return this.#privateField; }
+              }
+              local = 10;
+              parameter = 20;
+              return C;
+            }
+            const C = make(2);
+            const first = new C();
+            const second = new C();
+            [first.field, first.computed, first.readPrivate(), second.field, second.computed].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("10,11,20,11,12"));
+    }
+
+    [Test]
+    public void ClassInstanceField_IgnoresConstructorScopesAroundSuper()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function make() {
+              const value = 1;
+              const blockValue = 2;
+              const nestedValue = 3;
+              return class Derived extends class {} {
+                field = value + blockValue;
+                arrow = () => blockValue;
+                nested = class Inner { inner = nestedValue; self = Inner; };
+                constructor(value) {
+                  {
+                    const blockValue = 99;
+                    super();
+                    this.fromConstructor = () => value + blockValue;
+                  }
+                }
+              };
+            }
+            const instance = new (make())(100);
+            const nested = new instance.nested();
+            [instance.field, instance.arrow(), nested.inner, nested.self === instance.nested,
+              instance.fromConstructor()].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("3,2,3,true,199"));
+    }
+
+    [Test]
+    public void SuperAssignment_KeepsThePreparedBaseAcrossUserCode()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const events = [];
+            const replacement = { set x(value) { events.push('replacement', value); } };
+            const original = {
+              get x() { Object.setPrototypeOf(obj, replacement); return 2; },
+              set x(value) { events.push('original', value); }
+            };
+            const obj = {
+              assign() { super.x = (Object.setPrototypeOf(obj, replacement), 3); },
+              update() { super.x += 3; },
+              computed(key) { super[key] = (events.push('rhs'), 7); },
+              compound(key) { super[key] += 6; }
+            };
+            const key = { toString() { events.push('key'); return 'x'; } };
+            Object.setPrototypeOf(obj, original);
+            obj.assign();
+            Object.setPrototypeOf(obj, original);
+            obj.update();
+            Object.setPrototypeOf(obj, original);
+            obj.computed(key);
+            Object.setPrototypeOf(obj, original);
+            obj.compound(key);
+            events.join(',');
+            """
+        );
+        Assert.That(
+            result.AsString(),
+            Is.EqualTo("original,3,original,5,rhs,key,original,7,key,key,original,8")
+        );
+    }
+
+    [Test]
+    public void InstanceFields_ReadSuperFromTheCurrentHomeObjectPrototype()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            class Base { get value() { return 1; } }
+            class C extends Base {
+              change = Object.setPrototypeOf(C.prototype, {
+                get value() { return 2; },
+                set value(v) { this.written = v; }
+              });
+              direct = super.value;
+              read = () => super['value'];
+              write = () => { super.value = 4; };
+            }
+            const c = new C();
+            const first = c.read();
+            c.write();
+            Object.setPrototypeOf(C.prototype, { get value() { return 3; } });
+            [c.direct, first, c.written, c.read()].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("2,2,4,3"));
+    }
+
+    [Test]
+    public void InstanceFieldInitializer_CanConstructInstancesRecursively()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let count = 0;
+            class C { child = ++count < 100 ? new C() : null; }
+            new C();
+            count;
+            """
+        );
+        Assert.That(result.NumberValue, Is.EqualTo(100));
+    }
+
+    [Test]
+    public void InstanceFields_RunOnceWhenSuperIsCalledThroughAnArrow()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let late, count = 0;
+            const key = 'field';
+            class Base { constructor(value) { this.value = value; } }
+            class C extends Base {
+              #method() { return this.value; }
+              [key] = (++count, this.#method());
+              constructor(value, defer) {
+                const initialize = (...args) => (() => super(...args))();
+                if (defer) { late = initialize; return {}; }
+                initialize(value);
+              }
+            }
+            const first = new C(7);
+            const empty = new C(0, true);
+            const second = late(8);
+            let twice;
+            try { late(9); } catch (e) { twice = e.name; }
+            [first.field, Object.hasOwn(empty, key), second.field, count, twice].join(',');
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("7,false,8,2,ReferenceError"));
+    }
+
+    [Test]
+    public void InstanceFields_HaveTheirOwnNewTargetAndSuperEnvironment()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let order = [];
+            class Base {
+              ownTarget = new.target;
+              constructor(value = order.push('parameter')) { order.push('body'); }
+              field = order.push('field');
+              get value() { return 8; }
+            }
+            class C extends Base {
+              direct = super.value;
+              read = () => [super.value, this, new.target];
+              constructor() {
+                { let local = 9; super(); this.local = () => local; }
+                this.ctorTarget = new.target;
+              }
+            }
+            const c = new C();
+            const [value, receiver, target] = c.read();
+            class Outer extends Base {
+              constructor() {
+                super(0);
+                class Inner { read = () => this; }
+                const inner = new Inner();
+                this.innerReceiverIsCorrect = inner.read() === inner;
+              }
+            }
+            const correctOrder = order.join(',') === 'field,parameter,body';
+            c.ownTarget === undefined && c.ctorTarget === C && target === undefined &&
+              value === 8 && c.direct === 8 && receiver === c && c.local() === 9 &&
+              correctOrder && new Outer().innerReceiverIsCorrect;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ClassPublicInstanceField_DerivedConstructor_RunsAfterSuper()
     {
         var realm = JsRuntime.Create().DefaultRealm;

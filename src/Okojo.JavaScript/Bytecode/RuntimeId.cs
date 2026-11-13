@@ -26,7 +26,7 @@ internal enum RuntimeId : byte
     // Wire class heritage. Args: [ctor, superCtorOrNull].
     SetClassHeritage,
 
-    // super property set. Args: [thisValue, key, value].
+    // Super property store. Args: [receiver, key, base, value].
     SuperSet,
 
     // Derived default constructor super(...args) forward-all path.
@@ -53,7 +53,7 @@ internal enum RuntimeId : byte
     RequireObjectCoercible,
 
     // super / method-environment helpers.
-    // Load super[key] using current frame super base and provided receiver+key.
+    // Super property load. Args: [receiver, key, base].
     LoadKeyedFromSuper,
 
     // Resolve current function super base (homeObject.[[Prototype]]).
@@ -206,4 +206,7 @@ internal enum RuntimeId : byte
     // Resolve an identifier against the executing realm, then delete its global binding.
     // Appended to preserve existing RuntimeId values. Args: [name].
     DeleteGlobalBinding,
+
+    SetClassInstanceInitializer,
+    LoadClassInstanceInitializer,
 }

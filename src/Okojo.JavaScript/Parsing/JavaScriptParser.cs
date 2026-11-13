@@ -1926,17 +1926,19 @@ internal sealed class JavaScriptParser
                     position,
                     isDerived: extendsNode >= 0
                 );
-            if (instanceFieldsUseSuper)
-            {
-                var constructorFunctionIndex = Arena[constructorNode].Arg0;
-                ast.SetFunction(
-                    constructorFunctionIndex,
-                    ast.GetFunction(constructorFunctionIndex) with
-                    {
-                        HasSuperPropertyReference = true,
-                    }
-                );
-            }
+            var instanceInitializerNode = -1;
+            foreach (ref readonly var element in elements.AsSpan())
+                if (
+                    !element.IsStatic
+                    && (element.Kind == JsClassElementKind.Field || element.IsPrivate)
+                )
+                {
+                    instanceInitializerNode = AddInstanceInitializer(
+                        position,
+                        instanceFieldsUseSuper
+                    );
+                    break;
+                }
             // An explicit constructor's toString span is the entire class source.
             if (constructorNode >= 0 && hasExplicitConstructor)
             {
@@ -1959,7 +1961,8 @@ internal sealed class JavaScriptParser
                     elementRange.Count,
                     constructorNode,
                     extendsNode,
-                    position
+                    position,
+                    instanceInitializerNode
                 )
             );
             return Arena.Add(
@@ -2107,6 +2110,30 @@ internal sealed class JavaScriptParser
                 ReturnInferredNameStringIndex: inferredNameStringIndex,
                 ReturnInferredNameFromFirstParameter: inferNameFromFirstParameter,
                 EndPosition: previousTokenEnd
+            )
+        );
+        return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);
+    }
+
+    private int AddInstanceInitializer(int position, bool usesSuper)
+    {
+        var empty = Arena.AddChildren(ReadOnlySpan<int>.Empty);
+        var body = Arena.Add(AstKind.Program, empty.Offset, empty.Count, position: position);
+        var parameters = ast.AddParameters(ReadOnlySpan<JsParameter>.Empty);
+        var functionIndex = ast.AddFunction(
+            new JsFunctionInfo(
+                Arena.AddString(string.Empty),
+                -1,
+                parameters.Offset,
+                parameters.Count,
+                0,
+                -1,
+                true,
+                true,
+                false,
+                position,
+                true,
+                HasSuperPropertyReference: usesSuper
             )
         );
         return Arena.Add(AstKind.FunctionExpression, functionIndex, body, position: position);

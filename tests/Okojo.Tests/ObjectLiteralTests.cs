@@ -9,6 +9,60 @@ namespace Okojo.Tests;
 public class ObjectLiteralTests
 {
     [Test]
+    public void ObjectLiteral_KeyedDataProperties_DoNotNameExistingValues()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const key = 'config';
+            const fn = (0, function () {});
+            const value = { get name() { throw new Error('unexpected name access'); } };
+            const obj = {
+              [key]: { debug: true },
+              ['items']: [1, 2],
+              ['alias']: fn,
+              ['sequence']: (0, function () {}),
+              ['named']: function original() {},
+              ['existing']: value,
+              tail: { enabled: true },
+              1: {}
+            };
+            Object.getOwnPropertyNames(obj.config).join(',') === 'debug' &&
+              Object.getOwnPropertyNames(obj.items).join(',') === '0,1,length' &&
+              obj.alias === fn && fn.name === '' && obj.sequence.name === '' &&
+              obj.named.name === 'original' && obj.existing === value &&
+              !Object.hasOwn(obj.tail, 'name') && !Object.hasOwn(obj[1], 'name');
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ObjectLiteral_ComputedKeys_NameAnonymousDefinitionsAndMethods()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const symbol = Symbol('');
+            const obj = {
+              ['fn']: (function () {}),
+              [symbol]: () => {},
+              [3]() {},
+              ['kind']: class { static seen = this.name; static name = ''; },
+              ['named']: class Original { static seen = this.name; },
+              ['accessor']: class { static get name() { return 'getter'; } static seen = this.name; }
+            };
+            const descriptor = Object.getOwnPropertyDescriptor(obj.fn, 'name');
+            descriptor.value === 'fn' && !descriptor.writable && !descriptor.enumerable &&
+              descriptor.configurable && obj[symbol].name === '[]' && obj[3].name === '3' &&
+              obj.kind.seen === 'kind' && obj.kind.name === '' && obj.named.seen === 'Original' &&
+              obj.accessor.seen === 'getter' && obj.accessor.name === 'getter';
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ObjectLiteral_ComputedMethodKey_ToString_CSharpBreakdown()
     {
         var realm = JsRuntime.Create().DefaultRealm;

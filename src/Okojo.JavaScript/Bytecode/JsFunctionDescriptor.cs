@@ -69,6 +69,8 @@ public sealed class JsFunctionDescriptor
     internal bool PrototypeHasConstructor { get; }
     internal bool IsConstructor { get; }
     internal int[]? ArgumentsMappedSlots { get; init; }
+
+    // The slot holds the home object. Its prototype is read when resolving a super reference.
     internal int SuperBaseContextSlot { get; init; } = -1;
     internal int DerivedThisContextSlot { get; init; } = -1;
     internal int LexicalThisContextSlot { get; init; } = -1;

@@ -7,6 +7,50 @@ internal static partial class CompilerBindingCollector
 {
     internal const string SuperBaseBindingName = "\0super-base";
 
+    internal static bool HasParameterExpressions(JsAst ast, in JsFunctionInfo function)
+    {
+        if (function.HasSimpleParameterList)
+            return false;
+        foreach (ref readonly var parameter in ast.GetParameters(function))
+            if (
+                parameter.InitializerNode >= 0
+                || (
+                    parameter.PatternNode >= 0
+                    && BindingPatternContainsExpression(ast, parameter.PatternNode)
+                )
+            )
+                return true;
+        return false;
+    }
+
+    private static bool BindingPatternContainsExpression(JsAst ast, int nodeIndex)
+    {
+        ref readonly var node = ref ast[nodeIndex];
+        switch (node.Kind)
+        {
+            case AstKind.AssignmentExpression:
+                return true;
+            case AstKind.SpreadElement:
+                return BindingPatternContainsExpression(ast, node.Arg0);
+            case AstKind.ArrayBindingPattern:
+            case AstKind.ArrayExpression:
+                foreach (var element in ast.ChildRange(node.Arg0, node.Arg1))
+                    if (element >= 0 && BindingPatternContainsExpression(ast, element))
+                        return true;
+                break;
+            case AstKind.ObjectBindingPattern:
+            case AstKind.ObjectExpression:
+                foreach (ref readonly var property in ast.GetObjectProperties(node.Arg0, node.Arg1))
+                    if (
+                        property.IsComputed
+                        || BindingPatternContainsExpression(ast, property.ValueNode)
+                    )
+                        return true;
+                break;
+        }
+        return false;
+    }
+
     public static CompilerBindingCollectionResult Collect(JsAst ast)
     {
         var collector = new Collector(
@@ -33,7 +77,7 @@ internal static partial class CompilerBindingCollector
             hasSelfBinding,
             instanceFieldClassIndex
         );
-        collector.AddSyntheticArgumentsBindings(!function.HasSimpleParameterList);
+        collector.AddSyntheticArgumentsBindings();
         return collector.MoveResult();
     }
 
@@ -50,7 +94,6 @@ internal static partial class CompilerBindingCollector
         >? mergeableBindings;
         private int mergeableBindingCount;
         private int nextScopeId = 1;
-        private int parameterBodyScopeId = -1;
         private int argumentsNameId = -1;
 
         public Collector(
@@ -89,7 +132,7 @@ internal static partial class CompilerBindingCollector
                 );
 
             CollectParameters(ast, function, 0);
-            CollectBody(ast, bodyRoot, 0);
+            CollectFunctionBody(ast, function, bodyRoot, 0);
             if (instanceFieldClassIndex >= 0)
             {
                 var elements = ast.GetClassElements(ast.GetClass(instanceFieldClassIndex));
@@ -134,7 +177,7 @@ internal static partial class CompilerBindingCollector
                 annexBIfFunctionNames.Add(name);
         }
 
-        public void AddSyntheticArgumentsBindings(bool ignoreBodyArgumentsShadow = false)
+        public void AddSyntheticArgumentsBindings()
         {
             if (argumentsNameId < 0)
                 return;
@@ -146,14 +189,6 @@ internal static partial class CompilerBindingCollector
             for (var i = 0; i < bindings.Count; i++)
                 if (bindings[i].NameId == argumentsNameId)
                 {
-                    if (
-                        ignoreBodyArgumentsShadow
-                        && bindings[i].ScopeId == 0
-                        && bindings[i].Kind
-                            is CompilerCollectedBindingKind.Lexical
-                                or CompilerCollectedBindingKind.FunctionDeclaration
-                    )
-                        continue;
                     if (bindings[i].Kind == CompilerCollectedBindingKind.Var)
                         varBindingIndex[bindings[i].ScopeId] = i;
                     else
@@ -559,6 +594,7 @@ internal static partial class CompilerBindingCollector
                         CompilerCollectedScopeKind.Program
                         or CompilerCollectedScopeKind.Module
                         or CompilerCollectedScopeKind.Function
+                        or CompilerCollectedScopeKind.FunctionBody
                     )
             )
                 scopeId = allScopes[scopeId].ParentScopeId;
@@ -741,7 +777,7 @@ internal static partial class CompilerBindingCollector
                 function.Position
             );
             CollectParameters(ast, function, functionScopeId);
-            CollectBody(ast, node.Arg1, functionScopeId);
+            CollectFunctionBody(ast, function, node.Arg1, functionScopeId);
         }
 
         private void VisitExpression(JsAst ast, int nodeIndex, int scopeId)
@@ -758,9 +794,7 @@ internal static partial class CompilerBindingCollector
                         )
                     )
                         argumentsNameId = node.Arg1;
-                    references.Add(
-                        new CompilerCollectedReference(scopeId, node.Arg1, parameterBodyScopeId)
-                    );
+                    references.Add(new CompilerCollectedReference(scopeId, node.Arg1));
                     return;
                 case AstKind.AssignmentExpression:
                 case AstKind.BinaryExpression:
@@ -889,7 +923,7 @@ internal static partial class CompilerBindingCollector
                     position: function.Position
                 );
             CollectParameters(ast, function, functionScopeId);
-            CollectBody(ast, node.Arg1, functionScopeId);
+            CollectFunctionBody(ast, function, node.Arg1, functionScopeId);
         }
 
         private void VisitClass(JsAst ast, AstNode node, int parentScopeId, bool isDeclaration)
@@ -923,6 +957,10 @@ internal static partial class CompilerBindingCollector
                 VisitExpression(ast, info.ExtendsNode, classScopeId);
 
             var visitedConstructor = false;
+            var instanceInitializerScopeId =
+                info.InstanceInitializerNode < 0
+                    ? -1
+                    : AddScope(classScopeId, CompilerCollectedScopeKind.Function, info.Position);
             var elements = ast.GetClassElements(info);
             for (var i = 0; i < elements.Length; i++)
             {
@@ -932,7 +970,7 @@ internal static partial class CompilerBindingCollector
                 if (element.Kind == JsClassElementKind.Field && !element.IsStatic)
                 {
                     if (element.ValueNode >= 0)
-                        VisitExpression(ast, element.ValueNode, classScopeId);
+                        VisitExpression(ast, element.ValueNode, instanceInitializerScopeId);
                     continue;
                 }
                 VisitFunctionExpression(ast, ast[element.ValueNode], classScopeId);
@@ -942,42 +980,50 @@ internal static partial class CompilerBindingCollector
                 VisitFunctionExpression(ast, ast[info.ConstructorNode], classScopeId);
         }
 
+        private void CollectFunctionBody(
+            JsAst ast,
+            in JsFunctionInfo function,
+            int bodyRoot,
+            int scopeId
+        )
+        {
+            var bodyScopeId = HasParameterExpressions(ast, function)
+                ? AddScope(
+                    scopeId,
+                    CompilerCollectedScopeKind.FunctionBody,
+                    ast.GetPosition(bodyRoot)
+                )
+                : scopeId;
+            CollectBody(ast, bodyRoot, bodyScopeId);
+        }
+
         private void CollectParameters(JsAst ast, in JsFunctionInfo function, int scopeId)
         {
             var parameters = ast.GetParameters(function);
-            var previousParameterBodyScopeId = parameterBodyScopeId;
-            parameterBodyScopeId = scopeId;
-            try
+            for (var i = 0; i < parameters.Length; i++)
             {
-                for (var i = 0; i < parameters.Length; i++)
-                {
-                    ref readonly var parameter = ref parameters[i];
-                    if (parameter.PatternNode >= 0)
-                        VisitBindingPattern(
-                            ast,
-                            parameter.PatternNode,
-                            scopeId,
-                            CompilerCollectedBindingKind.Parameter,
-                            isConst: false
-                        );
-                    else
-                        AddBinding(
-                            scopeId,
-                            CompilerCollectedBindingKind.Parameter,
-                            ast.GetString(parameter.NameStringIndex),
-                            parameter.NameId,
-                            position: parameter.Position,
-                            isSynthetic: parameter.Kind
-                                is JsFormalParameterBindingKind.Pattern
-                                    or JsFormalParameterBindingKind.RestPattern
-                        );
-                    if (parameter.InitializerNode >= 0)
-                        VisitExpression(ast, parameter.InitializerNode, scopeId);
-                }
-            }
-            finally
-            {
-                parameterBodyScopeId = previousParameterBodyScopeId;
+                ref readonly var parameter = ref parameters[i];
+                if (parameter.PatternNode >= 0)
+                    VisitBindingPattern(
+                        ast,
+                        parameter.PatternNode,
+                        scopeId,
+                        CompilerCollectedBindingKind.Parameter,
+                        isConst: false
+                    );
+                else
+                    AddBinding(
+                        scopeId,
+                        CompilerCollectedBindingKind.Parameter,
+                        ast.GetString(parameter.NameStringIndex),
+                        parameter.NameId,
+                        position: parameter.Position,
+                        isSynthetic: parameter.Kind
+                            is JsFormalParameterBindingKind.Pattern
+                                or JsFormalParameterBindingKind.RestPattern
+                    );
+                if (parameter.InitializerNode >= 0)
+                    VisitExpression(ast, parameter.InitializerNode, scopeId);
             }
         }
 

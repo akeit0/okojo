@@ -9,4 +9,5 @@ internal enum CompilerCollectedScopeKind : byte
     Class = 4,
     StaticBlock = 5,
     Module = 6,
+    FunctionBody,
 }

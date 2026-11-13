@@ -1954,20 +1954,30 @@ internal abstract partial class JsCompilerBase
         }
     }
 
-    protected void EmitDeclarationPrologue(JsAst ast, int bodyRoot)
+    protected void EmitDeclarationPrologue(
+        JsAst ast,
+        int bodyRoot,
+        IReadOnlyList<BindingStorage>? parameterBindings = null
+    )
     {
         ref readonly var body = ref ast[bodyRoot];
-        EmitDeclarationPrologue(ast, body.Arg0, body.Arg1);
+        EmitDeclarationPrologue(ast, body.Arg0, body.Arg1, parameterBindings);
     }
 
-    private void EmitDeclarationPrologue(JsAst ast, int offset, int count)
+    private void EmitDeclarationPrologue(
+        JsAst ast,
+        int offset,
+        int count,
+        IReadOnlyList<BindingStorage>? parameterBindings = null
+    )
     {
         var scope = activeScopes.Peek();
         for (var i = 0; i < scope.Bindings.Count; i++)
             if (scope.Bindings[i].Planned.Kind == CompilerCollectedBindingKind.Var)
             {
-                builder.EmitLda(JsOpCode.LdaUndefined);
-                EmitStore(scope.Bindings[i], isInitialization: true);
+                var bodyBinding = scope.Bindings[i];
+                EmitInitialVarValue(bodyBinding.Planned.Name, parameterBindings, scope.HasContext);
+                EmitStore(bodyBinding, isInitialization: true);
             }
 
         var statements = ast.ChildRange(offset, count);
@@ -1979,6 +1989,34 @@ internal abstract partial class JsCompilerBase
             else if (statement.Kind == AstKind.ExportDeclaration && statement.Arg0 >= 0)
                 EmitExportDeclarationPrologue(ast, statement);
         }
+    }
+
+    private void EmitInitialVarValue(
+        string name,
+        IReadOnlyList<BindingStorage>? parameterBindings,
+        bool bodyHasContext
+    )
+    {
+        if (parameterBindings is not null)
+            for (var i = 0; i < parameterBindings.Count; i++)
+            {
+                var binding = parameterBindings[i];
+                if (
+                    binding.Planned.Kind
+                        is not (
+                            CompilerCollectedBindingKind.Parameter
+                            or CompilerCollectedBindingKind.Arguments
+                        )
+                    || !string.Equals(binding.Planned.Name, name, StringComparison.Ordinal)
+                )
+                    continue;
+                if (binding.Planned.StorageKind == CompilerPlannedStorageKind.ContextSlot)
+                    EmitLdaContextSlot(binding.Planned.StorageIndex, bodyHasContext ? 1 : 0);
+                else
+                    EmitLdar(binding.Register);
+                return;
+            }
+        builder.EmitLda(JsOpCode.LdaUndefined);
     }
 
     private void EmitExportDeclarationPrologue(JsAst ast, AstNode export)

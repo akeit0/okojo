@@ -547,7 +547,8 @@ internal readonly record struct JsClassInfo(
     int ElementCount,
     int ConstructorNode,
     int ExtendsNode,
-    int Position
+    int Position,
+    int InstanceInitializerNode = -1
 )
 {
     public bool HasExtends => ExtendsNode >= 0;

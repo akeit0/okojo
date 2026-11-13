@@ -25,7 +25,6 @@ internal abstract partial class JsCompilerBase
     protected int derivedThisContextSlot = -1;
     internal const string DerivedThisBindingName = "\0derived-this";
     protected bool emittingParameterInitializers;
-    protected bool emittingInstanceFieldInitializer;
 
     /// <summary>
     ///     Register receiving the script completion value while the script root
@@ -148,13 +147,14 @@ internal abstract partial class JsCompilerBase
         if (endPc == 0)
             return;
 
-        EmitLocalDebugInfos(activeScopes.Peek().Bindings, 0, endPc);
+        EmitLocalDebugInfos(activeScopes.Peek().Bindings, 0, endPc, contextLevel: 0);
     }
 
     protected void EmitLocalDebugInfos(
         IReadOnlyList<BindingStorage> bindings,
         int startPc,
-        int endPc
+        int endPc,
+        int contextLevel
     )
     {
         if (endPc <= startPc)
@@ -207,7 +207,12 @@ internal abstract partial class JsCompilerBase
             if (binding.Planned.Kind == CompilerCollectedBindingKind.FunctionNameSelf)
                 flags |= JsLocalDebugFlags.ImmutableFunctionName;
 
-            builder.AddLocalDebugInfo(new(name, storageKind, storageIndex, startPc, endPc, flags));
+            builder.AddLocalDebugInfo(
+                new(name, storageKind, storageIndex, startPc, endPc, flags)
+                {
+                    ContextLevel = contextLevel,
+                }
+            );
         }
     }
 
@@ -217,7 +222,6 @@ internal abstract partial class JsCompilerBase
     protected bool isAsync;
     protected int returnInferredNameStringIndex = -1;
     protected bool returnInferredNameFromFirstParameter;
-    protected int InstanceFieldClassIndex { get; set; } = -1;
     private BytecodeBuilder.Label optionalChainNullTarget;
     private int nextGeneratorSuspendId;
     private int generatorSwitchInstructionPc = -1;
@@ -277,6 +281,9 @@ internal abstract partial class JsCompilerBase
         [];
 
     protected virtual int ExternalCaptureContextDepthOffset => 0;
+
+    protected bool InheritsLexicalThis { get; set; }
+    protected bool HasClassInstanceInitializer { get; set; }
 
     protected virtual bool TryResolveExternalBinding(
         string name,

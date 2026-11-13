@@ -15,13 +15,7 @@ internal static class PropertyInitializationOperations
         if (normalizedKey.IsSymbol)
         {
             if (inferFunctionName)
-                JsRealm.AssignFunctionNameFromResolvedPropertyKey(
-                    realm,
-                    value,
-                    normalizedKey.AsSymbol().Description is { Length: > 0 } description
-                        ? $"[{description}]"
-                        : string.Empty
-                );
+                JsRealm.AssignFunctionNameFromPropertyKey(realm, value, normalizedKey);
             _ = target.DefineOwnDataPropertyExact(
                 realm,
                 normalizedKey.AsSymbol().Atom,
