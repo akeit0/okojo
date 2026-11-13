@@ -6999,23 +6999,16 @@ public sealed partial class JsRealm
         if (!iteratorValue.TryGetObject(out var iteratorObj))
             throw TypeError("ITERATOR_RESULT_NOT_OBJECT", "iterator is not an object");
 
-        try
+        while (true)
         {
-            while (true)
-            {
-                var elementValue = DestructureArrayStepValue(iteratorObj, out var done);
-                if (done)
-                    break;
-                AppendMaterializedArgumentToStack(
-                    elementValue.IsTheHole ? JsValue.Undefined : elementValue,
-                    ref argCount
-                );
-            }
-        }
-        catch
-        {
-            BestEffortIteratorCloseOnThrow(iteratorObj);
-            throw;
+            var elementValue = DestructureArrayStepValue(iteratorObj, out var done);
+            if (done)
+                return;
+
+            AppendMaterializedArgumentToStack(
+                elementValue.IsTheHole ? JsValue.Undefined : elementValue,
+                ref argCount
+            );
         }
     }
 
@@ -7046,22 +7039,14 @@ public sealed partial class JsRealm
         if (!iteratorValue.TryGetObject(out var iteratorObj))
             throw TypeError("ITERATOR_RESULT_NOT_OBJECT", "iterator is not an object");
 
-        try
+        while (true)
         {
-            while (true)
-            {
-                var elementValue = DestructureArrayStepValue(iteratorObj, out var done);
-                if (done)
-                    return nextIndex;
+            var elementValue = DestructureArrayStepValue(iteratorObj, out var done);
+            if (done)
+                return nextIndex;
 
-                var spreadValue = elementValue.IsTheHole ? JsValue.Undefined : elementValue;
-                FreshArrayOperations.DefineElement(target, nextIndex++, spreadValue);
-            }
-        }
-        catch
-        {
-            BestEffortIteratorCloseOnThrow(iteratorObj);
-            throw;
+            var spreadValue = elementValue.IsTheHole ? JsValue.Undefined : elementValue;
+            FreshArrayOperations.DefineElement(target, nextIndex++, spreadValue);
         }
     }
 
