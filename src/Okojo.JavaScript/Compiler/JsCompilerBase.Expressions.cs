@@ -356,7 +356,7 @@ internal abstract partial class JsCompilerBase
         int instanceFieldClassIndex = -1,
         BindingStorage? deferredBinding = null,
         bool suppressSelfBinding = false,
-        bool initializeBaseInstance = false
+        bool hasClassInstanceInitializer = false
     )
     {
         var function = ast.GetFunction(functionIndex);
@@ -375,7 +375,7 @@ internal abstract partial class JsCompilerBase
             hasSelfBinding,
             inferredName,
             instanceFieldClassIndex,
-            initializeBaseInstance
+            hasClassInstanceInitializer
         );
         if (deferredBinding is { } binding && DeferHoistedFunction(binding, functionObject))
             return true;
@@ -1309,19 +1309,23 @@ internal abstract partial class JsCompilerBase
         {
             var argumentStart = EmitCallArguments(ast, offset, count);
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructor, argumentStart, count);
-            return;
+        }
+        else
+        {
+            var arguments = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
+            var runtimeArguments = builder.AllocateTemporaryRegisterBlock(count + 1);
+            EmitMove(flagsRegister, runtimeArguments);
+            for (var i = 0; i < count; i++)
+                EmitMove(arguments + i, runtimeArguments + 1 + i);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.CallSuperConstructorWithSpread,
+                runtimeArguments,
+                count + 1
+            );
         }
 
-        var arguments = EmitSpreadArguments(ast, offset, count, out var flagsRegister);
-        var runtimeArguments = builder.AllocateTemporaryRegisterBlock(count + 1);
-        EmitMove(flagsRegister, runtimeArguments);
-        for (var i = 0; i < count; i++)
-            EmitMove(arguments + i, runtimeArguments + 1 + i);
-        builder.EmitCallRuntime(
-            (int)RuntimeId.CallSuperConstructorWithSpread,
-            runtimeArguments,
-            count + 1
-        );
+        if (HasClassInstanceInitializer || InheritsLexicalThis)
+            EmitCallClassInstanceInitializer(mayBeMissing: InheritsLexicalThis);
     }
 
     private void EmitNewExpression(JsAst ast, AstNode node)

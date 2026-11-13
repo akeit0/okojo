@@ -22,7 +22,7 @@ public sealed partial class JsRealm
         constructor.ClassInstanceInitializer = initializer;
     }
 
-    private static void HandleRuntimeInitializeClassInstance(
+    private static void HandleRuntimeLoadClassInstanceInitializer(
         JsRealm realm,
         JsScript script,
         int opcodePc,
@@ -33,15 +33,11 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        ref readonly var frame = ref realm.GetCallFrameAt(fp);
-        var constructor = (JsBytecodeFunction)frame.Function;
-        realm.InitializeClassInstance(constructor, frame.ThisValue);
-    }
-
-    private void InitializeClassInstance(JsBytecodeFunction constructor, JsValue receiver)
-    {
-        if (constructor.ClassInstanceInitializer is { } initializer)
-            InvokeFunction(initializer, receiver, ReadOnlySpan<JsValue>.Empty);
+        var function = (JsBytecodeFunction)realm.GetCallFrameAt(fp).Function;
+        var constructor = function.BoundDerivedSuperCallState?.ConstructorFunction ?? function;
+        acc = constructor.ClassInstanceInitializer is { } initializer
+            ? JsValue.FromObject(initializer)
+            : JsValue.Undefined;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -314,7 +310,6 @@ public sealed partial class JsRealm
                 thisValue;
         }
 
-        realm.InitializeClassInstance(currentFunction, thisValue);
         return thisValue;
     }
 

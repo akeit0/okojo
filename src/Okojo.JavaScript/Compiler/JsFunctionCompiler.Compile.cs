@@ -15,7 +15,7 @@ internal sealed partial class JsFunctionCompiler
         bool hasSelfBinding = false,
         string? inferredName = null,
         int instanceFieldClassIndex = -1,
-        bool initializeBaseInstance = false
+        bool hasClassInstanceInitializer = false
     )
     {
         var declaredName = ast.GetString(function.NameStringIndex);
@@ -49,7 +49,7 @@ internal sealed partial class JsFunctionCompiler
             bodyRoot,
             function,
             instanceFieldClassIndex,
-            initializeBaseInstance
+            hasClassInstanceInitializer
         );
     }
 
@@ -60,13 +60,14 @@ internal sealed partial class JsFunctionCompiler
         int bodyRoot,
         JsFunctionInfo? functionInfo,
         int instanceFieldClassIndex = -1,
-        bool initializeBaseInstance = false
+        bool hasClassInstanceInitializer = false
     )
     {
         hasNewTarget = false;
         isGenerator = metadata.IsGenerator;
         isAsync = metadata.IsAsync;
         InheritsLexicalThis = metadata.IsArrow;
+        HasClassInstanceInitializer = hasClassInstanceInitializer;
         if (!metadata.HasSimpleParameterList && functionInfo is null)
             throw new NotSupportedException("Advanced parameters require function metadata.");
         strictDeclared = metadata.StrictDeclared;
@@ -136,25 +137,34 @@ internal sealed partial class JsFunctionCompiler
         EmitScopeLexicalHoleInitialization();
         if (superBaseContextSlot >= 0)
             EmitSuperBaseContextInitialization(metadata, superBaseContextSlot);
-        if (initializeBaseInstance)
-            builder.EmitCallRuntime((int)RuntimeId.InitializeClassInstance, 0, 0);
+        if (hasClassInstanceInitializer && !metadata.IsDerivedConstructor)
+        {
+            builder.EmitLda(JsOpCode.LdaThis);
+            EmitCallClassInstanceInitializer();
+        }
         if (argumentsMaterialized >= 0)
             EmitArgumentsBinding(argumentsMaterialized);
         EmitFunctionSelfBinding();
         if (functionInfo is { } function)
             EmitParameterPrologue(ast, function, restMaterialized);
+        IReadOnlyList<BindingStorage>? parameterBindings = null;
         if (hasParameterExpressions)
         {
-            functionBodyScopeId = FindChildScope(
+            parameterBindings = activeScopes.Peek().Bindings;
+            var functionBodyScope = FindChildScope(
                 0,
                 CompilerCollectedScopeKind.FunctionBody,
                 ast.GetPosition(bodyRoot)
-            ).ScopeId;
-            EnterScope(functionBodyScopeId);
+            );
+            EnterScope(functionBodyScope.ScopeId);
         }
-        EmitDeclarationPrologue(ast, bodyRoot);
+        EmitDeclarationPrologue(ast, bodyRoot, parameterBindings);
         if (metadata.EmitImplicitSuperForwardAll)
+        {
             builder.EmitCallRuntime((int)RuntimeId.CallSuperConstructorForwardAll, 0, 0);
+            if (hasClassInstanceInitializer)
+                EmitCallClassInstanceInitializer();
+        }
         if (instanceFieldClassIndex >= 0)
             EmitInstanceFieldInitializers(ast, instanceFieldClassIndex);
         if (isGenerator && !metadata.HasSimpleParameterList)

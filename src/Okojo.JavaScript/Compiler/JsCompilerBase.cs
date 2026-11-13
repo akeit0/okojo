@@ -25,7 +25,6 @@ internal abstract partial class JsCompilerBase
     protected int derivedThisContextSlot = -1;
     internal const string DerivedThisBindingName = "\0derived-this";
     protected bool emittingParameterInitializers;
-    protected int functionBodyScopeId = -1;
 
     /// <summary>
     ///     Register receiving the script completion value while the script root
@@ -278,6 +277,7 @@ internal abstract partial class JsCompilerBase
     protected virtual int ExternalCaptureContextDepthOffset => 0;
 
     protected bool InheritsLexicalThis { get; set; }
+    protected bool HasClassInstanceInitializer { get; set; }
 
     protected virtual bool TryResolveExternalBinding(
         string name,

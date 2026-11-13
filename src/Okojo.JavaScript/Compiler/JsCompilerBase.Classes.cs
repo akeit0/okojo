@@ -61,7 +61,7 @@ internal abstract partial class JsCompilerBase
                 constructor.Arg0,
                 constructor.Arg1,
                 constructorName.Length == 0 ? null : constructorName,
-                initializeBaseInstance: !info.HasExtends && info.InstanceInitializerNode >= 0
+                hasClassInstanceInitializer: info.InstanceInitializerNode >= 0
             );
             var constructorRegister = builder.AllocateTemporaryRegister();
             EmitStar(constructorRegister);
@@ -530,6 +530,25 @@ internal abstract partial class JsCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
+    }
+
+    protected void EmitCallClassInstanceInitializer(bool mayBeMissing = false)
+    {
+        // The receiver arrives in the accumulator, which also holds the result of super().
+        var marker = builder.GetTemporaryRegisterScopeMarker();
+        var receiver = builder.AllocateTemporaryRegister();
+        EmitStar(receiver);
+        builder.EmitCallRuntime((int)RuntimeId.LoadClassInstanceInitializer, 0, 0);
+        var done = mayBeMissing ? builder.CreateLabel() : default;
+        if (mayBeMissing)
+            EmitJumpIfUndefined(done);
+        var initializer = builder.AllocateTemporaryRegister();
+        EmitStar(initializer);
+        builder.EmitCallProperty(initializer, receiver, 0, 0);
+        if (mayBeMissing)
+            builder.BindLabel(done);
+        EmitLdar(receiver);
+        builder.ReleaseTemporaryRegistersToMarker(marker);
     }
 
     protected void EmitInstanceFieldInitializers(JsAst ast, int classIndex)

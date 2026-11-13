@@ -854,6 +854,21 @@ public class ClassTests
     }
 
     [Test]
+    public void InstanceFieldInitializer_CanConstructInstancesRecursively()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            let count = 0;
+            class C { child = ++count < 100 ? new C() : null; }
+            new C();
+            count;
+            """
+        );
+        Assert.That(result.NumberValue, Is.EqualTo(100));
+    }
+
+    [Test]
     public void InstanceFields_RunOnceWhenSuperIsCalledThroughAnArrow()
     {
         using var runtime = JsRuntime.Create();

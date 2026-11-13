@@ -208,5 +208,5 @@ internal enum RuntimeId : byte
     DeleteGlobalBinding,
 
     SetClassInstanceInitializer,
-    InitializeClassInstance,
+    LoadClassInstanceInitializer,
 }

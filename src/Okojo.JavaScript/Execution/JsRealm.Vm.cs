@@ -96,7 +96,7 @@ public sealed partial class JsRealm
         HandleRuntimeGetCurrentModuleNamespace, // GetCurrentModuleNamespace = 79
         HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
         HandleRuntimeSetClassInstanceInitializer,
-        HandleRuntimeInitializeClassInstance,
+        HandleRuntimeLoadClassInstanceInitializer,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
