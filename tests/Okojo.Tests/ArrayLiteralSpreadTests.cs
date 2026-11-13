@@ -55,6 +55,56 @@ public class ArrayLiteralSpreadTests
     }
 
     [Test]
+    public void Spread_Propagates_Iterator_Step_Failure_Without_Looking_Up_Return(
+        [Values("[0, ...iterator]", "consume(...iterator, 0)", "new consume(...iterator, 0)")]
+            string spread,
+        [Values("next", "done", "value")] string failingStep
+    )
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var script = JsCompiler.Compile(
+            realm,
+            JavaScriptParser.ParseScript(
+                $$"""
+                const failure = new Error("iterator step failed");
+                let returnReads = 0;
+                let stepped = false;
+                function check(step) {
+                  if (step === "{{failingStep}}") throw failure;
+                }
+                const iterator = {
+                  [Symbol.iterator]() { return this; },
+                  next() {
+                    if (stepped) return { done: true };
+                    stepped = true;
+                    check("next");
+                    return {
+                      get done() { check("done"); return false; },
+                      get value() { check("value"); return 1; }
+                    };
+                  },
+                  get return() {
+                    returnReads++;
+                    return () => ({ done: true });
+                  }
+                };
+                function consume() {}
+                let sameError = false;
+                try {
+                  {{spread}};
+                } catch (error) {
+                  sameError = error === failure;
+                }
+                sameError && returnReads === 0;
+                """
+            )
+        );
+
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ArrayLiteral_And_ObjectSpread_Proxy_Repro_Works()
     {
         var realm = JsRuntime.Create().DefaultRealm;
