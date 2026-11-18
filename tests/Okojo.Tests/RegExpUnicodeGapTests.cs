@@ -80,9 +80,6 @@ public class RegExpUnicodeGapTests
     }
 
     [Test]
-    [Ignore(
-        "Intentional gap: non-unicode ignoreCase canonicalization differences (e.g., U+212A) are not fully modeled."
-    )]
     public void RegExpUnicodeCaseFolding_RequiresUFlag()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -300,9 +300,6 @@ public class ArrayFromAsyncTests
     }
 
     [Test]
-    [Ignore(
-        "TEMP_SKIP_FUTURE_FIX: proxy numeric defineProperty trap ordering for Array.fromAsync result elements is still incomplete."
-    )]
     public void ArrayFromAsync_Custom_Constructor_Uses_DefineProperty_Then_Length_Set_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;
