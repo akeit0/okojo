@@ -1568,8 +1568,24 @@ internal abstract partial class JsCompilerBase
         return start;
     }
 
+    private static bool IsThisNamedMember(JsAst ast, AstNode node) =>
+        ast[node.Arg0].Kind == AstKind.ThisExpression
+        && (
+            (AstMemberFlags)node.Arg2
+            & (AstMemberFlags.Computed | AstMemberFlags.Private | AstMemberFlags.OptionalChainLink)
+        ) == 0;
+
     private void EmitMemberExpression(JsAst ast, AstNode node)
     {
+        if (IsThisNamedMember(ast, node))
+        {
+            builder.EmitLdaThisNamedProperty(
+                builder.AddAtomizedStringConstant(ast.GetString(node.Arg1)),
+                builder.AllocateFeedbackSlot()
+            );
+            return;
+        }
+
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
@@ -2037,6 +2053,21 @@ internal abstract partial class JsCompilerBase
 
     private void EmitMemberAssignment(JsAst ast, AstNode member, JsAssignmentOperator op, int right)
     {
+        if (
+            op == JsAssignmentOperator.Assign
+            && derivedThisContextSlot < 0
+            && !InheritsLexicalThis
+            && IsThisNamedMember(ast, member)
+        )
+        {
+            EmitExpression(ast, right);
+            builder.EmitStaThisNamedProperty(
+                builder.AddAtomizedStringConstant(ast.GetString(member.Arg1)),
+                builder.AllocateFeedbackSlot()
+            );
+            return;
+        }
+
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {

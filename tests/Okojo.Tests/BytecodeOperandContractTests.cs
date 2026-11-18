@@ -217,6 +217,10 @@ public class BytecodeOperandContractTests
         [JsOpCode.InitPrivateMethod] = 8,
         [JsOpCode.SetPrivateField] = 8,
         [JsOpCode.LdaNamedPropertyWide] = 6,
+        [JsOpCode.LdaThisNamedProperty] = 2,
+        [JsOpCode.LdaThisNamedPropertyWide] = 4,
+        [JsOpCode.StaThisNamedProperty] = 2,
+        [JsOpCode.StaThisNamedPropertyWide] = 4,
         [JsOpCode.StaNamedPropertyWide] = 6,
         [JsOpCode.InitPrivateAccessor] = 9,
     };

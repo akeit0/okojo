@@ -264,6 +264,10 @@ public static class Disassembler
                 $"func:r{BytecodeInfo.ReadUnsignedOperand(operands, 0, scale)}, args:r{BytecodeInfo.ReadUnsignedOperand(operands, 1, scale)}.., argc:{BytecodeInfo.ReadUnsignedOperand(operands, 2, scale)}",
             JsOpCode.LdaNamedProperty or JsOpCode.StaNamedProperty =>
                 $"obj:r{operands[0]}, name:{operands[1]}, slot:{operands[2]}",
+            JsOpCode.LdaThisNamedProperty or JsOpCode.StaThisNamedProperty =>
+                $"name:{operands[0]}, slot:{operands[1]}",
+            JsOpCode.LdaThisNamedPropertyWide or JsOpCode.StaThisNamedPropertyWide =>
+                $"name:{operands[0] | (operands[1] << 8)}, slot:{operands[2] | (operands[3] << 8)}",
             JsOpCode.LdaNamedPropertyWide or JsOpCode.StaNamedPropertyWide =>
                 $"obj:r{operands[0] | (operands[1] << 8)}, name:{operands[2] | (operands[3] << 8)}, slot:{operands[4] | (operands[5] << 8)}",
             JsOpCode.GetNamedPropertyFromSuper => $"name:{operands[0]}",

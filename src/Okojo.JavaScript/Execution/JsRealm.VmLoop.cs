@@ -16,6 +16,7 @@ public sealed partial class JsRealm
     ];
     private static long s_vmProfileRunEntries;
     private static long s_vmProfileFrameEntries;
+    private static long s_vmProfileFoldedStores;
 #endif
 
     internal static string? GetVmOpcodeProfileReport()
@@ -74,7 +75,8 @@ public sealed partial class JsRealm
             $"[profile] run_entries={s_vmProfileRunEntries} frame_entries={s_vmProfileFrameEntries} "
                 + $"total_opcodes={totalOpcodes} "
                 + $"distinct_opcodes={opcodeCounts.Count} total_pairs={totalPairs} "
-                + $"distinct_pairs={pairCounts.Count}"
+                + $"distinct_pairs={pairCounts.Count} folded_stores={s_vmProfileFoldedStores} "
+                + $"dispatches={totalOpcodes - s_vmProfileFoldedStores}"
         );
         foreach (var (opcode, count) in opcodeCounts)
             report.AppendLine(
@@ -1355,7 +1357,7 @@ public sealed partial class JsRealm
                             acc = fullStack[fp + OffsetThisValue];
                             if (acc.IsTheHole)
                                 ThrowSuperNotCalled();
-                            break;
+                            goto TryStoreAccumulator;
                         case JsOpCode.LdaNewTarget:
                             acc =
                                 CurrentCallFrame.FrameKind == CallFrameKind.GeneratorFrame
@@ -1459,7 +1461,7 @@ public sealed partial class JsRealm
                                 ref pc,
                                 HandleContextSlotOp(op, fullStack, ref bytecode, ref pc, ref acc)
                             );
-                            break;
+                            goto TryStoreAccumulator;
                         case JsOpCode.Ldar:
                             acc = Unsafe.Add(ref registerRef, pc);
                             pc = ref Unsafe.Add(ref pc, 1);
@@ -1490,6 +1492,23 @@ public sealed partial class JsRealm
                             }
                             break;
                         case JsOpCode.Star:
+                            goto StoreAccumulator;
+
+                            TryStoreAccumulator:
+                            // Leave due checks and forced bytecode reloads to normal dispatch.
+                            if (pc != (byte)JsOpCode.Star || nextCheck <= 1)
+                                break;
+                            nextCheck--;
+                            opcodePc = ref pc;
+                            pc = ref Unsafe.Add(ref pc, 1);
+#if OKOJO_VM_PROFILE
+                            s_vmProfileFoldedStores++;
+                            s_vmProfileOpcodeCounts[(int)JsOpCode.Star]++;
+                            s_vmProfilePairCounts[(previousOpcode << 8) | (int)JsOpCode.Star]++;
+                            previousOpcode = (int)JsOpCode.Star;
+#endif
+
+                            StoreAccumulator:
                             JsValue.CopyValueTo(ref Unsafe.Add(ref registerRef, pc), in acc);
                             pc = ref Unsafe.Add(ref pc, 1);
                             break;
@@ -1674,13 +1693,21 @@ public sealed partial class JsRealm
                             }
                             break;
 
+                        case JsOpCode.LdaThisNamedProperty:
+                        case JsOpCode.LdaThisNamedPropertyWide:
+                            slotRef = ref Unsafe.Add(ref registerRef, OffsetThisValue - HeaderSize);
+                            if (slotRef.IsTheHole)
+                                ThrowSuperNotCalled();
+                            boolTemp = op == JsOpCode.LdaThisNamedPropertyWide;
+                            goto ReadNamedProperty;
                         case JsOpCode.LdaNamedProperty:
                         case JsOpCode.LdaNamedPropertyWide:
+                            boolTemp = op == JsOpCode.LdaNamedPropertyWide;
+                            reg = boolTemp ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
+                            pc = ref Unsafe.Add(ref pc, boolTemp ? 2 : 1);
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            ReadNamedProperty:
                             {
-                                boolTemp = op == JsOpCode.LdaNamedPropertyWide;
-                                reg = boolTemp ? Unsafe.ReadUnaligned<ushort>(ref pc) : pc;
-                                pc = ref Unsafe.Add(ref pc, boolTemp ? 2 : 1);
-                                slotRef = ref Unsafe.Add(ref registerRef, reg);
                                 if (boolTemp)
                                 {
                                     intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
@@ -1821,29 +1848,43 @@ public sealed partial class JsRealm
                             }
                             break;
 
+                        case JsOpCode.StaThisNamedProperty:
+                        case JsOpCode.StaThisNamedPropertyWide:
+                            slotRef = ref Unsafe.Add(ref registerRef, OffsetThisValue - HeaderSize);
+                            if (slotRef.IsTheHole)
+                                ThrowSuperNotCalled();
+                            if (op == JsOpCode.StaThisNamedPropertyWide)
+                            {
+                                intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                intNum2 = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 2));
+                                pc = ref Unsafe.Add(ref pc, 4);
+                            }
+                            else
+                            {
+                                intNum1 = pc;
+                                intNum2 = Unsafe.Add(ref pc, 1);
+                                pc = ref Unsafe.Add(ref pc, 2);
+                            }
+                            goto WriteNamedProperty;
                         case JsOpCode.StaNamedProperty:
                         case JsOpCode.StaNamedPropertyWide:
+                            if (op == JsOpCode.StaNamedPropertyWide)
                             {
-                                if (op == JsOpCode.StaNamedPropertyWide)
-                                {
-                                    reg = Unsafe.ReadUnaligned<ushort>(ref pc);
-                                    intNum1 = Unsafe.ReadUnaligned<ushort>(
-                                        ref Unsafe.Add(ref pc, 2)
-                                    );
-                                    intNum2 = Unsafe.ReadUnaligned<ushort>(
-                                        ref Unsafe.Add(ref pc, 4)
-                                    );
-                                    pc = ref Unsafe.Add(ref pc, 6);
-                                }
-                                else
-                                {
-                                    reg = pc;
-                                    intNum1 = Unsafe.Add(ref pc, 1);
-                                    intNum2 = Unsafe.Add(ref pc, 2);
-                                    pc = ref Unsafe.Add(ref pc, 3);
-                                }
-
-                                slotRef = ref Unsafe.Add(ref registerRef, reg);
+                                reg = Unsafe.ReadUnaligned<ushort>(ref pc);
+                                intNum1 = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 2));
+                                intNum2 = Unsafe.ReadUnaligned<ushort>(ref Unsafe.Add(ref pc, 4));
+                                pc = ref Unsafe.Add(ref pc, 6);
+                            }
+                            else
+                            {
+                                reg = pc;
+                                intNum1 = Unsafe.Add(ref pc, 1);
+                                intNum2 = Unsafe.Add(ref pc, 2);
+                                pc = ref Unsafe.Add(ref pc, 3);
+                            }
+                            slotRef = ref Unsafe.Add(ref registerRef, reg);
+                            WriteNamedProperty:
+                            {
                                 intNum1 = atomizedStringConstants[intNum1];
                                 ValidateAtomizedNameConstant(
                                     intNum1,

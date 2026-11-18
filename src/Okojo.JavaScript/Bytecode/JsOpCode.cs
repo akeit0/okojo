@@ -190,4 +190,8 @@ public enum JsOpCode : byte
 
     // Appended to preserve existing opcode values in persisted bytecode.
     CreateArrayLiteralWithLength, // [length_lo] [length_hi]
+    LdaThisNamedProperty, // [name_idx] [slot]
+    LdaThisNamedPropertyWide, // [name_idx_lo] [name_idx_hi] [slot_lo] [slot_hi]
+    StaThisNamedProperty, // [name_idx] [slot], value in acc
+    StaThisNamedPropertyWide, // [name_idx_lo] [name_idx_hi] [slot_lo] [slot_hi]
 }

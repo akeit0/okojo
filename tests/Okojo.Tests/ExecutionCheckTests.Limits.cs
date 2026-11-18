@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 using Okojo.JavaScript;
+using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -9,6 +10,47 @@ namespace Okojo.Tests;
 
 public partial class ExecutionCheckTests
 {
+    [Test]
+    public void ReceiverLoadFollowedByStore_PreservesPeriodicCheckpointPositions()
+    {
+        var debugger = new RecordingDebugger();
+        using var runtime = JsRuntime.Create(builder =>
+            builder.UseAgent(agent =>
+            {
+                agent.DebuggerSession = debugger;
+                agent.SetCheckInterval(3);
+            })
+        );
+        var realm = runtime.DefaultRealm;
+        var code = new JsFunctionCode(
+            [
+                (byte)JsOpCode.LdaZero,
+                (byte)JsOpCode.LdaThis,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaThis,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaThis,
+                (byte)JsOpCode.Star,
+                0,
+                (byte)JsOpCode.LdaSmi,
+                42,
+                (byte)JsOpCode.Return,
+            ],
+            [],
+            [],
+            1,
+            []
+        );
+        realm.Execute(new JsCompilationUnit(new JsFunctionDescriptor(code)).Link(realm));
+
+        Assert.That(
+            debugger.Checkpoints.Select(checkpoint => checkpoint.ProgramCounter),
+            Is.EqualTo(new[] { 2, 7, 12 })
+        );
+    }
+
     [Test]
     public void HasChecks_Tracks_Combined_Runtime_Settings()
     {
