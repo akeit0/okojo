@@ -2624,17 +2624,15 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static JsValue Mul(JsValue a, int b)
+    private static JsValue MultiplyInt32(int left, int right)
     {
-        if (a.IsInt32)
-        {
-            var res = (long)a.Int32Value * b;
-            var intRes = (int)res;
-            if (intRes == res)
-                return JsValue.FromInt32(intRes);
-        }
+        var product = (long)left * right;
+        if (product == 0 && (left | right) < 0)
+            return JsValue.FromFloat64(-0.0);
 
-        return new(a.NumberValue * b);
+        return product is >= int.MinValue and <= int.MaxValue
+            ? JsValue.FromInt32((int)product)
+            : JsValue.FromFloat64(product);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -2663,20 +2661,6 @@ public sealed partial class JsRealm
         }
 
         return new(a.NumberValue - b.NumberValue);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static JsValue Mul(JsValue a, JsValue b)
-    {
-        if (a.IsInt32 && b.IsInt32)
-        {
-            var res = (long)a.Int32Value * b.Int32Value;
-            var intRes = (int)res;
-            if (intRes == res)
-                return JsValue.FromInt32(intRes);
-        }
-
-        return new(a.NumberValue * b.NumberValue);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

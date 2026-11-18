@@ -2248,16 +2248,7 @@ public sealed partial class JsRealm
                                 && (uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits
                             )
                             {
-                                longNum = (long)(int)uLhs * (int)uRhs;
-                                if (longNum <= int.MaxValue && longNum >= int.MinValue)
-                                {
-                                    acc = JsValue.FromInt32((int)longNum);
-                                    break;
-                                }
-
-                                // acc is Int32 here, so its Obj half is already
-                                // null: write the float bits in place.
-                                Unsafe.As<JsValue, double>(ref acc) = longNum;
+                                acc = MultiplyInt32((int)uLhs, (int)uRhs);
                                 break;
                             }
 
@@ -2422,7 +2413,7 @@ public sealed partial class JsRealm
                                 pc = ref Unsafe.Add(ref pc, 1);
                                 uRhs = acc.U;
                                 if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
-                                    acc = Mul(acc, intNum1);
+                                    acc = MultiplyInt32((int)uRhs, intNum1);
                                 else if (JsValue.TryGetNumberValueFromUlong(uRhs, out num1))
                                 {
                                     // acc is a number: write the bits in place.
