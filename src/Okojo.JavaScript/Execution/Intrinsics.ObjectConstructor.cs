@@ -103,6 +103,8 @@ public partial class Intrinsics
         return shape;
     }
 
+    private JsHostFunction objectDefineProperty = null!;
+
     private void InstallObjectConstructorBuiltins()
     {
         var createFn = new JsHostFunction(
@@ -329,7 +331,7 @@ public partial class Intrinsics
             "getOwnPropertyDescriptor",
             2
         );
-        var definePropertyFn = new JsHostFunction(
+        var definePropertyFn = objectDefineProperty = new JsHostFunction(
             Realm,
             (in info) =>
             {

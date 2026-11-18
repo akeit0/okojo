@@ -9,6 +9,134 @@ namespace Okojo.Tests;
 public class ArrayPrototypeMethodsTests
 {
     [Test]
+    public void ArrayPrototype_Slice_Reads_Inherited_Elements_And_Keeps_Absent_Slots()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        realm.Execute(
+            """
+            let reads = 0;
+            const source = [1, , , 4];
+            Object.defineProperty(Array.prototype, "1", {
+                configurable: true,
+                get() {
+                    if (this !== source) throw new Error("unexpected getter receiver");
+                    reads++;
+                    return 42;
+                }
+            });
+            const result = source.slice();
+            delete Array.prototype[1];
+            reads === 1 && Object.hasOwn(result, "1") && result[1] === 42 &&
+                !Object.hasOwn(result, "2") && result.length === 4;
+            """
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPrototype_Slice_Uses_Species_Before_Index_Traps()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        realm.Execute(
+            """
+            const operations = [];
+            const result = new Proxy({}, {
+                defineProperty(target, key, descriptor) {
+                    operations.push("define:" + key);
+                    defineProperty(target, key, descriptor);
+                    return true;
+                },
+                set(target, key, value) {
+                    operations.push("set:" + key);
+                    target[key] = value;
+                    return true;
+                }
+            });
+            const source = new Proxy([4, 5], {
+                get(target, key) {
+                    operations.push("get:" + key);
+                    if (key === "constructor")
+                        return {
+                            get [Symbol.species]() {
+                                operations.push("species");
+                                return function (length) {
+                                    operations.push("new:" + length);
+                                    return result;
+                                };
+                            }
+                        };
+                    return target[key];
+                },
+                has(target, key) {
+                    operations.push("has:" + key);
+                    return key !== "0" && key in target;
+                }
+            });
+            const defineProperty = Object.defineProperty;
+            Object.defineProperty = () => { throw new Error("unexpected public call"); };
+            let slice;
+            try { slice = Array.prototype.slice.call(source); }
+            finally { Object.defineProperty = defineProperty; }
+            slice === result && slice[1] === 5 && !Object.hasOwn(slice, "0") && slice.length === 2 &&
+                operations.join(",") === "get:length,get:constructor,species,new:2,has:0,has:1,get:1,define:1,set:length";
+            """
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPrototype_Slice_Observes_Changes_To_Intrinsic_Species()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        realm.Execute(
+            """
+            let reads = 0;
+            Object.defineProperty(Array, Symbol.species, {
+                configurable: true,
+                get() {
+                    reads++;
+                    return function (length) { this.initialLength = length; };
+                }
+            });
+            const result = [1, 2, 3].slice(1, 3);
+            Object.defineProperty(Array, Symbol.species, { value: null, configurable: true });
+            const fallback = [1, 2, 3].slice(1, 3);
+            reads === 1 && result.initialLength === 2 && result.length === 2 &&
+                !Array.isArray(result) && result[0] === 2 && result[1] === 3 &&
+                Array.isArray(fallback) && fallback.join() === "2,3";
+            """
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPrototype_Slice_Uses_Current_Realm_For_Foreign_Intrinsic_Array()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        var foreign = runtime.CreateRealm();
+        foreign.Execute(
+            """
+            Object.defineProperty(Array, Symbol.species, {
+                get() { throw new Error("foreign species was read"); }
+            });
+            [1, 2, 3];
+            """
+        );
+        realm.Global["foreign"] = foreign.Accumulator;
+        realm.Execute(
+            """
+            const result = Array.prototype.slice.call(foreign, 1);
+            Object.getPrototypeOf(result) === Array.prototype && result.join() === "2,3";
+            """
+        );
+        Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ArrayPrototype_Query_Methods_Use_Array_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;
