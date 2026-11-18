@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Numerics;
 
 namespace Okojo.Numerics;
 
@@ -36,6 +38,28 @@ public static class NumberFormatting
         Span<char> buffer = stackalloc char[MaxLength];
         TryFormat(number, buffer, out var written);
         return new string(buffer.Slice(0, written));
+    }
+
+    /// <summary>Formats a finite number in exponential notation with the shortest significand.</summary>
+    internal static string ToExponentialString(double number)
+    {
+        if (number == 0d)
+            return "0e+0";
+
+        Span<char> digits = stackalloc char[MaxSignificantDigits];
+        var success = TryGenerateShortestDigits(
+            Math.Abs(number),
+            digits,
+            out var digitCount,
+            out var decimalPoint
+        );
+        Debug.Assert(success);
+        Span<char> buffer = stackalloc char[MaxLength];
+        var signLength = number < 0 ? 1 : 0;
+        if (signLength != 0)
+            buffer[0] = '-';
+        var length = WriteScientific(digits[..digitCount], decimalPoint - 1, buffer[signLength..]);
+        return new string(buffer[..(signLength + length)]);
     }
 
     /// <summary>
@@ -120,43 +144,46 @@ public static class NumberFormatting
         }
         else
         {
-            destination[position++] = digits[0];
-            if (digitCount > 1)
-            {
-                destination[position++] = '.';
-                for (var i = 1; i < digitCount; i++)
-                    destination[position++] = digits[i];
-            }
-
-            destination[position++] = 'e';
-            var exponentValue = decimalPoint - 1;
-            if (exponentValue >= 0)
-                destination[position++] = '+';
-            else
-            {
-                destination[position++] = '-';
-                exponentValue = -exponentValue;
-            }
-
-            if (exponentValue >= 100)
-            {
-                destination[position++] = (char)('0' + exponentValue / 100);
-                destination[position++] = (char)('0' + exponentValue / 10 % 10);
-                destination[position++] = (char)('0' + exponentValue % 10);
-            }
-            else if (exponentValue >= 10)
-            {
-                destination[position++] = (char)('0' + exponentValue / 10);
-                destination[position++] = (char)('0' + exponentValue % 10);
-            }
-            else
-            {
-                destination[position++] = (char)('0' + exponentValue);
-            }
+            position += WriteScientific(
+                digits[..digitCount],
+                decimalPoint - 1,
+                destination[position..]
+            );
         }
 
         charsWritten = position;
         return true;
+    }
+
+    private static int WriteScientific(
+        ReadOnlySpan<char> digits,
+        int exponent,
+        Span<char> destination
+    )
+    {
+        destination[0] = digits[0];
+        var position = 1;
+        if (digits.Length > 1)
+        {
+            destination[position++] = '.';
+            digits[1..].CopyTo(destination[position..]);
+            position += digits.Length - 1;
+        }
+        return position + WriteExponent(exponent, destination[position..]);
+    }
+
+    internal static int WriteExponent(int exponent, Span<char> destination)
+    {
+        destination[0] = 'e';
+        destination[1] = exponent < 0 ? '-' : '+';
+        var magnitude = Math.Abs(exponent);
+        var position = 2;
+        if (magnitude >= 100)
+            destination[position++] = (char)('0' + magnitude / 100);
+        if (magnitude >= 10)
+            destination[position++] = (char)('0' + magnitude / 10 % 10);
+        destination[position++] = (char)('0' + magnitude % 10);
+        return position;
     }
 
     /// <summary>
@@ -171,6 +198,26 @@ public static class NumberFormatting
         out int decimalPoint
     )
     {
+        // A normal power of two straddles two spacings. Outside the range where
+        // the exact value already gives the shortest decimal, check both
+        // rounding boundaries explicitly.
+        var bits = BitConverter.DoubleToUInt64Bits(magnitude);
+        if ((bits & ((1UL << 52) - 1)) == 0)
+        {
+            var binaryExponent = (int)(bits >> 52) - 1023;
+            if (binaryExponent is < -22 or > 53)
+            {
+                GeneratePowerOfTwoDigits(
+                    magnitude,
+                    binaryExponent,
+                    digits,
+                    out digitCount,
+                    out decimalPoint
+                );
+                return true;
+            }
+        }
+
         Span<char> probe = stackalloc char[32];
         if (!magnitude.TryFormat(probe, out var length, "R", CultureInfo.InvariantCulture))
         {
@@ -230,6 +277,79 @@ public static class NumberFormatting
         digits[0] = '0';
         decimalPoint = 1;
         return true;
+    }
+
+    private static void GeneratePowerOfTwoDigits(
+        double magnitude,
+        int binaryExponent,
+        Span<char> digits,
+        out int digitCount,
+        out int decimalPoint
+    )
+    {
+        // Measure the value and its boundaries in units of 2^(binaryExponent-54).
+        // The transition from subnormal to normal has equal spacing on both sides.
+        var binaryUnit = binaryExponent - 54;
+        var unit = BigInteger.One << Math.Max(0, binaryUnit);
+        var denominator = BigInteger.One << Math.Max(0, -binaryUnit);
+        var exponent = (int)Math.Floor(Math.Log10(magnitude));
+        if (exponent < 0)
+            unit *= BigInteger.Pow(10, -exponent);
+        else
+            denominator *= BigInteger.Pow(10, exponent);
+
+        var numerator = unit << 54;
+        // Correct Log10 if its floating-point result landed on the wrong side of a decade.
+        if (numerator < denominator)
+        {
+            exponent--;
+            unit *= 10;
+            numerator *= 10;
+        }
+        else if (numerator >= denominator * 10)
+        {
+            exponent++;
+            denominator *= 10;
+        }
+
+        var lowerMargin = binaryExponent == -1022 ? unit << 1 : unit;
+        var upperMargin = unit << 1;
+        var precision = 1;
+        while (true)
+        {
+            var lower = BigInteger.DivRem(numerator, denominator, out var remainder);
+            // The boundary points round to this value, whose binary significand is even.
+            var lowerFits = remainder <= lowerMargin;
+            var upperFits = denominator - remainder <= upperMargin;
+            if (lowerFits || upperFits)
+            {
+                var twiceRemainder = remainder << 1;
+                if (
+                    upperFits
+                    && (
+                        !lowerFits
+                        || twiceRemainder > denominator
+                        || (twiceRemainder == denominator && !lower.IsEven)
+                    )
+                )
+                    lower++;
+
+                Span<char> rounded = stackalloc char[MaxSignificantDigits + 1];
+                ((ulong)lower).TryFormat(
+                    rounded,
+                    out digitCount,
+                    provider: CultureInfo.InvariantCulture
+                );
+                decimalPoint = exponent + 1 + (digitCount - precision);
+                TrimTrailingZeros(rounded, ref digitCount);
+                rounded[..digitCount].CopyTo(digits);
+                return;
+            }
+            numerator *= 10;
+            lowerMargin *= 10;
+            upperMargin *= 10;
+            precision++;
+        }
     }
 
     private static int CopyDigits(ReadOnlySpan<char> source, Span<char> digits)
