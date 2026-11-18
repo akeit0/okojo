@@ -1,4 +1,40 @@
-# V8 v7 integration results
+# JavaScript engine comparison
+
+## V8 v7 suite
+
+Median milliseconds per workload invocation across three fresh-process
+rounds with rotating engine order. Each engine ran the same pinned V8 v7
+JavaScript with a 1,000 ms warm-up and a 750 ms sample target. Timings cover
+warmed execution on Windows 11 with an Intel Core i7-13700F.
+[Harness and reproduction steps](README.md)
+
+| Workload | Okojo | Ekuma | V8 jitless | QuickJS (C) | V8 JIT | Jint |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Richards | 3.208 | 2.894 | 1.412 | 2.689 | 0.049 | 9.173 |
+| DeltaBlue | 7.223 | 5.087 | 2.296 | 5.679 | 0.039 | 17.356 |
+| Encrypt | 4.713 | 3.422 | 2.527 | 3.309 | 0.089 | 20.342 |
+| Decrypt | 86.222 | 61.462 | 46.938 | 62.667 | 1.496 | 374.000 |
+| RayTrace | 34.522 | 19.375 | 10.067 | 27.852 | 0.403 | 78.700 |
+| Earley | 5.747 | 4.060 | 1.361 | 4.905 | 0.125 | 18.816 |
+| Boyer | 111.857 | 70.455 | 26.679 | 77.400 | 2.099 | 329.000 |
+| RegExp | 73.000 | 35.286 | 16.913 | 120.143 | 5.591 | 69.727 |
+| Splay | 4.714 | 1.467 | 0.629 | 1.297 | 0.125 | 6.056 |
+| NavierStokes | 61.462 | 45.588 | 45.333 | 33.783 | 2.292 | 283.667 |
+| **Geometric mean relative to Okojo** | **1.000×** | **0.626×** | **0.330×** | **0.725×** | **0.020×** | **2.631×** |
+
+The final row takes the geometric mean of the per-workload median paired
+time ratios. Lower is faster.
+
+- Both .NET runners used .NET 10.0.14 in Release mode. Okojo was built
+  at `72cae11` (engine code through `983688a`). Jint `4.18.0` evaluated
+  the prepared script with its default engine settings.
+  [Jint package](https://www.nuget.org/packages/Jint/4.18.0)
+- Ekuma `41a55ec` was built with Go 1.27.4.
+- QuickJS `3d5e064` uses the native C executable.
+- Both V8 columns use Node 26.12.1. The jitless column sets `--jitless`
+  and the JIT column uses Node's default settings.
+
+## Okojo integration versus main
 
 Okojo `983688a` includes the retained performance changes and regression fixes
 from `codex/ekuma-benchmark-study`. The table compares it with `main`
@@ -31,8 +67,3 @@ The integration compiler emits identical disassemblies for all ten
 workloads. An earlier compiler helper extraction slowed Encrypt and
 Decrypt by 20.0% and 17.8% in an isolated three-pair screen. The
 integration history retains the earlier compiler implementation.
-
-In a separate five-round comparison on the same machine, Jint 4.18.0
-used 2.64× the study build’s time by geometric mean. The study build
-won nine workloads. Jint won RegExp (69.31 ms versus 72.50 ms).
-[Jint package](https://www.nuget.org/packages/Jint/4.18.0)
