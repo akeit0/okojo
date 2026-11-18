@@ -1770,10 +1770,7 @@ public partial class Intrinsics
                             fastQ
                         );
                         if (step is null)
-                        {
-                            fastQ = AdvanceStringIndex(text, fastQ, unicodeMatching);
-                            continue;
-                        }
+                            break;
 
                         fastQ = step.Value.Index;
                         var e = step.Value.Index + step.Value.Length;

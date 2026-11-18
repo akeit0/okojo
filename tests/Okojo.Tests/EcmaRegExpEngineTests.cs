@@ -7,6 +7,67 @@ namespace Okojo.Tests;
 
 public class EcmaRegExpEngineTests
 {
+    [TestCase("v")]
+    [TestCase("vy")]
+    public void UnicodeStringClass_MatchesStringMembers(string flags)
+    {
+        var engine = RegExpEngine.Default;
+        var match = engine.Exec(engine.Compile(@"[a\q{bc}]", flags), "bc", 0);
+        Assert.That(match?.Groups[0], Is.EqualTo("bc"));
+    }
+
+    [TestCase("k", "i", "xx\u212A", -1)]
+    [TestCase("k", "ui", "xx\u212A", 2)]
+    [TestCase("s", "i", "xx\u017F", -1)]
+    [TestCase("s", "vi", "xx\u017F", 2)]
+    [TestCase("\u03C3", "ui", "xx\u03C2", 2)]
+    [TestCase("\uD801\uDC00", "ui", "xx\uD801\uDC28", 2)]
+    [TestCase(@"\uDC00", "ui", "xx\uD800\uDC00", -1)]
+    public void FoldedLeadingLiteral_PreservesUnicodeSemantics(
+        string pattern,
+        string flags,
+        string input,
+        int index
+    )
+    {
+        var engine = RegExpEngine.Default;
+        var match = engine.Exec(engine.Compile(pattern, flags), input, 0);
+        Assert.That(match?.Index ?? -1, Is.EqualTo(index));
+    }
+
+    [Test]
+    public void FoldedLeadingLiteral_MatchesLoneSurrogate()
+    {
+        var engine = RegExpEngine.Default;
+        var input = "xx" + new string((char)0xDC00, 1);
+        var match = engine.Exec(engine.Compile(@"\uDC00", "ui"), input, 0);
+        Assert.That(match?.Index, Is.EqualTo(2));
+    }
+
+    [TestCase("(abc|x)needle", "", "zzabcneedle", 0, 2, "abcneedle")]
+    [TestCase("(abc|)needle", "", "zzneedle", 0, 2, "needle")]
+    [TestCase("(x*)needle", "", "xxneedle", 0, 0, "xxneedle")]
+    [TestCase("(.{1,2})needle", "u", "\uD83D\uDE00needle", 0, 0, "\uD83D\uDE00needle")]
+    [TestCase(@"([\q{abc|def}])needle", "v", "zzabcneedle", 0, 2, "abcneedle")]
+    [TestCase("(.{0,3})needle", "y", "zzneedle", 1, 1, "zneedle")]
+    [TestCase("(.{0,3})needle", "y", "zzzzzzneedle", 0, -1, null)]
+    [TestCase("^a{0,3}needle", "", "zzneedle", 0, -1, null)]
+    [TestCase(@"\uDE00(?=needle)needle", "u", "\uD83D\uDE00needle", 0, -1, null)]
+    public void RequiredLiteralSearch_PreservesStartAndCapture(
+        string pattern,
+        string flags,
+        string input,
+        int start,
+        int index,
+        string? value
+    )
+    {
+        var engine = RegExpEngine.Default;
+        var match = engine.Exec(engine.Compile(pattern, flags), input, start);
+        Assert.That(match?.Index ?? -1, Is.EqualTo(index));
+        Assert.That(match?.Groups[0], Is.EqualTo(value));
+    }
+
     private static JsRuntime CreateRuntime() => JsRuntime.Create();
 
     [Test]
