@@ -140,6 +140,10 @@ public sealed partial class JsRealm
             return;
         }
 
+        // Array length is an own property with no slot. There is no prototype cache to fill.
+        if (atom == IdLength && obj is JsArray)
+            return;
+
         if (
             receiverIsObject
             && TryFindPrototypeProperty(

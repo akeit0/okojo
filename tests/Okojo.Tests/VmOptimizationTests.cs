@@ -6,6 +6,26 @@ namespace Okojo.Tests;
 public class VmOptimizationTests
 {
     [Test]
+    public void NamedPropertyFeedbackSurvivesReshapingAccessors()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function read(o) { return o.value; }
+            function write(o, v) { o.value = v; }
+            const a = { get value() { delete this.value; this.pad = 2; this.value = 3; return 1; } };
+            const b = { set value(v) { delete this.value; this.pad = 4; this.value = v; } };
+            const first = read(a);
+            const second = read(a);
+            write(b, 5);
+            write(b, 6);
+            JSON.stringify([first, second, b.value, b.pad]);
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("[1,3,6,4]"));
+    }
+
+    [Test]
     public void OwnPropertyIcRemainsAnOwnCache()
     {
         var realm = JsRuntime.Create().DefaultRealm;
