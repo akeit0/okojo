@@ -106,8 +106,7 @@ internal abstract partial class JsCompilerBase
         builder.EmitCallRuntime((int)RuntimeId.GetAsyncIteratorMethod, iterableRegister, 1);
         EmitStar(methodRegister);
         EmitLdar(methodRegister);
-        EmitJumpIfNull(useSyncIterator);
-        EmitJumpIfUndefined(useSyncIterator);
+        builder.EmitJump(JsOpCode.JumpIfNullish, useSyncIterator);
         builder.EmitCallProperty(methodRegister, iterableRegister, 0, 0);
         EmitStar(iteratorRegister);
         EmitJump(ready);

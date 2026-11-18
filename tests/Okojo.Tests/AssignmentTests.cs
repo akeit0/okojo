@@ -52,6 +52,63 @@ public class AssignmentTests
     }
 
     [Test]
+    public void ComputedReadEvaluatesReceiverBeforeUpdatingKey()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function readNext(array, index) {
+                return array[++index];
+            }
+            function readBeforeLocalReassignment(array) {
+                return array[++array];
+            }
+            function readBeforeMappedReassignment(array) {
+                const args = arguments;
+                let index = {
+                    valueOf() {
+                        args[0] = [0, 99];
+                        return 0;
+                    }
+                };
+                return array[++index];
+            }
+            const array = [0, 9];
+            array.valueOf = () => 0;
+            readNext(array, 0) === 9 &&
+            readBeforeLocalReassignment(array) === 9 &&
+            readBeforeMappedReassignment(array) === 9;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void IndexedAssignmentAndBinaryExpressionPreserveOverwrittenOperands()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function assign(array, index) {
+                array[index] = array[++index];
+                return array[0];
+            }
+            function branch(array, index, advance) {
+                array[index] = advance ? array[++index] : array[index] + 1;
+                return array[0];
+            }
+            function add(array, index) {
+                return index + array[++index];
+            }
+            assign([1, 7], 0) === 7 &&
+                branch([1, 7], 0, true) === 7 && branch([1, 7], 0, false) === 2 &&
+                add([1, 7], 0) === 7;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void CompoundIdentifierAssignment_PreservesLhsBeforeRhsMutation()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -151,6 +208,25 @@ public class AssignmentTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ComputedMemberAssignment_PostfixKey_PreservesOldNumericValue()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function store(array, index) {
+                return (array[index++] = ++index) === index && index === 4n;
+            }
+            let conversions = 0;
+            let index = { [Symbol.toPrimitive]() { conversions++; return 2n; } };
+            let array = [];
+            store(array, index) && array[2] === 4n && !(3 in array) && conversions === 1;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
     }
 
     [Test]
@@ -517,7 +593,7 @@ public class AssignmentTests
     }
 
     [Test]
-    public void StatementUpdates_ElideToNumeric_ButValueUpdatesPreserveIt()
+    public void Updates_ConvertSeparatelyWhenReturningTheOldValue()
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
@@ -529,10 +605,11 @@ public class AssignmentTests
                     for (; i < 2; i++) { }
                     i++;
                     --i;
+                    return ++i;
                 }
                 function values() {
                     let i = 0;
-                    return i++ + ++i;
+                    return i++;
                 }
                 effects();
                 values();

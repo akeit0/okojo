@@ -34,7 +34,10 @@ public partial class Intrinsics
             "Proxy",
             2,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallProxyConstructorBuiltins()

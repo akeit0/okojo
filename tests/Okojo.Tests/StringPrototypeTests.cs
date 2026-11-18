@@ -8,6 +8,28 @@ namespace Okojo.Tests;
 public class StringPrototypeTests
 {
     [Test]
+    public void String_Split_RegExp_PreservesTailAndEmptyMatchBoundaries()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        realm.Eval(
+            """
+            JSON.stringify([
+              "tail".split(/\s?;\s?/),
+              "head;tail".split(/(\s?;\s?)/),
+              "abc".split(/$/),
+              "😀tail".split(/(?=t)/u),
+              "head;tail".split(/;/, 1)
+            ]);
+            """
+        );
+        Assert.That(
+            realm.Accumulator.AsString(),
+            Is.EqualTo("""[["tail"],["head",";","tail"],["abc"],["😀","tail"],["head"]]""")
+        );
+    }
+
+    [Test]
     public void String_Constructor_Follows_Symbol_Function_Vs_Construct_Semantics()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -199,7 +199,10 @@ public partial class Intrinsics
             "Promise",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallPromiseConstructorBuiltins()

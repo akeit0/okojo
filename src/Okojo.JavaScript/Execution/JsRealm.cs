@@ -22,6 +22,8 @@ public sealed partial class JsRealm
     internal const int IntlRangePartSourceSlot = 2;
     private readonly JsPlainObject bootstrapObjectPrototype;
     private readonly Action<JsRealm>? initialize;
+    private StaticNamedPropertyLayout? mappedArgumentsShape;
+    private StaticNamedPropertyLayout? unmappedArgumentsShape;
     public readonly Intrinsics Intrinsics;
     internal RealmModuleCache ModuleCache { get; }
 
@@ -223,6 +225,25 @@ public sealed partial class JsRealm
     internal StaticNamedPropertyLayout IntlPartObjectShape { get; }
     internal StaticNamedPropertyLayout IntlRangePartObjectShape { get; }
     internal StaticNamedPropertyLayout ErrorObjectShape { get; }
+
+    internal StaticNamedPropertyLayout GetArgumentsObjectShape(bool mapped)
+    {
+        const JsShapePropertyFlags data =
+            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable;
+        // The arguments object constructor writes slots in this transition order.
+        var common = mappedArgumentsShape ??= EmptyShape
+            .GetOrAddTransition(IdLength, data, out _)
+            .GetOrAddTransition(IdSymbolIterator, data, out _);
+
+        return mapped
+            ? common
+            : unmappedArgumentsShape ??= common.GetOrAddTransition(
+                Atoms.InternNoCheck("callee"),
+                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter,
+                out _
+            );
+    }
+
     internal JsPlainObject ObjectPrototype =>
         Intrinsics?.ObjectPrototype ?? bootstrapObjectPrototype;
     internal JsHostFunction FunctionPrototype =>

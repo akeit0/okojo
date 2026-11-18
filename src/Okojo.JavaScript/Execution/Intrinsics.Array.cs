@@ -40,14 +40,16 @@ public partial class Intrinsics
                     return array;
                 }
 
-                for (uint i = 0; i < (uint)args.Length; i++)
-                    array.SetElement(i, args[(int)i]);
+                args.CopyTo(array.InitializeDenseElementsNoCollision(args.Length));
                 return array;
             },
             "Array",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     internal void InstallArrayPrototypeBuiltins()
@@ -687,7 +689,11 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
                 var obj = ThisArrayLikeObject(realm, thisValue, "Array.prototype.slice");
-                var length = GetArrayLikeLengthLong(realm, obj);
+                var length =
+                    obj is JsArray array ? array.Length
+                    : obj.TryGetPropertyAtom(realm, IdLength, out var lengthValue, out _)
+                        ? realm.ToLength(lengthValue)
+                    : 0;
                 var start = NormalizeRelativeIndex(
                     args.Length > 0 ? realm.ToIntegerOrInfinity(args[0]) : 0d,
                     length
@@ -696,16 +702,9 @@ public partial class Intrinsics
                     args.Length > 1 && !args[1].IsUndefined
                         ? NormalizeRelativeIndex(realm.ToIntegerOrInfinity(args[1]), length)
                         : length;
-                var count = Math.Max(0, Math.Min(end, length) - Math.Min(start, length));
-                if (count > uint.MaxValue)
-                    throw new JsRuntimeException(
-                        JsErrorKind.RangeError,
-                        "Invalid array length",
-                        "ARRAY_LENGTH_INVALID"
-                    );
                 if (TrySliceDense(realm, obj, length, start, end, out var slicedResult))
                     return slicedResult;
-                return SliceArrayLike(realm, obj, length, start, end);
+                return SliceArrayLike(realm, obj, start, end);
             },
             "slice",
             2
@@ -1284,7 +1283,11 @@ public partial class Intrinsics
 
         try
         {
-            _ = realm.InvokeObjectConstructorMethod("defineProperty", defineArgs);
+            _ = realm.InvokeFunction(
+                realm.Intrinsics.objectDefineProperty,
+                realm.ObjectConstructor,
+                defineArgs
+            );
         }
         catch (JsRuntimeException ex)
         {
@@ -1679,34 +1682,6 @@ public partial class Intrinsics
             );
     }
 
-    private static JsArray SliceArrayLike(
-        JsRealm realm,
-        JsObject obj,
-        long length,
-        long start,
-        long end
-    )
-    {
-        if (start < 0)
-            start = 0;
-        if (end < start)
-            end = start;
-        if (end > length)
-            end = length;
-
-        var result = realm.CreateArrayObject();
-        uint to = 0;
-        for (var k = start; k < end; k++, to++)
-        {
-            if (!TryGetArrayLikeIndex(realm, obj, k, out var value))
-                continue;
-            FreshArrayOperations.DefineElement(result, to, value);
-        }
-
-        result.SetLength(RequireArrayStorageLength(Math.Max(0, end - start)));
-        return result;
-    }
-
     private static JsArray CreateDenseArrayLikeCopy(
         JsRealm realm,
         JsObject obj,
@@ -1851,13 +1826,11 @@ public partial class Intrinsics
             && sourceArray.IndexedProperties is null
             && sourceArray.Dense is not null
             && sourceArray.Length <= (uint)sourceArray.Dense.Length
+            && nextIndex + length <= (ulong)Array.MaxLength
         )
         {
             var count = (int)length;
-            DenseArrayFastPath.EnsureCapacity(
-                result,
-                (long)Math.Min(nextIndex + length, int.MaxValue)
-            );
+            DenseArrayFastPath.EnsureCapacity(result, (long)(nextIndex + length));
             Array.Copy(sourceArray.Dense!, 0, result.Dense!, (int)nextIndex, count);
             nextIndex += (uint)length;
             return;

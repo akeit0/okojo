@@ -9,6 +9,57 @@ namespace Okojo.Tests;
 [TestFixture]
 public sealed class NumberPrototypeTests
 {
+    [TestCase("(2.5).toFixed(0)", "3")]
+    [TestCase("(-2.5).toFixed(0)", "-3")]
+    [TestCase("(1.25).toFixed(1)", "1.3")]
+    [TestCase("(1.35).toFixed(1)", "1.4")]
+    [TestCase("(2.55).toFixed(1)", "2.5")]
+    [TestCase("(-0).toFixed(3)", "0.000")]
+    [TestCase("(-0.001).toFixed(2)", "-0.00")]
+    [TestCase("(125).toPrecision(2)", "1.3e+2")]
+    [TestCase("(121).toPrecision(2)", "1.2e+2")]
+    [TestCase("(99.5).toPrecision(2)", "1.0e+2")]
+    [TestCase("(1e-6).toPrecision(3)", "0.00000100")]
+    [TestCase("(-1e-7).toPrecision(3)", "-1.00e-7")]
+    [TestCase("(4.5).toExponential(0)", "5e+0")]
+    [TestCase("(3.5).toExponential(0)", "4e+0")]
+    [TestCase("(-0).toExponential(2)", "0.00e+0")]
+    [TestCase("(1.0000000000000002).toExponential()", "1.0000000000000002e+0")]
+    [TestCase("Number.MIN_VALUE.toExponential(undefined)", "5e-324")]
+    [TestCase("Number.MAX_VALUE.toExponential()", "1.7976931348623157e+308")]
+    [TestCase("(2 ** -25).toExponential()", "2.9802322387695312e-8")]
+    [TestCase("(-(2 ** -25)).toString()", "-2.9802322387695312e-8")]
+    [TestCase("(2 ** 60).toExponential()", "1.152921504606847e+18")]
+    [TestCase("(2 ** -1022).toExponential()", "2.2250738585072014e-308")]
+    public void NumberPrototype_Formatting_Uses_Exact_Decimal_Rounding(
+        string expression,
+        string expected
+    )
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        realm.Execute(expression);
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void NumberPrototype_Formatting_Coerces_Before_Checking_Nonfinite_Values()
+    {
+        using var runtime = JsRuntime.CreateBuilder().Build();
+        var realm = runtime.DefaultRealm;
+        realm.Execute(
+            """
+            let calls = 0;
+            const digits = { valueOf() { calls++; return Infinity; } };
+            let fixed;
+            try { fixed = NaN.toFixed(digits); }
+            catch (e) { fixed = e.name; }
+            [fixed, NaN.toExponential(digits), Infinity.toPrecision(digits), calls].join("|");
+            """
+        );
+        Assert.That(realm.Accumulator.AsString(), Is.EqualTo("RangeError|NaN|Infinity|3"));
+    }
+
     [Test]
     public void NumberPrototype_Has_Formatting_Methods()
     {

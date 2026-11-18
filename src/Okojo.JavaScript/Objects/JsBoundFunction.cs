@@ -14,6 +14,7 @@ internal sealed class JsBoundFunction : JsFunction
     )
         : base(realm, name, true, length, isConstructor: target.IsConstructor)
     {
+        ConstructsOwnThis = true;
         Target = target;
         BoundThis = boundThis;
         this.boundArguments = boundArguments;
@@ -54,7 +55,8 @@ internal sealed class JsBoundFunction : JsFunction
                 BoundThis,
                 argOffset,
                 boundArguments.Length + args.Length,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -97,7 +99,8 @@ internal sealed class JsBoundFunction : JsFunction
                 BoundThis,
                 mergedOffset,
                 boundArguments.Length + argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -157,7 +160,8 @@ internal sealed class JsBoundFunction : JsFunction
                 prepared,
                 argOffset,
                 boundArguments.Length + args.Length,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -223,7 +227,8 @@ internal sealed class JsBoundFunction : JsFunction
                 prepared,
                 mergedOffset,
                 boundArguments.Length + argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally

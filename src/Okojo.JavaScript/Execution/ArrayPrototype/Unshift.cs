@@ -59,7 +59,7 @@ public partial class Intrinsics
         if (length > (uint)target.Dense!.Length)
             return false;
         var newLength = length + items.Length;
-        if (newLength > MaxSafeIntegerLength || newLength > uint.MaxValue)
+        if (newLength > Array.MaxLength)
             return false;
         if (DenseArrayFastPath.RangeHasHole(target.Dense.AsSpan(0, (int)length)))
             return false;

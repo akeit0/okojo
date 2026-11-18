@@ -2,6 +2,10 @@ namespace Okojo.JavaScript.Execution;
 
 public partial class Intrinsics
 {
+    internal JsHostFunction FunctionPrototypeCall { get; private set; } = null!;
+    internal JsHostFunction FunctionPrototypeApply { get; private set; } = null!;
+    internal JsHostFunction FunctionPrototypeHasInstance { get; private set; } = null!;
+
     private void InstallFunctionPrototypeBuiltins()
     {
         const int atomApply = IdApply;
@@ -34,7 +38,7 @@ public partial class Intrinsics
             0
         );
 
-        var callFn = new JsHostFunction(
+        FunctionPrototypeCall = new JsHostFunction(
             Realm,
             static (in info) =>
             {
@@ -55,7 +59,7 @@ public partial class Intrinsics
             1
         );
 
-        var applyFn = new JsHostFunction(
+        FunctionPrototypeApply = new JsHostFunction(
             Realm,
             static (in info) =>
             {
@@ -85,7 +89,7 @@ public partial class Intrinsics
             2
         );
 
-        var hasInstanceFn = new JsHostFunction(
+        FunctionPrototypeHasInstance = new JsHostFunction(
             Realm,
             static (in info) =>
             {
@@ -154,8 +158,8 @@ public partial class Intrinsics
         Span<PropertyDefinition> defs =
         [
             PropertyDefinition.Mutable(IdConstructor, JsValue.FromObject(FunctionConstructor)),
-            PropertyDefinition.Mutable(atomApply, JsValue.FromObject(applyFn)),
-            PropertyDefinition.Mutable(atomCall, JsValue.FromObject(callFn)),
+            PropertyDefinition.Mutable(atomApply, JsValue.FromObject(FunctionPrototypeApply)),
+            PropertyDefinition.Mutable(atomCall, JsValue.FromObject(FunctionPrototypeCall)),
             PropertyDefinition.Mutable(atomBind, JsValue.FromObject(bindFn)),
             PropertyDefinition.GetterSetterData(
                 atomArguments,
@@ -169,7 +173,10 @@ public partial class Intrinsics
                 ThrowTypeErrorIntrinsic,
                 configurable: true
             ),
-            PropertyDefinition.Const(atomHasInstance, JsValue.FromObject(hasInstanceFn)),
+            PropertyDefinition.Const(
+                atomHasInstance,
+                JsValue.FromObject(FunctionPrototypeHasInstance)
+            ),
             PropertyDefinition.Mutable(IdToString, JsValue.FromObject(toStringFn)),
         ];
         FunctionPrototype.DefineNewPropertiesNoCollision(Realm, defs);
@@ -206,19 +213,17 @@ public partial class Intrinsics
         return Math.Max(targetLength - boundArgCount, 0d);
     }
 
-    private static bool OrdinaryHasInstance(JsRealm realm, JsFunction fn, in JsValue candidate)
+    internal static bool OrdinaryHasInstance(JsRealm realm, JsFunction fn, in JsValue candidate)
     {
         if (fn is JsBoundFunction bound)
-            return OrdinaryHasInstance(realm, bound.Target, candidate);
+            return JsRealm.InstanceOfOperator(realm, candidate, JsValue.FromObject(bound.Target));
         if (!candidate.TryGetObject(out var candidateObject))
             return false;
 
-        if (!fn.TryGetPropertyAtom(realm, IdPrototype, out var prototypeValue, out _))
-            throw new JsRuntimeException(
-                JsErrorKind.TypeError,
-                "Function has non-object prototype in instanceof check"
-            );
-        if (!prototypeValue.TryGetObject(out var prototypeObject))
+        if (
+            !fn.TryGetPropertyAtom(realm, IdPrototype, out var prototypeValue, out _)
+            || !prototypeValue.TryGetObject(out var prototypeObject)
+        )
             throw new JsRuntimeException(
                 JsErrorKind.TypeError,
                 "Function has non-object prototype in instanceof check"

@@ -4,6 +4,9 @@ BenchmarkDotNet suite for the Okojo engine. This is the single home for
 benchmark methodology, the pinned comparison baseline, and the latest measured
 numbers. Do not quote numbers without re-running.
 
+[Cross-engine JavaScript benchmarks](EngineComparison/README.md) cover Okojo,
+V8 jitless, Ekuma, and native QuickJS on Ekuma's pinned workloads.
+
 ## Comparison baseline
 
 - Comparison target: [Jint](https://github.com/sebastienros/jint), pinned via

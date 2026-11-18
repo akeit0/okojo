@@ -494,6 +494,9 @@ public sealed partial class JsAgent : IDisposable
     internal void ArmBreakpoints(JsScript script)
     {
         ArgumentNullException.ThrowIfNull(script);
+        if (!breakpointRegistry.HasBreakpoints)
+            return;
+
         lock (scriptRegistryGate)
         {
             if (

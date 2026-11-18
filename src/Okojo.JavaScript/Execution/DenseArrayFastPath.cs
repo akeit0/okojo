@@ -58,11 +58,11 @@ internal static class DenseArrayFastPath
         if (store is not null && needed <= store.Length)
             return;
 
-        var capacity = store is null || store.Length == 0 ? 4 : store.Length;
+        long capacity = store is null || store.Length == 0 ? 4 : store.Length;
         while (capacity < needed)
             capacity <<= 1;
 
-        var grown = new JsValue[capacity];
+        var grown = new JsValue[(int)Math.Min(capacity, Array.MaxLength)];
         if (store is not null)
             Array.Copy(store, grown, store.Length);
         JsValue.FillTheHole(grown.AsSpan(store?.Length ?? 0));

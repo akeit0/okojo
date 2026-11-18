@@ -6,8 +6,6 @@ namespace Okojo.JavaScript.Objects;
 
 public sealed class JsArray : JsObject
 {
-    private const int DenseInitialCapacity = 4;
-
     private const int DenseToSparseGapThreshold = 256;
 
     // Dense-first array storage. When indices become too sparse, we fall back to sparse map storage.
@@ -56,46 +54,9 @@ public sealed class JsArray : JsObject
         if (!ReferenceEquals(this, receiver))
             return base.SetElementWithReceiver(realm, receiver, index, value);
 
-        if (!lengthWritable && index >= Length)
-            return false;
-
-        if (!IsExtensible && !HasOwnElement(index))
-            return false;
-
-        if (
-            IndexedProperties is not null
-            && IndexedProperties.TryGetValue(index, out var existingDescriptor)
-        )
-        {
-            if (existingDescriptor.IsAccessor)
-            {
-                if (existingDescriptor.Setter is not null)
-                {
-                    var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
-                    _ = InvokeAccessorFunction(realm, receiver, existingDescriptor.Setter, arg);
-                }
-
-                return existingDescriptor.Setter is not null;
-            }
-
-            if (!existingDescriptor.Writable)
-                return false;
-
-            IndexedProperties[index] = new(value, null, existingDescriptor.Flags);
-            var updateNext = index + 1;
-            if (updateNext > Length)
-                Length = updateNext;
-            return true;
-        }
-
-        if (Dense is not null && index < (uint)Dense.Length && !Dense[index].IsTheHole)
-        {
-            Dense[index] = value;
-            var updateNext = index + 1;
-            if (updateNext > Length)
-                Length = updateNext;
-            return true;
-        }
+        var assigned = TrySetOwnElement(realm, index, value, out var hadOwnElement);
+        if (hadOwnElement)
+            return assigned;
 
         if (
             Prototype is not null
@@ -109,6 +70,9 @@ public sealed class JsArray : JsObject
         )
             return inheritedHandled;
 
+        if (!IsExtensible || (!lengthWritable && index >= Length))
+            return false;
+
         if (Dense is not null)
         {
             if (ShouldFallbackToSparse(index))
@@ -117,7 +81,7 @@ public sealed class JsArray : JsObject
             }
             else
             {
-                EnsureDenseCapacity(index);
+                DenseArrayFastPath.EnsureCapacity(this, (long)index + 1);
                 Dense[index] = value;
             }
         }
@@ -131,7 +95,10 @@ public sealed class JsArray : JsObject
         return true;
     }
 
-    internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
+    internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement) =>
+        TrySetOwnElement(Realm, index, value, out hadOwnElement);
+
+    private bool TrySetOwnElement(JsRealm realm, uint index, JsValue value, out bool hadOwnElement)
     {
         if (
             IndexedProperties is not null
@@ -145,7 +112,7 @@ public sealed class JsArray : JsObject
                     return false;
 
                 var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
-                _ = InvokeAccessorFunction(Shape.Owner, this, existingDescriptor.Setter, arg);
+                _ = InvokeAccessorFunction(realm, this, existingDescriptor.Setter, arg);
                 return true;
             }
 
@@ -166,7 +133,7 @@ public sealed class JsArray : JsObject
             if (!slot.IsTheHole)
             {
                 hadOwnElement = true;
-                slot = value;
+                JsValue.CopyValueTo(ref slot, in value);
                 var next = index + 1;
                 if (next > Length)
                     Length = next;
@@ -191,12 +158,7 @@ public sealed class JsArray : JsObject
     internal bool TryGetDenseElement(uint index, out JsValue value)
     {
         var dense = Dense;
-        if (
-            dense is not null
-            && index < (uint)Length
-            && index < (uint)dense.Length
-            && (IndexedProperties is null || !IndexedProperties.ContainsKey(index))
-        )
+        if (dense is not null && index < (uint)dense.Length && IndexedProperties is null)
         {
             value = dense[index];
             if (!value.IsTheHole)
@@ -381,20 +343,14 @@ public sealed class JsArray : JsObject
 
     public bool TryEnsureDenseCapacity(uint index)
     {
-        if (Dense is null || !IsExtensible || IndexedProperties is not null)
+        if (
+            Dense is null
+            || !IsExtensible
+            || IndexedProperties is not null
+            || index >= Array.MaxLength
+        )
             return false;
-        if (index < (uint)Dense.Length)
-            return true;
-
-        var needed = (int)index + 1;
-        var capacity = Dense.Length == 0 ? DenseInitialCapacity : Dense.Length;
-        while (capacity < needed)
-            capacity <<= 1;
-
-        var oldLength = Dense.Length;
-        Array.Resize(ref Dense, capacity);
-        for (var i = oldLength; i < Dense.Length; i++)
-            Dense[i] = JsValue.TheHole;
+        DenseArrayFastPath.EnsureCapacity(this, (long)index + 1);
         return true;
     }
 
@@ -441,33 +397,8 @@ public sealed class JsArray : JsObject
         return true;
     }
 
-    private bool ShouldFallbackToSparse(uint index)
-    {
-        if (Dense is null)
-            return false;
-        var denseLen = Dense.Length;
-        if (denseLen == 0)
-            return index > DenseToSparseGapThreshold;
-        return index > (uint)(denseLen + DenseToSparseGapThreshold);
-    }
-
-    private void EnsureDenseCapacity(uint index)
-    {
-        if (Dense is null || !IsExtensible)
-            return;
-        if (index < (uint)Dense.Length)
-            return;
-
-        var needed = (int)index + 1;
-        var capacity = Dense.Length == 0 ? DenseInitialCapacity : Dense.Length;
-        while (capacity < needed)
-            capacity <<= 1;
-
-        var oldLength = Dense.Length;
-        Array.Resize(ref Dense, capacity);
-        for (var i = oldLength; i < Dense.Length; i++)
-            Dense[i] = JsValue.TheHole;
-    }
+    private bool ShouldFallbackToSparse(uint index) =>
+        index >= Array.MaxLength || index > (long)Dense!.Length + DenseToSparseGapThreshold;
 
     private void ConvertDenseToSparse()
     {
@@ -514,7 +445,7 @@ public sealed class JsArray : JsObject
             && !ShouldFallbackToSparse(index)
         )
         {
-            EnsureDenseCapacity(index);
+            DenseArrayFastPath.EnsureCapacity(this, (long)index + 1);
             Dense[index] = descriptor.Value;
             IndexedProperties?.Remove(index);
         }
@@ -546,7 +477,7 @@ public sealed class JsArray : JsObject
     {
         if (Dense is not null && !ShouldFallbackToSparse(index))
         {
-            EnsureDenseCapacity(index);
+            DenseArrayFastPath.EnsureCapacity(this, (long)index + 1);
             Dense[index] = value;
         }
         else if (value.IsTheHole)

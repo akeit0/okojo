@@ -9,6 +9,43 @@ namespace Okojo.Tests;
 public class ArgumentsTests
 {
     [Test]
+    public void Arguments_Length_Uses_Ordinary_Descriptor_Transitions()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function target(a, b) { return String(a) + "," + String(b); }
+            function check(args) {
+                Object.preventExtensions(args);
+                var calls = 0;
+                Object.defineProperty(args, "length", {
+                    get() { calls++; this[0] = 9; return 1; }
+                });
+                var applied = target.apply(null, args);
+                var accessor = Object.getOwnPropertyDescriptor(args, "length");
+                Object.defineProperty(args, "length", { value: 2, writable: true, enumerable: true });
+                Object.freeze(args);
+                var frozen = Object.getOwnPropertyDescriptor(args, "length");
+                return applied === "9,undefined" && calls === 1 &&
+                    accessor.configurable && !accessor.enumerable &&
+                    frozen.value === 2 && frozen.enumerable &&
+                    !frozen.writable && !frozen.configurable && Object.isFrozen(args);
+            }
+            function sloppy(a) { return check(arguments); }
+            function strict(a) { "use strict"; return check(arguments); }
+            var args = (function () { return arguments; })(1, 2);
+            delete args.length;
+            Object.defineProperty(args, "length", { value: 1 });
+            var restored = Object.getOwnPropertyDescriptor(args, "length");
+            sloppy(1, 2) && strict(1, 2) && restored.value === 1 &&
+                !restored.writable && !restored.enumerable && !restored.configurable;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Arguments_IsMapped_ForNonStrictSimpleParameters()
     {
         var realm = JsRuntime.Create().DefaultRealm;

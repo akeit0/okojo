@@ -331,9 +331,15 @@ internal sealed class SearchPlan
     /// </summary>
     internal CharSet? LeadingSet { get; init; }
     internal int MinimumLength { get; init; }
+    internal string? RequiredLiteral { get; init; }
 
-    public override string ToString() =>
-        Prefix is null
+    public override string ToString()
+    {
+        var description = Prefix is null
             ? $"anchor={Anchor}, min={MinimumLength}, leading={(LeadingSet is null ? "?" : LeadingSet.DebugDisplay())}"
             : $"anchor={Anchor}, prefix=\"{Prefix}\", min={MinimumLength}";
+        if (RequiredLiteral is { } required)
+            description += $", required=\"{required}\"";
+        return description;
+    }
 }

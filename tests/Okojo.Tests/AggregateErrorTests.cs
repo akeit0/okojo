@@ -64,9 +64,6 @@ public class AggregateErrorTests
     }
 
     [Test]
-    [Ignore(
-        "Blocked by host constructor cross-realm newTarget fallback path; see OKOJO_FEATURE_AGGREGATEERROR_PHASE1.md"
-    )]
     public void AggregateError_CrossRealm_NewTarget_Fallback_Prototype_Repro()
     {
         var engine = JsRuntime.Create();

@@ -201,7 +201,10 @@ public class JsObject
                 ILazyHostMethodProvider.GetOrCreateLazyHostMethod(atom, this, out valRef);
             if ((flags & JsShapePropertyFlags.HasGetter) != 0)
             {
+                var layout = NamedPropertyLayout;
                 value = InvokeAccessorGetter(realm, receiverValue, ref valRef);
+                if (!ReferenceEquals(layout, NamedPropertyLayout))
+                    slotInfo = SlotInfo.Invalid;
                 return true;
             }
 
@@ -354,7 +357,13 @@ public class JsObject
                 slotInfo = foundInfo;
             var flags = foundInfo.Flags;
             if ((flags & JsShapePropertyFlags.HasSetter) != 0)
-                return TryInvokeAccessorSetter(realm, receiver, value, foundInfo);
+            {
+                var layout = NamedPropertyLayout;
+                var assigned = TryInvokeAccessorSetter(realm, receiver, value, foundInfo);
+                if (!ReferenceEquals(layout, NamedPropertyLayout))
+                    slotInfo = SlotInfo.Invalid;
+                return assigned;
+            }
 
             if (
                 (flags & JsShapePropertyFlags.HasGetter) != 0
@@ -374,10 +383,7 @@ public class JsObject
                 return false;
             }
 
-            if (!UsesDynamicNamedProperties)
-                slotInfo = foundInfo;
             SlotsArray[foundInfo.Slot] = value;
-            OnOwnNamedDataPropertyAssigned(atom, value);
             return true;
         }
 
@@ -409,12 +415,10 @@ public class JsObject
         {
             AddDynamicDataProperty(atom, value, JsShapePropertyFlags.Open, hint);
             slotInfo = SlotInfo.Invalid;
-            OnOwnNamedDataPropertyAssigned(atom, value);
             return true;
         }
 
         Transit(atom, value, out slotInfo);
-        OnOwnNamedDataPropertyAssigned(atom, value);
         return true;
     }
 
@@ -832,12 +836,6 @@ public class JsObject
 
         NamedPropertyLayout = nextShape;
         SlotsArray = nextSlots;
-    }
-
-    protected virtual void OnOwnNamedDataPropertyAssigned(int atom, in JsValue value)
-    {
-        _ = atom;
-        _ = value;
     }
 
     internal void InitializeDynamicOpenDataPropertiesNoCollision(
@@ -1854,11 +1852,6 @@ public class JsObject
         out bool handled
     )
     {
-        var atomText = atom >= 0 ? realm.Atoms.AtomToString(atom) : null;
-        double numericIndex = default;
-        var hasCanonicalNumericIndex =
-            atomText is not null
-            && Intrinsics.TryGetCanonicalNumericIndexString(realm, atomText, out numericIndex);
         for (var cursor = Prototype; cursor is not null; cursor = cursor.Prototype)
         {
             if (cursor is IProxyObject)
@@ -1867,7 +1860,15 @@ public class JsObject
                 return true;
             }
 
-            if (cursor is JsTypedArrayObject typedArray && hasCanonicalNumericIndex)
+            if (
+                cursor is JsTypedArrayObject typedArray
+                && atom >= 0
+                && Intrinsics.TryGetCanonicalNumericIndexString(
+                    realm,
+                    realm.Atoms.AtomToString(atom),
+                    out var numericIndex
+                )
+            )
             {
                 if (ReferenceEquals(cursor, receiver))
                 {

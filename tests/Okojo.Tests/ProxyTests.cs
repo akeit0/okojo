@@ -8,6 +8,37 @@ namespace Okojo.Tests;
 public class ProxyTests
 {
     [Test]
+    public void TransparentCall_PreservesCallerArgumentRegister()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function forward(fn, value) { fn(value); return value; }
+            const proxy = new Proxy(value => value, {});
+            forward(proxy, 42) === 42 && forward(new Proxy(proxy, {}), 13) === 13;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void MissingIntegerPropertyResolvesProxyGetTrapOnce()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function read(object, key) { return object[key]; }
+            let calls = 0;
+            const proxy = new Proxy({}, {
+                get get() { if (++calls > 1) return () => 99; }
+            });
+            read(proxy, 2) === undefined && calls === 1;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Proxy_GlobalExists_AndHasNoPrototypeProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;

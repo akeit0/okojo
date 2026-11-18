@@ -1,13 +1,51 @@
+using System.Runtime.CompilerServices;
 using Okojo.JavaScript;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
+using Okojo.JavaScript.Objects;
 using Okojo.JavaScript.Parsing;
 
 namespace Okojo.Tests;
 
 public class FunctionOwnPropertiesTests
 {
+    [Test]
+    public void ReplacingPrototypeThroughCachedStoreReleasesOldValue()
+    {
+        using var runtime = JsRuntime.Create();
+        var realm = runtime.DefaultRealm;
+        var oldPrototype = ReplacePrototypeAtSameSite(realm);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.That(oldPrototype.TryGetTarget(out _), Is.False);
+        Assert.That(
+            realm.Eval("Object.getPrototypeOf(new Ctor()) === Ctor.prototype").IsTrue,
+            Is.True
+        );
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<JsObject> ReplacePrototypeAtSameSite(JsRealm realm)
+    {
+        var previous = new JsPlainObject(realm);
+        realm.Global["previousPrototype"] = previous;
+        realm.Eval(
+            """
+            function Ctor() {}
+            function replace(value) { Ctor.prototype = value; }
+            replace({});
+            replace(previousPrototype);
+            replace({});
+            previousPrototype = undefined;
+            """
+        );
+        return new WeakReference<JsObject>(previous);
+    }
+
     [Test]
     public void Function_OwnProperties_LengthNamePrototype_AndPrototypeConstructor()
     {

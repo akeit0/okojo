@@ -15,7 +15,7 @@ internal sealed class RegExpEngine
 
     private static readonly ConcurrentDictionary<
         (string Pattern, string Flags),
-        CompiledRegExp
+        RegExpCompiledPattern
     > s_compiledPatterns = new();
 
     private readonly RegExpOptions _options;
@@ -130,24 +130,31 @@ internal sealed class RegExpEngine
 
     public RegExpCompiledPattern Compile(string pattern, string flags)
     {
+        var key = (pattern, flags);
+        if (s_compiledPatterns.TryGetValue(key, out var cached))
+            return cached;
+
         if (s_compiledPatterns.Count >= CompiledPatternCacheCapacity)
             s_compiledPatterns.Clear();
 
-        var regexp = s_compiledPatterns.GetOrAdd(
-            (pattern, flags),
-            static (key, options) => CompiledRegExp.Compile(key.Pattern, key.Flags, options),
+        return s_compiledPatterns.GetOrAdd(
+            key,
+            static (entry, options) =>
+            {
+                var regexp = CompiledRegExp.Compile(entry.Pattern, entry.Flags, options);
+                return new(
+                    entry.Pattern,
+                    regexp.FlagsText,
+                    entry.Pattern,
+                    ToNamedGroupNames(regexp),
+                    ToRuntimeFlags(regexp.Flags)
+                )
+                {
+                    EngineState = regexp,
+                };
+            },
             _options
         );
-        return new(
-            pattern,
-            regexp.FlagsText,
-            pattern,
-            ToNamedGroupNames(regexp),
-            ToRuntimeFlags(regexp.Flags)
-        )
-        {
-            EngineState = regexp,
-        };
     }
 
     public RegExpMatchResult? Exec(

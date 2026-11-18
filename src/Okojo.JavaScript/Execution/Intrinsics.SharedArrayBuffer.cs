@@ -81,7 +81,10 @@ public partial class Intrinsics
             "SharedArrayBuffer",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallSharedArrayBufferConstructorBuiltins()

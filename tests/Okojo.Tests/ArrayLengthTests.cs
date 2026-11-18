@@ -9,6 +9,99 @@ namespace Okojo.Tests;
 public class ArrayLengthTests
 {
     [Test]
+    public void RestrictedArrayAssignmentCanCallAnInheritedIndexSetter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const prototype = { set 0(value) { this.seen = value; } };
+            const noExtension = [];
+            const fixedLength = [];
+            for (const array of [noExtension, fixedLength]) {
+                array.seen = 0;
+                Object.setPrototypeOf(array, prototype);
+            }
+            Object.preventExtensions(noExtension);
+            Object.defineProperty(fixedLength, "length", { writable: false });
+
+            function write(array, index, value) {
+                "use strict";
+                array[index] = value;
+            }
+            write(noExtension, 0, 42);
+            write(fixedLength, 0, 43);
+
+            noExtension.seen === 42 && fixedLength.seen === 43 &&
+                noExtension.length === 0 && fixedLength.length === 0 &&
+                !Object.hasOwn(noExtension, 0) && !Object.hasOwn(fixedLength, 0) &&
+                !Reflect.set(noExtension, 1, 7) && !Reflect.set(fixedLength, 1, 7);
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void NonExtensibleArrayCanRedefineAnExistingElement()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const array = [];
+            Object.defineProperty(array, "2", { value: 17, enumerable: true, configurable: true });
+            Object.preventExtensions(array);
+            Object.defineProperty(array, "2", { writable: true });
+            array[2] = 23;
+            const descriptor = Object.getOwnPropertyDescriptor(array, "2");
+            array.length === 3 && !Object.isExtensible(array) &&
+                !(0 in array) && !(1 in array) && descriptor.value === 23 &&
+                descriptor.writable && descriptor.enumerable && descriptor.configurable;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void PushAtMaximumArrayLengthPreservesSparseWritesAndRangeError()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const array = new Array(4294967294);
+            const pushed = array.push(42);
+            let threw = false;
+            try { array.push(43); } catch (e) { threw = e instanceof RangeError; }
+            pushed === 4294967295 && array.length === 4294967295 &&
+                array[4294967294] === 42 && threw && array[4294967295] === 43;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void PushCallsAnIndexedSetTrapOnThePrototype()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const array = [];
+            let sameReceiver = false;
+            let calls = 0;
+            const prototype = new Proxy(Array.prototype, {
+                set(target, key, value, receiver) {
+                    calls++;
+                    sameReceiver = key === "0" && value === 17 && receiver === array;
+                    return true;
+                }
+            });
+            Object.setPrototypeOf(array, prototype);
+            Array.prototype.push.call(array, 17) === 1 && array.length === 1 &&
+                calls === 1 && sameReceiver && !Object.hasOwn(array, 0);
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Array_Constructor_Allows_Uint32_Max_Length_But_Not_Above()
     {
         var realm = JsRuntime.Create().DefaultRealm;

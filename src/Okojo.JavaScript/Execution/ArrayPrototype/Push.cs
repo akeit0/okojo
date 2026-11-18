@@ -21,26 +21,16 @@ public partial class Intrinsics
             return false;
 
         var start = target.Length;
-        const long maxSafeInteger = 9007199254740991L;
-        if (start > maxSafeInteger - items.Length)
-            throw new JsRuntimeException(
-                JsErrorKind.TypeError,
-                "Invalid array length",
-                "ARRAY_LENGTH_INVALID"
-            );
-        if (start + items.Length > uint.MaxValue)
-            throw new JsRuntimeException(
-                JsErrorKind.RangeError,
-                "Invalid array length",
-                "ARRAY_LENGTH_INVALID"
-            );
+        var length = start + items.Length;
+        if (start > (uint)target.Dense!.Length || length > Array.MaxLength)
+            return false;
 
-        DenseArrayFastPath.EnsureCapacity(target, start + items.Length);
+        DenseArrayFastPath.EnsureCapacity(target, length);
         var store = target.Dense!;
         for (var i = 0; i < items.Length; i++)
             store[start + i] = items[i];
-        target.SetLength((uint)(start + items.Length));
-        result = FromLength(start + items.Length);
+        target.SetLength((uint)length);
+        result = FromLength(length);
         return true;
     }
 

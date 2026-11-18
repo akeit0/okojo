@@ -48,6 +48,7 @@ public sealed class JsFunctionCode
                     or int[]
                     or JsFunctionDescriptor
                     or JsObjectLiteralLayout
+                    or JsArrayLiteral
                     or JsTemplateSiteDescriptor
                 )
             )

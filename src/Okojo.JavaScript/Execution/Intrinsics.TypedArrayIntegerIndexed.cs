@@ -14,32 +14,30 @@ public partial class Intrinsics
             return false;
         }
 
+        if (key.IsNumber)
+        {
+            var number = key.FastNumberValue;
+            // ToPropertyKey formats either sign of zero as "0".
+            numericIndex = number == 0 ? 0 : number;
+            return true;
+        }
+
         var text = key.IsString ? key.AsString() : realm.ToJsStringSlowPath(key);
+        if (AtomTable.TryGetArrayIndexFromCanonicalString(text, out var index))
+        {
+            numericIndex = index;
+            return true;
+        }
+
         if (text == "-0")
         {
             numericIndex = -0d;
             return true;
         }
 
-        var number = realm.ToNumberSlowPath(JsValue.FromString(text));
-        if (double.IsNaN(number))
-        {
-            if (text == "NaN")
-            {
-                numericIndex = number;
-                return true;
-            }
-
-            numericIndex = default;
-            return false;
-        }
-
-        var roundTrip = realm.ToJsStringSlowPath(new(number));
-        if (string.Equals(roundTrip, text, StringComparison.Ordinal))
-        {
-            numericIndex = number;
+        numericIndex = realm.ToNumberSlowPath(JsValue.FromString(text));
+        if (string.Equals(JsValue.NumberToJsString(numericIndex), text, StringComparison.Ordinal))
             return true;
-        }
 
         numericIndex = default;
         return false;

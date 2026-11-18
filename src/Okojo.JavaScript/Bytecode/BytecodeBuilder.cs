@@ -414,6 +414,47 @@ public sealed class BytecodeBuilder : IDisposable
         );
     }
 
+    internal void EmitLdaThisNamedProperty(int nameIndex, int feedbackSlot) =>
+        EmitThisNamedProperty(
+            JsOpCode.LdaThisNamedProperty,
+            JsOpCode.LdaThisNamedPropertyWide,
+            nameIndex,
+            feedbackSlot
+        );
+
+    internal void EmitStaThisNamedProperty(int nameIndex, int feedbackSlot) =>
+        EmitThisNamedProperty(
+            JsOpCode.StaThisNamedProperty,
+            JsOpCode.StaThisNamedPropertyWide,
+            nameIndex,
+            feedbackSlot
+        );
+
+    private void EmitThisNamedProperty(
+        JsOpCode narrow,
+        JsOpCode wide,
+        int nameIndex,
+        int feedbackSlot
+    )
+    {
+        if ((uint)nameIndex <= byte.MaxValue && (uint)feedbackSlot <= byte.MaxValue)
+        {
+            Emit(narrow, (byte)nameIndex, (byte)feedbackSlot);
+            return;
+        }
+        if ((uint)nameIndex > ushort.MaxValue || (uint)feedbackSlot > ushort.MaxValue)
+            throw new InvalidOperationException(
+                "Named property operands exceed ushort operand capacity."
+            );
+        Emit(
+            wide,
+            (byte)nameIndex,
+            (byte)(nameIndex >> 8),
+            (byte)feedbackSlot,
+            (byte)(feedbackSlot >> 8)
+        );
+    }
+
     internal void EmitStaNamedProperty(int objectRegister, int nameIndex, int feedbackSlot)
     {
         if (

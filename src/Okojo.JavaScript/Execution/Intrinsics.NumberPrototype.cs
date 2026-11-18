@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Okojo.JavaScript.Execution;
 
 public partial class Intrinsics
@@ -107,16 +105,13 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
                 var value = GetThisNumberValue(thisValue, "toFixed");
-                var digits = GetDigitsArgument(realm, args, "toFixed", true, 0, 100);
-                if (double.IsNaN(value))
-                    return "NaN";
-                if (double.IsPositiveInfinity(value))
-                    return "Infinity";
-                if (double.IsNegativeInfinity(value))
-                    return "-Infinity";
-                if (Math.Abs(value) >= 1e21)
-                    return NumberFormatting.ToString(value);
-                return value.ToString($"F{digits}", CultureInfo.InvariantCulture);
+                var digits = args.Length == 0 ? 0d : ToFormattingInteger(realm, args[0]);
+                if (digits < 0 || digits > 100)
+                    throw new JsRuntimeException(
+                        JsErrorKind.RangeError,
+                        "toFixed() digits argument must be between 0 and 100"
+                    );
+                return NumberPrecisionFormatting.FormatFixed(value, (int)digits);
             },
             "toFixed",
             1
@@ -132,33 +127,21 @@ public partial class Intrinsics
                 var fractionDigitsUndefined = args.Length == 0 || args[0].IsUndefined;
                 var digitsNumber = fractionDigitsUndefined
                     ? 0d
-                    : realm.ToIntegerOrInfinity(args[0]);
+                    : ToFormattingInteger(realm, args[0]);
 
-                if (double.IsNaN(value))
-                    return "NaN";
-                if (double.IsPositiveInfinity(value))
-                    return "Infinity";
-                if (double.IsNegativeInfinity(value))
-                    return "-Infinity";
+                if (!double.IsFinite(value))
+                    return NumberFormatting.ToString(value);
 
-                if (double.IsInfinity(digitsNumber) || digitsNumber < 0 || digitsNumber > 100)
+                if (digitsNumber < 0 || digitsNumber > 100)
                     throw new JsRuntimeException(
                         JsErrorKind.RangeError,
                         "toExponential() argument must be between 0 and 100"
                     );
 
-                var digits = (int)digitsNumber;
-                if (value == 0d)
-                {
-                    if (fractionDigitsUndefined || digits == 0)
-                        return "0e+0";
-                    return "0." + new string('0', digits) + "e+0";
-                }
-
                 if (fractionDigitsUndefined)
-                    return FormatShortestExponential(value);
+                    return NumberFormatting.ToExponentialString(value);
 
-                return NumberPrecisionFormatting.FormatExponential(value, digits);
+                return NumberPrecisionFormatting.FormatExponential(value, (int)digitsNumber);
             },
             "toExponential",
             1
@@ -173,32 +156,16 @@ public partial class Intrinsics
                 var value = GetThisNumberValue(thisValue, "toPrecision");
                 if (args.Length == 0 || args[0].IsUndefined)
                     return NumberFormatting.ToString(value);
-                var precisionNumber = realm.ToIntegerOrInfinity(args[0]);
-                if (double.IsNaN(value))
-                    return "NaN";
-                if (double.IsPositiveInfinity(value))
-                    return "Infinity";
-                if (double.IsNegativeInfinity(value))
-                    return "-Infinity";
-                if (
-                    double.IsInfinity(precisionNumber)
-                    || precisionNumber < 1
-                    || precisionNumber > 100
-                )
+                var precisionNumber = ToFormattingInteger(realm, args[0]);
+                if (!double.IsFinite(value))
+                    return NumberFormatting.ToString(value);
+                if (precisionNumber < 1 || precisionNumber > 100)
                     throw new JsRuntimeException(
                         JsErrorKind.RangeError,
                         "toPrecision() argument must be between 1 and 100"
                     );
 
-                var precision = (int)precisionNumber;
-                if (value == 0d)
-                {
-                    if (precision == 1)
-                        return "0";
-                    return "0." + new string('0', precision - 1);
-                }
-
-                return NumberPrecisionFormatting.FormatPrecision(value, precision);
+                return NumberPrecisionFormatting.FormatPrecision(value, (int)precisionNumber);
             },
             "toPrecision",
             1
@@ -326,86 +293,8 @@ public partial class Intrinsics
         );
     }
 
-    private static int GetDigitsArgument(
-        JsRealm realm,
-        ReadOnlySpan<JsValue> args,
-        string methodName,
-        bool allowUndefined,
-        int min,
-        int max
-    )
-    {
-        if (args.Length == 0 || args[0].IsUndefined)
-        {
-            if (allowUndefined)
-                return 0;
-            throw new JsRuntimeException(
-                JsErrorKind.RangeError,
-                $"Number.prototype.{methodName} argument is out of range"
-            );
-        }
-
-        var number = realm.ToIntegerOrInfinity(args[0]);
-        if (double.IsInfinity(number) || number < min || number > max)
-            throw new JsRuntimeException(
-                JsErrorKind.RangeError,
-                methodName switch
-                {
-                    "toExponential" => "toExponential() argument must be between 0 and 100",
-                    "toFixed" => "toFixed() digits argument must be between 0 and 100",
-                    "toPrecision" => "toPrecision() argument must be between 1 and 100",
-                    _ => $"Number.prototype.{methodName} argument is out of range",
-                }
-            );
-
-        return (int)number;
-    }
-
-    private static string NormalizeExponentialString(string text)
-    {
-        var lower = text.ToLowerInvariant();
-        var eIndex = lower.LastIndexOf('e');
-        if (eIndex < 0 || eIndex + 2 >= lower.Length)
-            return lower;
-
-        var sign = lower[eIndex + 1];
-        if (sign is not ('+' or '-'))
-            return lower;
-
-        var digitsStart = eIndex + 2;
-        var firstNonZero = digitsStart;
-        while (firstNonZero < lower.Length && lower[firstNonZero] == '0')
-            firstNonZero++;
-
-        if (firstNonZero == digitsStart)
-            return lower;
-
-        if (firstNonZero == lower.Length)
-            return lower[..digitsStart] + "0";
-
-        return string.Concat(lower.AsSpan(0, digitsStart), lower.AsSpan(firstNonZero));
-    }
-
-    private static string FormatShortestExponential(double value)
-    {
-        var formatted = NormalizeExponentialString(
-            value.ToString("E15", CultureInfo.InvariantCulture)
-        );
-        var eIndex = formatted.IndexOf('e');
-        if (eIndex < 0)
-            return formatted;
-
-        var mantissa = formatted[..eIndex];
-        var exponent = formatted[eIndex..];
-        if (mantissa.Contains('.'))
-        {
-            mantissa = mantissa.TrimEnd('0');
-            if (mantissa.EndsWith('.'))
-                mantissa = mantissa[..^1];
-        }
-
-        return mantissa + exponent;
-    }
+    private static double ToFormattingInteger(JsRealm realm, in JsValue value) =>
+        value.IsInt32 ? value.Int32Value : realm.ToIntegerOrInfinity(value);
 
     private static string NumberToString(double value, int radix)
     {

@@ -42,7 +42,10 @@ public partial class Intrinsics
             "WeakMap",
             0,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private JsHostFunction CreateWeakSetConstructor()
@@ -83,7 +86,10 @@ public partial class Intrinsics
             "WeakSet",
             0,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private JsHostFunction CreateWeakRefConstructor()
@@ -123,7 +129,10 @@ public partial class Intrinsics
             "WeakRef",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private JsHostFunction CreateFinalizationRegistryConstructor()
@@ -160,7 +169,10 @@ public partial class Intrinsics
             "FinalizationRegistry",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallWeakCollectionBuiltins()

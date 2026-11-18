@@ -60,6 +60,19 @@ internal static class BacktrackingVm
         if (captures.Length < requiredCaptureSlots)
             throw new ArgumentException("Capture-register buffer is too small.", nameof(captures));
 
+        SearchPlan plan = program.SearchPlan;
+        if (
+            !sticky
+            && plan.Anchor != SearchAnchor.AbsoluteStart
+            && plan.RequiredLiteral is { } required
+            && input[startIndex..].IndexOf(required.AsSpan(), StringComparison.Ordinal) < 0
+        )
+        {
+            captures[..requiredCaptureSlots].Fill(-1);
+            endPosition = -1;
+            return false;
+        }
+
         int[]? rentedStates = null;
         Span<int> states =
             program.StateSlotCount <= 128
@@ -78,8 +91,6 @@ internal static class BacktrackingVm
         try
         {
             bool unicode = (program.Flags & (RegExpFlags.Unicode | RegExpFlags.UnicodeSets)) != 0;
-            SearchPlan plan = program.SearchPlan;
-
             if (sticky)
             {
                 return TryCandidate(

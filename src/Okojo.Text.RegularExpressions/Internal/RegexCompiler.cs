@@ -430,19 +430,58 @@ internal static class SearchAnalyzer
     private const int MaxPrefixCodeUnits = 64;
     private const int MaxQuantifierPrefixIterations = 64;
 
-    internal static SearchPlan Analyze(RegexNode root) =>
-        new()
+    internal static SearchPlan Analyze(RegexNode root)
+    {
+        var prefix = TryExtractPrefix(root);
+        var required = FindRequiredLiteral(root);
+        return new()
         {
             Anchor = FindAnchor(root),
-            Prefix = TryExtractPrefix(root),
+            Prefix = prefix,
             LeadingSet = TryExtractLeadingSet(root),
             MinimumLength = root.MinimumLength,
+            RequiredLiteral = required == prefix ? null : required,
         };
+    }
+
+    private static string? FindRequiredLiteral(RegexNode root)
+    {
+        List<RegexNode> nodes = [];
+        AppendSequence(root, nodes);
+        StringBuilder run = new(MaxPrefixCodeUnits);
+        string? best = null;
+        foreach (var node in nodes)
+        {
+            if (node.Kind == RegexNodeKind.Literal && (node.Options & NodeOptions.IgnoreCase) == 0)
+            {
+                if (run.Length < MaxPrefixCodeUnits)
+                    Utf16.AppendCodePoint(run, node.Value);
+            }
+            else
+            {
+                if (run.Length > (best?.Length ?? 0))
+                    best = run.ToString();
+                run.Clear();
+            }
+        }
+        return run.Length > (best?.Length ?? 0) ? run.ToString() : best;
+    }
+
+    private static void AppendSequence(RegexNode node, List<RegexNode> nodes)
+    {
+        if (node.Kind is RegexNodeKind.Sequence or RegexNodeKind.Capture)
+        {
+            foreach (var child in node.Children)
+                AppendSequence(child, nodes);
+        }
+        else
+            nodes.Add(node);
+    }
 
     /// <summary>
     /// Returns the code points that can begin a match, as a union over all leading
     /// consuming atoms up to the first atom that must consume. Null when the set
-    /// cannot be proven (case-insensitive atoms, unknown structures, or an empty
+    /// cannot be proven (unknown folding or structures, or an empty
     /// match-only pattern).
     /// </summary>
     private static CharSet? TryExtractLeadingSet(RegexNode root)
@@ -464,7 +503,32 @@ internal static class SearchAnalyzer
         {
             case RegexNodeKind.Literal:
                 if ((node.Options & NodeOptions.IgnoreCase) != 0)
-                    return false;
+                {
+                    if ((node.Options & NodeOptions.Unicode) != 0)
+                    {
+                        if (node.Value is >= 0xD800 and <= 0xDFFF)
+                            return false;
+                        if (
+                            UnicodeCaseFolding.TryGetEquivalents(
+                                node.Value,
+                                out int offset,
+                                out int count
+                            )
+                        )
+                        {
+                            for (int i = 0; i < count; i++)
+                                builder.Add(UnicodeCaseFolding.GetEquivalent(offset, i));
+                        }
+                    }
+                    else
+                    {
+                        // Legacy folding never maps a non-ASCII character to ASCII.
+                        if (node.Value >= 0x80)
+                            return false;
+                        if (node.Value is >= 'A' and <= 'Z' or >= 'a' and <= 'z')
+                            builder.Add(node.Value ^ 0x20);
+                    }
+                }
                 builder.Add(node.Value);
                 return true;
             case RegexNodeKind.Dot:
@@ -477,7 +541,7 @@ internal static class SearchAnalyzer
                 );
                 return true;
             case RegexNodeKind.CharacterClass:
-                if ((node.Options & NodeOptions.IgnoreCase) != 0)
+                if (node.Strings is not null || (node.Options & NodeOptions.IgnoreCase) != 0)
                     return false;
                 CharSet set = node.Set!;
                 builder.AddSet(node.Negative ? CharSet.Subtract(CharSet.AllUnicode, set) : set);

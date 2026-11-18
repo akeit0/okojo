@@ -88,6 +88,8 @@ internal static class BytecodeInfo
             or JsOpCode.JumpIfNull
             or JsOpCode.JumpIfUndefined
             or JsOpCode.JumpIfNotUndefined
+            or JsOpCode.JumpIfNullish
+            or JsOpCode.JumpIfNotNullish
             or JsOpCode.JumpIfJsReceiver
             or JsOpCode.PushTry
             or JsOpCode.SwitchOnSmi
@@ -109,6 +111,8 @@ internal static class BytecodeInfo
             or JsOpCode.DefineOwnKeyedProperty
             or JsOpCode.DefineOwnKeyedPropertyNoName
             or JsOpCode.CreateArrayLiteral
+            or JsOpCode.LdaThisNamedProperty
+            or JsOpCode.StaThisNamedProperty
             or JsOpCode.CreateArrayLiteralWithLength => 2,
 
             // Former feedback-operand carriers: the trailing slot/zero
@@ -169,6 +173,8 @@ internal static class BytecodeInfo
             or JsOpCode.StaGlobalFuncDeclWide
             or JsOpCode.TypeOfGlobalWide
             or JsOpCode.GetNamedPropertyFromSuperWide
+            or JsOpCode.LdaThisNamedPropertyWide
+            or JsOpCode.StaThisNamedPropertyWide
             or JsOpCode.MovWide
             or JsOpCode.LdaSmiExtraWide
             or JsOpCode.SuspendGenerator

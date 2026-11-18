@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using Okojo.Text.RegularExpressions.Internal;
 using Okojo.Text.Unicode;
 
@@ -101,7 +102,7 @@ public sealed class RegExp
     /// <summary>Tests for a match without materializing capture ranges.</summary>
     public bool IsMatch(ReadOnlySpan<char> input, int startIndex = 0)
     {
-        ValidateStart(input, startIndex);
+        startIndex = ValidateStart(input, startIndex);
         bool sticky = (Flags & RegExpFlags.Sticky) != 0;
         if (_linearProgram is not null)
         {
@@ -150,7 +151,7 @@ public sealed class RegExp
 
     internal bool TryMatchEnd(ReadOnlySpan<char> input, int startIndex, out int endPosition)
     {
-        ValidateStart(input, startIndex);
+        startIndex = ValidateStart(input, startIndex);
         bool sticky = (Flags & RegExpFlags.Sticky) != 0;
         int slotCount = checked(RequiredCaptureCount * 2);
         int[]? rented = null;
@@ -272,7 +273,7 @@ public sealed class RegExp
     /// <summary>Enumerates all non-overlapping matches over the input span.</summary>
     public MatchEnumerable EnumerateMatches(ReadOnlySpan<char> input, int startIndex = 0)
     {
-        ValidateStart(input, startIndex);
+        startIndex = ValidateStart(input, startIndex);
         return new MatchEnumerable(this, input, startIndex);
     }
 
@@ -317,7 +318,7 @@ public sealed class RegExp
         out MatchRange match
     )
     {
-        ValidateStart(input, startIndex);
+        startIndex = ValidateStart(input, startIndex);
         if (captures.Length < RequiredCaptureCount)
         {
             throw new ArgumentException(
@@ -391,10 +392,20 @@ public sealed class RegExp
         captures[..RequiredCaptureCount].Fill(CaptureRange.Unmatched);
     }
 
-    private static void ValidateStart(ReadOnlySpan<char> input, int startIndex)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int ValidateStart(ReadOnlySpan<char> input, int startIndex)
     {
         if ((uint)startIndex > (uint)input.Length)
             throw new ArgumentOutOfRangeException(nameof(startIndex));
+        if (
+            _unicode
+            && startIndex > 0
+            && startIndex < input.Length
+            && char.IsLowSurrogate(input[startIndex])
+            && char.IsHighSurrogate(input[startIndex - 1])
+        )
+            return startIndex - 1;
+        return startIndex;
     }
 
     private static void ValidateFlags(RegExpFlags flags)

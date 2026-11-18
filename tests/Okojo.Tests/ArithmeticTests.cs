@@ -14,6 +14,21 @@ namespace Okojo.Tests;
 public class ArithmeticTests
 {
     [Test]
+    public void IntegerMultiplicationPreservesSignedZero()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function multiply(left, right) { return left * right; }
+            function timesZero(value) { return value * 0; }
+            Object.is(multiply(0, -1), -0) && Object.is(multiply(-1, 0), -0) &&
+                Object.is(timesZero(-1), -0) && Object.is(timesZero(1), 0);
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void TestSubSmi()
     {
         var realm = JsRuntime.Create().DefaultRealm;

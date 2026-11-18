@@ -3,7 +3,7 @@ namespace Okojo.JavaScript.Objects;
 public abstract class JsFunction : JsObject
 {
     protected FunctionFlags Flags;
-    private JsObject? prototypePropertyObject;
+    private JsObject? intrinsicPrototype;
 
     private protected JsFunction(
         JsRealm realm,
@@ -51,6 +51,14 @@ public abstract class JsFunction : JsObject
 
     public string Name { get; }
     public int Length { get; }
+    internal bool ConstructsOwnThis
+    {
+        get => (Flags & FunctionFlags.ConstructsOwnThis) != 0;
+        init =>
+            Flags = value
+                ? Flags | FunctionFlags.ConstructsOwnThis
+                : Flags & ~FunctionFlags.ConstructsOwnThis;
+    }
     public bool IsConstructor => (Flags & FunctionFlags.IsConstructor) != 0;
 
     public JsValue Call(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args)
@@ -163,16 +171,7 @@ public abstract class JsFunction : JsObject
     )
     {
         for (var i = 0; i < definitions.Length; i++)
-        {
-            ref readonly var definition = ref definitions[i];
-            var atom = definition.Atom;
-            if (atom != IdLength && atom != IdName && atom != IdPrototype)
-                continue;
-
-            ClearIntrinsicOwnProperty(atom);
-            if (atom == IdPrototype)
-                ApplyKnownPrototypePropertyDefinition(in definition);
-        }
+            ClearIntrinsicOwnProperty(definitions[i].Atom);
 
         base.DefineNewPropertiesNoCollision(realm, definitions);
     }
@@ -202,10 +201,7 @@ public abstract class JsFunction : JsObject
             return true;
         }
 
-        var result = base.DeletePropertyAtom(realm, atom);
-        if (result && atom == IdPrototype)
-            prototypePropertyObject = null;
-        return result;
+        return base.DeletePropertyAtom(realm, atom);
     }
 
     internal override void DefineDataPropertyAtom(
@@ -213,18 +209,7 @@ public abstract class JsFunction : JsObject
         int atom,
         JsValue value,
         JsShapePropertyFlags flags
-    )
-    {
-        if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
-        {
-            MaterializeIntrinsicDataProperty(realm, atom, value, flags);
-            return;
-        }
-
-        base.DefineDataPropertyAtom(realm, atom, value, flags);
-        if (atom == IdPrototype)
-            ApplyPrototypePropertyValue(value);
-    }
+    ) => MaterializeIntrinsicDataProperty(realm, atom, value, flags);
 
     internal override bool DefineOwnDataPropertyExact(
         JsRealm realm,
@@ -239,10 +224,7 @@ public abstract class JsFunction : JsObject
             return true;
         }
 
-        var result = base.DefineOwnDataPropertyExact(realm, atom, value, flags);
-        if (result && atom == IdPrototype)
-            ApplyPrototypePropertyValue(value);
-        return result;
+        return base.DefineOwnDataPropertyExact(realm, atom, value, flags);
     }
 
     internal override void DefineAccessorPropertyAtom(
@@ -251,18 +233,7 @@ public abstract class JsFunction : JsObject
         JsFunction? getter,
         JsFunction? setter,
         JsShapePropertyFlags flags
-    )
-    {
-        if (TryGetIntrinsicOwnDescriptor(atom, false, out _))
-        {
-            MaterializeIntrinsicAccessorProperty(realm, atom, getter, setter, flags);
-            return;
-        }
-
-        base.DefineAccessorPropertyAtom(realm, atom, getter, setter, flags);
-        if (atom == IdPrototype)
-            prototypePropertyObject = null;
-    }
+    ) => MaterializeIntrinsicAccessorProperty(realm, atom, getter, setter, flags);
 
     internal override bool DefineOwnAccessorPropertyExact(
         JsRealm realm,
@@ -283,10 +254,7 @@ public abstract class JsFunction : JsObject
             return true;
         }
 
-        var result = base.DefineOwnAccessorPropertyExact(realm, atom, getter, setter, flags);
-        if (result && atom == IdPrototype)
-            prototypePropertyObject = null;
-        return result;
+        return base.DefineOwnAccessorPropertyExact(realm, atom, getter, setter, flags);
     }
 
     internal override void FreezeDataProperties()
@@ -362,24 +330,6 @@ public abstract class JsFunction : JsObject
     protected virtual JsObject GetPrototypePropertyObjectPrototype(JsRealm realm)
     {
         return realm.Intrinsics.ObjectPrototype;
-    }
-
-    protected bool TryGetMaterializedPrototypePropertyObject(out JsObject prototypeObject)
-    {
-        if (prototypePropertyObject is not null)
-        {
-            prototypeObject = prototypePropertyObject;
-            return true;
-        }
-
-        prototypeObject = null!;
-        return false;
-    }
-
-    protected override void OnOwnNamedDataPropertyAssigned(int atom, in JsValue value)
-    {
-        if (atom == IdPrototype)
-            ApplyPrototypePropertyValue(value);
     }
 
     public override string ToString()
@@ -460,8 +410,6 @@ public abstract class JsFunction : JsObject
     {
         ClearIntrinsicOwnProperty(atom);
         base.DefineDataPropertyAtom(realm, atom, value, flags);
-        if (atom == IdPrototype)
-            ApplyPrototypePropertyValue(value);
     }
 
     private void MaterializeIntrinsicAccessorProperty(
@@ -474,8 +422,6 @@ public abstract class JsFunction : JsObject
     {
         ClearIntrinsicOwnProperty(atom);
         base.DefineAccessorPropertyAtom(realm, atom, getter, setter, flags);
-        if (atom == IdPrototype)
-            prototypePropertyObject = null;
     }
 
     private void ClearIntrinsicOwnProperty(int atom)
@@ -495,7 +441,7 @@ public abstract class JsFunction : JsObject
         if (atom == IdPrototype)
         {
             Flags &= ~(FunctionFlags.HasPrototypeProperty | FunctionFlags.PrototypeValuePending);
-            prototypePropertyObject = null;
+            intrinsicPrototype = null;
         }
     }
 
@@ -555,40 +501,19 @@ public abstract class JsFunction : JsObject
     internal void InitializePrototypeProperty(JsObject value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (prototypePropertyObject != null)
+        if (
+            intrinsicPrototype is not null
+            || NamedPropertyLayout.TryGetSlotInfo(IdPrototype, out _)
+        )
             throw new InvalidOperationException("Prototype property already initialized.");
-        prototypePropertyObject = value;
+        intrinsicPrototype = value;
         Flags |= FunctionFlags.HasPrototypeProperty | FunctionFlags.IsPrototypePropertyConst;
-    }
-
-    private void ApplyKnownPrototypePropertyDefinition(in PropertyDefinition definition)
-    {
-        if (definition.HasValue)
-        {
-            ApplyPrototypePropertyValue(definition.Value);
-            return;
-        }
-
-        prototypePropertyObject = null;
-    }
-
-    private void ApplyPrototypePropertyValue(in JsValue value)
-    {
-        prototypePropertyObject = value.TryGetObject(out var prototypeObject)
-            ? prototypeObject
-            : null;
     }
 
     private JsValue EnsurePrototypePropertyValue()
     {
-        if (
-            (Flags & FunctionFlags.PrototypeValuePending) == 0
-            && prototypePropertyObject is not null
-        )
-            return JsValue.FromObject(prototypePropertyObject);
-
         if ((Flags & FunctionFlags.PrototypeValuePending) == 0)
-            return JsValue.Undefined;
+            return intrinsicPrototype is { } value ? JsValue.FromObject(value) : JsValue.Undefined;
 
         var realm = Realm;
         var functionPrototypeObject = new JsPlainObject(realm, false)
@@ -613,7 +538,7 @@ public abstract class JsFunction : JsObject
             );
         }
 
-        prototypePropertyObject = functionPrototypeObject;
+        intrinsicPrototype = functionPrototypeObject;
         Flags &= ~FunctionFlags.PrototypeValuePending;
         return JsValue.FromObject(functionPrototypeObject);
     }
@@ -629,5 +554,6 @@ public abstract class JsFunction : JsObject
         PrototypeHasConstructor = 1 << 4,
         PrototypeValuePending = 1 << 5,
         IsPrototypePropertyConst = 1 << 6,
+        ConstructsOwnThis = 1 << 7,
     }
 }

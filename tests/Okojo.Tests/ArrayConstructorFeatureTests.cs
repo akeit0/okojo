@@ -7,6 +7,31 @@ namespace Okojo.Tests;
 public class ArrayConstructorFeatureTests
 {
     [Test]
+    public void ArgumentListsCreateOwnElementsWithAnInheritedSetter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function tail(first, ...rest) { return rest; }
+            const proxy = new Proxy(function () {}, {
+                apply(target, receiver, args) { return args; },
+                construct(target, args) { return args; }
+            });
+            let setterCalls = 0;
+            Object.defineProperty(Array.prototype, 0, { configurable: true, set() { setterCalls++; } });
+            try {
+                const lists = [Array("a", 2), tail(0, "b"), proxy("c"), new proxy("d")];
+                lists.every(a => Object.hasOwn(a, 0)) &&
+                    lists.map(a => a[0]).join("") === "abcd" && setterCalls === 0;
+            } finally {
+                delete Array.prototype[0];
+            }
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ArrayFrom_Uses_Custom_Constructors_And_Closes_Iterator_On_Map_Throw()
     {
         var engine = JsRuntime.Create();

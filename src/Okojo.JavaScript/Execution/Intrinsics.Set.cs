@@ -40,7 +40,10 @@ public partial class Intrinsics
             "Set",
             0,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallSetConstructorBuiltins()

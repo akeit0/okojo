@@ -4,13 +4,15 @@ namespace Okojo.JavaScript.Execution;
 
 public partial class Intrinsics
 {
+    private JsHostFunction arraySpeciesGetter = null!;
+
     private void InstallArrayConstructorBuiltins()
     {
         const int atomIsArray = IdIsArray;
         const int atomFrom = IdFrom;
         const int atomFromAsync = IdFromAsync;
         const int atomOf = IdOf;
-        var speciesGetter = new JsHostFunction(
+        arraySpeciesGetter = new JsHostFunction(
             Realm,
             (in info) =>
             {
@@ -191,7 +193,7 @@ public partial class Intrinsics
 
         Span<PropertyDefinition> ctorDefs =
         [
-            PropertyDefinition.GetterData(IdSymbolSpecies, speciesGetter, configurable: true),
+            PropertyDefinition.GetterData(IdSymbolSpecies, arraySpeciesGetter, configurable: true),
             PropertyDefinition.Mutable(atomIsArray, JsValue.FromObject(isArrayFn)),
             PropertyDefinition.Mutable(atomFrom, JsValue.FromObject(fromFn)),
             PropertyDefinition.Mutable(atomFromAsync, JsValue.FromObject(fromAsyncFn)),

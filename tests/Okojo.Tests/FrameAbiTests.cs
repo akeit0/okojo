@@ -9,6 +9,46 @@ namespace Okojo.Tests;
 public class FrameAbiTests
 {
     [Test]
+    public void StrictTailCallWithTwoArguments_PreservesOverlappingArgumentWindow()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var code = new JsFunctionCode(
+            [
+                (byte)JsOpCode.LdaGlobal,
+                0,
+                0,
+                (byte)JsOpCode.Star,
+                3,
+                (byte)JsOpCode.CallUndefinedReceiver,
+                3,
+                1, // Arguments r1 and r2 move into overlapping r0 and r1.
+                2,
+                (byte)JsOpCode.Return,
+            ],
+            [],
+            [],
+            4,
+            ["combine"],
+            strictDeclared: true,
+            globalBindingSlotCount: 1
+        );
+        realm.Global["forward"] = new JsFunctionDescriptor(
+            code,
+            "forward",
+            isStrict: true,
+            formalParameterCount: 3
+        ).CreateClosure(realm);
+        var result = realm.Eval(
+            """
+            function combine(left, right) { return left.value + right; }
+            forward(undefined, { value: 42 }, 17) === 59;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ManualConstruct_BytecodeConstructor_SeesNewTarget()
     {
         var realm = JsRuntime.Create().DefaultRealm;

@@ -14,7 +14,6 @@ public sealed class JsHostFunction : JsFunction, ILazyHostMethodProvider
 {
     internal readonly JsHostFunctionBody BodyField;
     internal JsHostFunctionLeafBody? LeafBodyField;
-    internal bool ConstructsOwnThis { get; set; }
 
     internal JsHostFunction(
         JsRealm realm,

@@ -88,8 +88,11 @@ internal sealed class JsBreakpointRegistry
     private readonly Dictionary<string, HashSet<int>> pendingHandlesBySourcePath = new(
         SourcePathComparer.Instance
     );
+    private volatile bool hasBreakpoints;
     private int nextHandleId = 1;
     private event Action<JsBreakpointHandle>? BreakpointResolved;
+
+    internal bool HasBreakpoints => hasBreakpoints;
 
     internal JsBreakpointHandle AddBreakpoint(JsAgent agent, string sourcePath, int line)
     {
@@ -119,6 +122,7 @@ internal sealed class JsBreakpointRegistry
             handles.Add(handleId);
             patchesByHandle[handleId] = [];
             patchedSourcePathsByHandle[handleId] = new(SourcePathComparer.Instance);
+            hasBreakpoints = true;
             if (STraceBreakpoints)
                 Console.Error.WriteLine(
                     $"[okojo] breakpoint request {sourcePath}:{line} handle {handleId}"
@@ -155,6 +159,7 @@ internal sealed class JsBreakpointRegistry
             patchedSourcePathsByHandle[handleId] = CreatePatchedSourcePathSet(patches);
             AddPatchesByScript(patches);
             patch.Arm();
+            hasBreakpoints = true;
         }
 
         NotifyResolvedHandles([handle]);
@@ -302,6 +307,7 @@ internal sealed class JsBreakpointRegistry
             }
 
             RemovePatchesByScript(patches);
+            hasBreakpoints = handlesById.Count != 0;
         }
     }
 

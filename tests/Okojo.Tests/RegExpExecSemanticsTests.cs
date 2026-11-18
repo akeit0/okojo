@@ -9,6 +9,30 @@ namespace Okojo.Tests;
 public class RegExpExecSemanticsTests
 {
     [Test]
+    public void RegExpExec_Unicode_StartsAtCodePointContainingLastIndex()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            var input = "\uD83D\uDE00";
+            var empty = /^a?/uy;
+            empty.lastIndex = 1;
+            var m = empty.exec(input);
+            var dot = /./ug;
+            dot.lastIndex = 1;
+            var d = dot.exec(input);
+            var unit = /./y;
+            unit.lastIndex = 1;
+            var u = unit.exec(input);
+            m !== null && m.index === 0 && empty.lastIndex === 0 &&
+                d !== null && d.index === 0 && d[0] === input && dot.lastIndex === 2 &&
+                u !== null && u.index === 1 && u[0] === "\uDE00";
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void RegExpExec_Global_AdvancesAndResetsLastIndex()
     {
         var realm = JsRuntime.Create().DefaultRealm;

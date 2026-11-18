@@ -11,6 +11,9 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
     protected Entry[] Entries = Array.Empty<Entry>();
     protected int LiveCount = 0;
 
+    // Immutable shapes can reject absent atom IDs before touching their entries.
+    protected ulong AtomMask = ulong.MaxValue;
+
     public JsRealm Owner { get; } = owner;
     internal NamedPropertyLayoutKind Kind { get; set; } = kind;
 
@@ -41,6 +44,12 @@ public abstract class NamedPropertyLayout(JsRealm owner, NamedPropertyLayoutKind
 
     internal bool TryGetSlotInfo(int atom, out SlotInfo slotInfo, out int hint)
     {
+        if ((AtomMask & (1UL << atom)) == 0)
+        {
+            hint = -1;
+            slotInfo = SlotInfo.Invalid;
+            return false;
+        }
         switch (Kind)
         {
             case NamedPropertyLayoutKind.LinearStatic:

@@ -10,6 +10,25 @@ namespace Okojo.Tests;
 public class ComparisonMethodsTests
 {
     [Test]
+    public void NullComparisonInCondition_DoesNotCoerceOrRepeatOperand()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            let reads = 0;
+            const obj = { valueOf() { throw new Error("unexpected coercion"); } };
+            function present(value) {
+                if ((++reads, value) == null) return false;
+                if (null != value) return true;
+                throw new Error("inconsistent comparison");
+            }
+            !present(undefined) && !present(null) && present(0) && present(obj) && reads === 4;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void StrictEquals_Primitives_Basic()
     {
         Assert.That(JsRealm.StrictEquals(JsValue.FromInt32(1), JsValue.FromInt32(1)), Is.True);

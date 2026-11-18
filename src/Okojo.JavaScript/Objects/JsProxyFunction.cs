@@ -9,6 +9,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
     internal JsProxyFunction(JsRealm realm, JsObject target, JsObject handler, bool isConstructor)
         : base(realm, string.Empty, length: 0, isConstructor: isConstructor)
     {
+        ConstructsOwnThis = true;
         core = new(target, handler);
         Prototype = target.Prototype;
     }
@@ -62,7 +63,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         if (!TryGetFunctionTrap(realm, handler, atomApply, out var trapFn))
             return realm.InvokeFunction(target, thisValue, args);
 
-        var argArray = realm.CreateArrayFromArgumentWindow(args);
+        var argArray = realm.CreateArrayObject(args);
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,
@@ -77,7 +78,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         JsValue thisValue,
         int argOffset,
         int argCount,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         return DispatchProxyFromStack(
@@ -87,7 +89,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
             argCount,
             JsValue.Undefined,
             callerPc,
-            false
+            false,
+            reuseArgumentWindow
         );
     }
 
@@ -111,7 +114,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         if (!TryGetFunctionTrap(realm, handler, atomConstruct, out var trapFn))
             return realm.ConstructWithExplicitNewTarget(target, args, newTarget, callerPc);
 
-        var argArray = realm.CreateArrayFromArgumentWindow(args);
+        var argArray = realm.CreateArrayObject(args);
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,
@@ -133,7 +136,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         int argOffset,
         int argCount,
         JsValue newTarget,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         if (!IsConstructor)
@@ -150,7 +154,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
             argCount,
             newTarget,
             callerPc,
-            true
+            true,
+            reuseArgumentWindow
         );
     }
 
@@ -161,7 +166,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         int argCount,
         JsValue newTarget,
         int callerPc,
-        bool isConstruct
+        bool isConstruct,
+        bool reuseArgumentWindow = false
     )
     {
         var target = EnsureCallableTarget(realm);
@@ -175,7 +181,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
                     thisValue,
                     argOffset,
                     argCount,
-                    callerPc
+                    callerPc,
+                    reuseArgumentWindow
                 );
 
             var prepared = realm.PrepareConstructInvocation(target, newTarget);
@@ -184,11 +191,12 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
                 prepared,
                 argOffset,
                 argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow
             );
         }
 
-        var argArray = realm.CreateArrayFromArgumentWindow(argOffset, argCount);
+        var argArray = realm.CreateArrayObject(realm.StackAsSpan(argOffset, argCount));
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,
