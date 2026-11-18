@@ -83,6 +83,32 @@ public class TypedArrayFeatureTests
     }
 
     [Test]
+    public void TypedArrayOutOfBoundsIndexDoesNotReadThePrototype()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function read(object, key) { return object[key]; }
+            let calls = 0;
+            const prototype = { get 2() { calls++; return 99; }, extra: 7 };
+            const typed = new Int8Array([5]);
+            Object.setPrototypeOf(typed, prototype);
+            const child = Object.create(typed);
+            const array = [5];
+            Object.setPrototypeOf(array, prototype);
+            read(typed, 0) === 5 &&
+                read(child, 0) === 5 &&
+                read(typed, 2) === undefined &&
+                read(typed, "2") === undefined &&
+                read(child, 2) === undefined &&
+                read(typed, "extra") === 7 &&
+                calls === 0 && read(array, 2) === 99 && calls === 1;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Uint8Array_Indexed_Read_Write_Uses_Uint8_Coercion()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -2329,7 +2355,12 @@ public class TypedArrayFeatureTests
                 TypedArray.prototype["1.1"] = "blocked";
 
                 const ta = new Int32Array([7]);
+                const negativeZero = -0;
+                ta["00"] = 8;
                 const result =
+                  ta[negativeZero] === 7 &&
+                  Reflect.get(ta, negativeZero) === 7 &&
+                  ta["00"] === 8 &&
                   ta["-0"] === undefined &&
                   ta["-1"] === undefined &&
                   ta["1.1"] === undefined &&

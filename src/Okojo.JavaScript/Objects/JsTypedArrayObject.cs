@@ -117,19 +117,11 @@ public sealed class JsTypedArrayObject : JsObject
         out JsValue value
     )
     {
-        var effectiveLength = Length;
-        if (index < effectiveLength)
+        if (index < Length)
         {
-            value = Buffer.ReadTypedArrayElement(
-                Realm,
-                Kind,
-                checked(StoredByteOffset + index * (uint)Kind.GetBytesPerElement())
-            );
+            value = GetDirectElementValue(index);
             return true;
         }
-
-        if (Prototype is not null)
-            return Prototype.TryGetElementWithReceiver(realm, receiver, index, out value);
 
         value = JsValue.Undefined;
         return false;

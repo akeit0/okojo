@@ -1819,29 +1819,17 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                if (acc.IsInt32)
+                                if (acc.IsInt32 && (intNum1 = acc.Int32Value) >= 0)
                                 {
-                                    intNum1 = acc.Int32Value;
-                                    if (intNum1 >= 0)
-                                    {
-                                        JsValue keyedValue;
-                                        if (
-                                            obj is JsArray
-                                            && Unsafe
-                                                .As<JsArray>(obj)
-                                                .TryGetDenseElement((uint)intNum1, out keyedValue)
-                                        )
-                                        {
-                                            acc = keyedValue;
-                                            break;
-                                        }
-
-                                        if (obj.TryGetElement((uint)intNum1, out keyedValue))
-                                        {
-                                            acc = keyedValue;
-                                            break;
-                                        }
-                                    }
+                                    var index = (uint)intNum1;
+                                    acc =
+                                        (
+                                            obj is JsArray array
+                                            && array.TryGetDenseElement(index, out var value)
+                                        ) || obj.TryGetElement(index, out value)
+                                            ? value
+                                            : JsValue.Undefined;
+                                    break;
                                 }
 
                                 acc = LoadKeyedPropertySlowPath(this, obj, acc);

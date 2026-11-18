@@ -22,6 +22,23 @@ public class ProxyTests
     }
 
     [Test]
+    public void MissingIntegerPropertyResolvesProxyGetTrapOnce()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function read(object, key) { return object[key]; }
+            let calls = 0;
+            const proxy = new Proxy({}, {
+                get get() { if (++calls > 1) return () => 99; }
+            });
+            read(proxy, 2) === undefined && calls === 1;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void Proxy_GlobalExists_AndHasNoPrototypeProperty()
     {
         var realm = JsRuntime.Create().DefaultRealm;
