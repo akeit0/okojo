@@ -170,7 +170,9 @@ public class VmOptimizationTests
     public void ArrayLiteralLengthUsesDirectOperand()
     {
         var realm = JsRuntime.Create().DefaultRealm;
-        var script = realm.CompileScript("function make() { return [1, 2, 3]; } make().join(',');");
+        var script = realm.CompileScript(
+            "function make(x) { return [1, x, 3]; } make(2).join(',');"
+        );
         var function = script
             .ObjectConstants.OfType<Okojo.JavaScript.Bytecode.JsScript>()
             .Select(static instance => instance.CreateClosure())

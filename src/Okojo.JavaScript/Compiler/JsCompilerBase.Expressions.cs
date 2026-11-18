@@ -773,12 +773,54 @@ internal abstract partial class JsCompilerBase
             throw new NotSupportedException("Array literal exceeds ushort element capacity.");
 
         var elements = ast.ChildRange(node.Arg0, node.Arg1);
+        var allConstant = elements.Length != 0 && builder.ObjectConstantCount <= ushort.MaxValue;
         for (var i = 0; i < elements.Length; i++)
-            if (elements[i] >= 0 && ast[elements[i]].Kind == AstKind.SpreadElement)
+        {
+            var element = elements[i];
+            if (element < 0)
+                continue;
+            var kind = ast[element].Kind;
+            if (kind == AstKind.SpreadElement)
             {
                 EmitArrayExpressionWithSpread(ast, elements);
                 return;
             }
+            allConstant &=
+                kind
+                    is AstKind.NullLiteral
+                        or AstKind.BooleanLiteral
+                        or AstKind.NumericLiteral
+                        or AstKind.StringLiteral;
+        }
+        if (allConstant)
+        {
+            var values = new JsValue[elements.Length];
+            for (var i = 0; i < values.Length; i++)
+            {
+                var element = elements[i];
+                if (element < 0)
+                {
+                    values[i] = JsValue.TheHole;
+                    continue;
+                }
+
+                ref readonly var literal = ref ast[element];
+                values[i] = literal.Kind switch
+                {
+                    AstKind.NullLiteral => JsValue.Null,
+                    AstKind.BooleanLiteral => literal.Arg0 != 0 ? JsValue.True : JsValue.False,
+                    AstKind.NumericLiteral => ArrayLiteralNumber(ast.GetNumber(literal.Arg0)),
+                    AstKind.StringLiteral => JsValue.FromString(ast.GetString(literal.Arg0)),
+                    _ => throw new InvalidOperationException(
+                        "Expected a primitive array literal element."
+                    ),
+                };
+            }
+            builder.EmitCreateArrayLiteral(builder.AddObjectConstant(new JsArrayLiteral(values)));
+            if (targetRegister >= 0)
+                EmitStar(targetRegister);
+            return;
+        }
         if (elements.Length == 0)
         {
             builder.Emit(JsOpCode.CreateEmptyArrayLiteral);
@@ -2530,14 +2572,17 @@ internal abstract partial class JsCompilerBase
 
     private void EmitNumericLiteral(double number)
     {
-        if (Math.Truncate(number) == number && number >= int.MinValue && number <= int.MaxValue)
-        {
+        if (IsInt32Literal(number))
             EmitSmi((int)number);
-            return;
-        }
-
-        EmitNumericConstant(number);
+        else
+            EmitNumericConstant(number);
     }
+
+    private static bool IsInt32Literal(double number) =>
+        double.IsInteger(number) && number is >= int.MinValue and <= int.MaxValue;
+
+    private static JsValue ArrayLiteralNumber(double number) =>
+        IsInt32Literal(number) ? JsValue.FromInt32((int)number) : new JsValue(number);
 
     protected void EmitStringLiteral(string value)
     {

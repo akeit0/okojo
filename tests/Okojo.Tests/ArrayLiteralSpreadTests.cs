@@ -9,6 +9,25 @@ namespace Okojo.Tests;
 public class ArrayLiteralSpreadTests
 {
     [Test]
+    public void ConstantArrayLiteral_PreservesHolesAndCreatesIndependentElements()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function make() { return [1, , 2.5, "text", true, null]; }
+            const a = make();
+            const b = make();
+            a[0] = 99;
+            a[1] = 22;
+            a.length = 2;
+            a !== b && b.length === 6 && b[0] === 1 && !(1 in b) &&
+              b[2] === 2.5 && b[3] === "text" && b[4] === true && b[5] === null;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ArrayLiteral_Spread_Appends_Iterable_Values_In_Order()
     {
         var realm = JsRuntime.Create().DefaultRealm;

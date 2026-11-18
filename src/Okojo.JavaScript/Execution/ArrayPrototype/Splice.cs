@@ -31,6 +31,10 @@ public partial class Intrinsics
         var store = target.Dense!;
         if (length > (uint)store.Length)
             return false;
+        var itemCount = items.Length;
+        var newLength = length - actualDeleteCount + itemCount;
+        if (newLength > Array.MaxLength)
+            return false;
         if (DenseArrayFastPath.RangeHasHole(store.AsSpan(0, (int)length)))
             return false;
 
@@ -41,9 +45,6 @@ public partial class Intrinsics
             Array.Copy(store, (int)actualStart, deletedElements.Dense!, 0, (int)actualDeleteCount);
         }
         deletedElements.SetLength((uint)Math.Max(0, actualDeleteCount));
-
-        var itemCount = items.Length;
-        var newLength = length - actualDeleteCount + itemCount;
 
         if (itemCount < actualDeleteCount)
         {

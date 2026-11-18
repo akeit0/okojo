@@ -1824,13 +1824,11 @@ public partial class Intrinsics
             && sourceArray.IndexedProperties is null
             && sourceArray.Dense is not null
             && sourceArray.Length <= (uint)sourceArray.Dense.Length
+            && nextIndex + length <= (ulong)Array.MaxLength
         )
         {
             var count = (int)length;
-            DenseArrayFastPath.EnsureCapacity(
-                result,
-                (long)Math.Min(nextIndex + length, int.MaxValue)
-            );
+            DenseArrayFastPath.EnsureCapacity(result, (long)(nextIndex + length));
             Array.Copy(sourceArray.Dense!, 0, result.Dense!, (int)nextIndex, count);
             nextIndex += (uint)length;
             return;

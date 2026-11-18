@@ -1136,15 +1136,8 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsArray CreateArrayLiteralFromPoolSlowPath(object[] objectPool, int constantIndex)
-    {
-        var literal = objectPool[constantIndex];
-        if (literal is JsValue[] elements)
-            return CreateArrayObject(elements);
-        if (literal is int length && length >= 0)
-            return CreateArrayObjectWithLength(length);
-        return CreateArrayObject();
-    }
+    private JsArray CreateArrayLiteralFromPool(object[] objectPool, int constantIndex) =>
+        CreateArrayObject(((JsArrayLiteral)objectPool[constantIndex]).Elements);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
@@ -1662,7 +1655,7 @@ public sealed partial class JsRealm
                         case JsOpCode.CreateArrayLiteral:
                             intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
                             pc = ref Unsafe.Add(ref pc, 2);
-                            acc = CreateArrayLiteralFromPoolSlowPath(objectPool, intNum1);
+                            acc = CreateArrayLiteralFromPool(objectPool, intNum1);
                             break;
                         case JsOpCode.CreateArrayLiteralWithLength:
                             intNum1 = Unsafe.ReadUnaligned<ushort>(ref pc);
