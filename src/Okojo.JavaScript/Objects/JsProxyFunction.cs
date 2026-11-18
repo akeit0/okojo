@@ -77,7 +77,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         JsValue thisValue,
         int argOffset,
         int argCount,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         return DispatchProxyFromStack(
@@ -87,7 +88,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
             argCount,
             JsValue.Undefined,
             callerPc,
-            false
+            false,
+            reuseArgumentWindow
         );
     }
 
@@ -133,7 +135,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         int argOffset,
         int argCount,
         JsValue newTarget,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         if (!IsConstructor)
@@ -150,7 +153,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
             argCount,
             newTarget,
             callerPc,
-            true
+            true,
+            reuseArgumentWindow
         );
     }
 
@@ -161,7 +165,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         int argCount,
         JsValue newTarget,
         int callerPc,
-        bool isConstruct
+        bool isConstruct,
+        bool reuseArgumentWindow = false
     )
     {
         var target = EnsureCallableTarget(realm);
@@ -175,7 +180,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
                     thisValue,
                     argOffset,
                     argCount,
-                    callerPc
+                    callerPc,
+                    reuseArgumentWindow
                 );
 
             var prepared = realm.PrepareConstructInvocation(target, newTarget);
@@ -184,7 +190,8 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
                 prepared,
                 argOffset,
                 argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow
             );
         }
 

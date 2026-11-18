@@ -10,13 +10,28 @@ public sealed class JsArgumentsObject : JsObject
     private readonly int[]? mappedSlots;
     private uint argumentCount;
     private HashSet<uint>? deletedElements;
-    private bool hasLengthProperty = true;
-    private bool lengthConfigurable = true;
-    private bool lengthEnumerable;
-    private JsValue lengthValue;
-    private bool lengthWritable = true;
     private HashSet<uint>? unmappedElements;
     private JsValue[] values;
+
+    internal bool TryGetPackedValues(out ReadOnlySpan<JsValue> packed)
+    {
+        if (
+            mappedSlots is null or { Length: 0 }
+            && deletedElements is null
+            && IndexedProperties is null
+            && TryGetOwnNamedPropertyDescriptorAtom(Shape.Owner, IdLength, out var length)
+            && !length.IsAccessor
+            && length.Value.IsInt32
+            && (uint)length.Value.Int32Value <= Math.Min(argumentCount, (uint)values.Length)
+        )
+        {
+            packed = values.AsSpan(0, length.Value.Int32Value);
+            return true;
+        }
+
+        packed = default;
+        return false;
+    }
 
     internal JsArgumentsObject(
         JsRealm realm,
@@ -25,32 +40,21 @@ public sealed class JsArgumentsObject : JsObject
         int[]? mappedSlots,
         JsContext? context
     )
-        : base(realm)
+        : base(realm.GetArgumentsObjectShape(mapped))
     {
         values = args.ToArray();
         argumentCount = (uint)values.Length;
-        lengthValue =
-            values.Length <= int.MaxValue ? JsValue.FromInt32(values.Length) : new(values.Length);
         this.mapped = mapped;
         this.mappedSlots = mappedSlots;
         this.context = context;
         Prototype = realm.ObjectPrototype;
-        DefineDataPropertyAtom(
-            realm,
-            IdSymbolIterator,
-            JsValue.FromObject(realm.ArrayPrototypeValuesFunction),
-            JsShapePropertyFlags.Writable | JsShapePropertyFlags.Configurable
-        );
+        SlotsArray[0] = JsValue.FromInt32(values.Length);
+        SlotsArray[1] = realm.ArrayPrototypeValuesFunction;
         if (!mapped)
         {
-            var calleeAtom = realm.Atoms.InternNoCheck("callee");
-            _ = DefineOwnAccessorPropertyExact(
-                realm,
-                calleeAtom,
-                realm.ThrowTypeErrorIntrinsic,
-                realm.ThrowTypeErrorIntrinsic,
-                JsShapePropertyFlags.HasGetter | JsShapePropertyFlags.HasSetter
-            );
+            JsValue throwTypeError = realm.ThrowTypeErrorIntrinsic;
+            SlotsArray[2] = throwTypeError;
+            SlotsArray[3] = throwTypeError;
         }
     }
 
@@ -169,62 +173,6 @@ public sealed class JsArgumentsObject : JsObject
         return true;
     }
 
-    internal override bool TryGetOwnNamedPropertyDescriptorAtom(
-        JsRealm realm,
-        int atom,
-        out PropertyDescriptor descriptor,
-        bool needDescriptor = true
-    )
-    {
-        if (atom == IdLength && hasLengthProperty)
-        {
-            if (!needDescriptor)
-            {
-                descriptor = default;
-                return true;
-            }
-
-            descriptor = PropertyDescriptor.Data(
-                lengthValue,
-                lengthWritable,
-                lengthEnumerable,
-                lengthConfigurable
-            );
-            return true;
-        }
-
-        return base.TryGetOwnNamedPropertyDescriptorAtom(
-            realm,
-            atom,
-            out descriptor,
-            needDescriptor
-        );
-    }
-
-    internal override bool TryGetPropertyAtomWithReceiverValue(
-        JsRealm realm,
-        in JsValue receiverValue,
-        int atom,
-        out JsValue value,
-        out SlotInfo slotInfo
-    )
-    {
-        if (atom == IdLength && hasLengthProperty)
-        {
-            value = lengthValue;
-            slotInfo = SlotInfo.Invalid;
-            return true;
-        }
-
-        return base.TryGetPropertyAtomWithReceiverValue(
-            realm,
-            receiverValue,
-            atom,
-            out value,
-            out slotInfo
-        );
-    }
-
     internal override bool TrySetOwnElement(uint index, JsValue value, out bool hadOwnElement)
     {
         if (
@@ -275,73 +223,6 @@ public sealed class JsArgumentsObject : JsObject
             if (ctx is not null)
                 ctx.Slots[mappedSlots![(int)index]] = value;
         }
-
-        return true;
-    }
-
-    internal override bool SetPropertyAtomWithReceiver(
-        JsRealm realm,
-        JsObject receiver,
-        int atom,
-        JsValue value,
-        out SlotInfo slotInfo
-    )
-    {
-        if (atom == IdLength)
-        {
-            if (!hasLengthProperty)
-                return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
-            if (!ReferenceEquals(this, receiver))
-                return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
-            slotInfo = SlotInfo.Invalid;
-            if (!lengthWritable)
-                return false;
-            lengthValue = value;
-            return true;
-        }
-
-        return base.SetPropertyAtomWithReceiver(realm, receiver, atom, value, out slotInfo);
-    }
-
-    internal bool TryDefineLengthDescriptor(
-        bool hasValue,
-        in JsValue value,
-        bool hasWritable,
-        bool requestedWritable,
-        bool hasEnumerable,
-        bool requestedEnumerable,
-        bool hasConfigurable,
-        bool requestedConfigurable,
-        out bool isRangeError
-    )
-    {
-        isRangeError = false;
-        hasLengthProperty = true;
-        if (!lengthConfigurable)
-        {
-            if (hasConfigurable && requestedConfigurable)
-                return false;
-            if (hasEnumerable && requestedEnumerable != lengthEnumerable)
-                return false;
-        }
-
-        if (!lengthWritable)
-        {
-            if (hasWritable && requestedWritable)
-                return false;
-            if (hasValue && !JsValue.SameValue(lengthValue, value))
-                return false;
-        }
-
-        if (hasValue)
-            lengthValue = value;
-
-        if (hasWritable)
-            lengthWritable = requestedWritable;
-        if (hasEnumerable)
-            lengthEnumerable = requestedEnumerable;
-        if (hasConfigurable)
-            lengthConfigurable = requestedConfigurable;
 
         return true;
     }
@@ -438,30 +319,6 @@ public sealed class JsArgumentsObject : JsObject
         var next = index + 1;
         if (next > argumentCount)
             argumentCount = next;
-    }
-
-    internal override void CollectOwnNamedPropertyAtoms(
-        JsRealm realm,
-        List<int> atomsOut,
-        bool enumerableOnly
-    )
-    {
-        if (hasLengthProperty && (!enumerableOnly || lengthEnumerable))
-            atomsOut.Add(IdLength);
-        base.CollectOwnNamedPropertyAtoms(realm, atomsOut, enumerableOnly);
-    }
-
-    internal override bool DeletePropertyAtom(JsRealm realm, int atom)
-    {
-        if (atom == IdLength && hasLengthProperty)
-        {
-            if (!lengthConfigurable)
-                return false;
-            hasLengthProperty = false;
-            return true;
-        }
-
-        return base.DeletePropertyAtom(realm, atom);
     }
 
     internal override void CollectOwnElementIndices(List<uint> indicesOut, bool enumerableOnly)
@@ -575,19 +432,10 @@ public sealed class JsArgumentsObject : JsObject
         }
 
         base.FreezeDataProperties();
-        if (hasLengthProperty)
-        {
-            lengthWritable = false;
-            lengthEnumerable = false;
-            lengthConfigurable = false;
-        }
     }
 
     internal override bool AreAllOwnPropertiesFrozen()
     {
-        if (hasLengthProperty && (lengthWritable || lengthEnumerable || lengthConfigurable))
-            return false;
-
         for (uint i = 0; i < argumentCount && i < (uint)values.Length; i++)
         {
             if (!IsVirtualPresent(i))

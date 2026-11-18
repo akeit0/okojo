@@ -1833,46 +1833,6 @@ public partial class Intrinsics
                 return;
             }
 
-            if (target is JsArgumentsObject argumentsTarget && atom == IdLength)
-            {
-                if (spec.IsAccessorDescriptor)
-                    throw new JsRuntimeException(
-                        JsErrorKind.TypeError,
-                        "Invalid property descriptor for length"
-                    );
-                var requested = DescriptorUtilities.ReadRequestedBooleans(
-                    spec.HasWritable,
-                    spec.WritableValue,
-                    spec.HasEnumerable,
-                    spec.EnumerableValue,
-                    spec.HasConfigurable,
-                    spec.ConfigurableValue
-                );
-                if (
-                    !argumentsTarget.TryDefineLengthDescriptor(
-                        spec.HasValue,
-                        spec.Value,
-                        spec.HasWritable,
-                        requested.Writable,
-                        spec.HasEnumerable,
-                        requested.Enumerable,
-                        spec.HasConfigurable,
-                        requested.Configurable,
-                        out var isRangeError
-                    )
-                )
-                {
-                    if (isRangeError)
-                        throw new JsRuntimeException(JsErrorKind.RangeError, "Invalid length");
-                    throw new JsRuntimeException(
-                        JsErrorKind.TypeError,
-                        "Cannot redefine property: length"
-                    );
-                }
-
-                return;
-            }
-
             var defineAccessor = spec.IsAccessorDescriptor;
             var isGenericDescriptor = spec.IsGenericDescriptor;
             var existingHasOwnNamed = target.TryGetOwnNamedPropertyDescriptorAtom(

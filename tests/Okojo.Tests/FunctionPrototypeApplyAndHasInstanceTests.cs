@@ -9,6 +9,49 @@ namespace Okojo.Tests;
 public class FunctionPrototypeApplyAndHasInstanceTests
 {
     [Test]
+    public void FunctionPrototypeInvocation_PreservesFramesAndArgumentChanges()
+    {
+        var realm = JsRuntime.Create().DefaultRealm;
+        var result = realm.Eval(
+            """
+            function target(a, b) { "use strict"; return [this, a, b]; }
+            function forward() { return target.apply(7, arguments); }
+            function mapped(a) { a = 9; return target.apply(7, arguments); }
+            function changed() {
+                delete arguments[0];
+                Object.setPrototypeOf(arguments, { 0: 8 });
+                return target.apply(7, arguments);
+            }
+            function accessor() {
+                Object.defineProperty(arguments, "0", { get() { return 6; } });
+                return target.apply(7, arguments);
+            }
+            function resized() { arguments.length = 1; return target.apply(7, arguments); }
+            function fail() { throw 12; }
+            var caught = 0;
+            try { fail.call(); } catch (e) { caught += e; }
+            try { fail.apply(null, null); } catch (e) { caught += e; }
+            finally { caught++; }
+            var replacement = function () { return 11; };
+            target.call = replacement;
+            var customCall = target.call(null);
+            delete target.call;
+            target.apply = replacement;
+            var customApply = forward(1, 2);
+            delete target.apply;
+            forward(1, 2).join() === "7,1,2" &&
+            target.call(7, 1, 2).join() === "7,1,2" &&
+            target.call()[0] === undefined &&
+            mapped(1)[1] === 9 && changed(1)[1] === 8 &&
+            accessor(1)[1] === 6 && resized(1, 2)[2] === undefined &&
+            caught === 25 && customCall === 11 && customApply === 11;
+            """
+        );
+
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void FunctionPrototypeApply_RejectsPrimitiveArgArray()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -68,6 +111,23 @@ public class FunctionPrototypeApplyAndHasInstanceTests
     }
 
     [Test]
+    public void InstanceOf_BoundFunctionUsesTargetsCurrentHasInstance()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function F() {}
+            const bound = F.bind(null).bind(null);
+            Object.defineProperty(F, Symbol.hasInstance, { value: value => value === 42 });
+            42 instanceof bound &&
+            !(new F() instanceof bound) &&
+            Function.prototype[Symbol.hasInstance].call(bound, 42);
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void FunctionPrototypeSymbolHasInstance_UsesObservablePrototypeWalk()
     {
         var realm = JsRuntime.Create().DefaultRealm;
@@ -76,13 +136,15 @@ public class FunctionPrototypeApplyAndHasInstanceTests
             function F() {}
             var ok1 = false;
             var ok2 = false;
+            var ok3 = false;
             var o = new Proxy({}, {
               getPrototypeOf: function() { throw new Error("boom"); }
             });
             var o2 = Object.create(o);
             try { F[Symbol.hasInstance](o); } catch (e) { ok1 = e && e.message === "boom"; }
             try { F[Symbol.hasInstance](o2); } catch (e) { ok2 = e && e.message === "boom"; }
-            ok1 && ok2;
+            try { o2 instanceof F; } catch (e) { ok3 = e && e.message === "boom"; }
+            ok1 && ok2 && ok3;
             """
         );
 

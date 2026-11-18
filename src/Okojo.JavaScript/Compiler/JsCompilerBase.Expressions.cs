@@ -1499,8 +1499,18 @@ internal abstract partial class JsCompilerBase
         if (count == 0)
             return 0;
         var arguments = ast.ChildRange(offset, count);
-        if (arguments.Length == 1 && TryGetDirectLocalRegister(ast, arguments[0], out var direct))
-            return direct;
+        if (TryGetDirectLocalRegister(ast, arguments[0], out var direct))
+        {
+            var i = 1;
+            for (; i < arguments.Length; i++)
+                if (
+                    !TryGetDirectLocalRegister(ast, arguments[i], out var register)
+                    || register != direct + i
+                )
+                    break;
+            if (i == arguments.Length)
+                return direct;
+        }
 
         var start = builder.AllocateTemporaryRegisterBlock(count);
         for (var i = 0; i < arguments.Length; i++)

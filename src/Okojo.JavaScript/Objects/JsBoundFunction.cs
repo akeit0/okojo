@@ -54,7 +54,8 @@ internal sealed class JsBoundFunction : JsFunction
                 BoundThis,
                 argOffset,
                 boundArguments.Length + args.Length,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -97,7 +98,8 @@ internal sealed class JsBoundFunction : JsFunction
                 BoundThis,
                 mergedOffset,
                 boundArguments.Length + argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -157,7 +159,8 @@ internal sealed class JsBoundFunction : JsFunction
                 prepared,
                 argOffset,
                 boundArguments.Length + args.Length,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -223,7 +226,8 @@ internal sealed class JsBoundFunction : JsFunction
                 prepared,
                 mergedOffset,
                 boundArguments.Length + argCount,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: true
             );
         }
         finally

@@ -603,7 +603,8 @@ public sealed partial class JsRealm
         JsValue newTarget,
         int callerPc,
         CallFrameFlag flags,
-        bool isConstruct
+        bool isConstruct,
+        bool reuseArgumentWindow
     )
     {
         Debug.Assert(fn is not JsBytecodeFunction);
@@ -625,8 +626,22 @@ public sealed partial class JsRealm
                     : bound.InvokeBoundFromStack(this, argOffset, argCount, callerPc);
             case JsProxyFunction proxy:
                 return isConstruct
-                    ? proxy.ConstructProxyFromStack(this, argOffset, argCount, newTarget, callerPc)
-                    : proxy.InvokeProxyFromStack(this, thisValue, argOffset, argCount, callerPc);
+                    ? proxy.ConstructProxyFromStack(
+                        this,
+                        argOffset,
+                        argCount,
+                        newTarget,
+                        callerPc,
+                        reuseArgumentWindow
+                    )
+                    : proxy.InvokeProxyFromStack(
+                        this,
+                        thisValue,
+                        argOffset,
+                        argCount,
+                        callerPc,
+                        reuseArgumentWindow
+                    );
             default:
                 var args = Stack.AsSpan(argOffset, argCount);
                 return isConstruct
@@ -648,7 +663,8 @@ public sealed partial class JsRealm
         JsValue thisValue,
         int argOffset,
         int argCount,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         if (!ReferenceEquals(fn.Realm, this) && fn is not JsProxyFunction)
@@ -676,7 +692,8 @@ public sealed partial class JsRealm
                 argOffset,
                 argCount,
                 JsValue.Undefined,
-                callerPc
+                callerPc,
+                reuseArgumentWindow: reuseArgumentWindow
             )
             : DispatchNonBytecodeFromStack(
                 fn,
@@ -686,7 +703,8 @@ public sealed partial class JsRealm
                 JsValue.Undefined,
                 callerPc,
                 CallFrameFlag.None,
-                false
+                false,
+                reuseArgumentWindow
             );
     }
 
@@ -696,7 +714,8 @@ public sealed partial class JsRealm
         in PreparedConstruct prepared,
         int argOffset,
         int argCount,
-        int callerPc
+        int callerPc,
+        bool reuseArgumentWindow
     )
     {
         if (!ReferenceEquals(fn.Realm, this) && fn is not JsProxyFunction)
@@ -714,7 +733,8 @@ public sealed partial class JsRealm
                 prepared.NewTarget,
                 callerPc,
                 CallFrameKind.ConstructFrame,
-                prepared.Flags
+                prepared.Flags,
+                reuseArgumentWindow
             )
             : DispatchNonBytecodeFromStack(
                 fn,
@@ -724,7 +744,8 @@ public sealed partial class JsRealm
                 prepared.NewTarget,
                 callerPc,
                 prepared.Flags,
-                true
+                true,
+                reuseArgumentWindow
             );
 
         return CompleteConstructResult(result, prepared.ThisValue, prepared.Flags);
@@ -906,7 +927,8 @@ public sealed partial class JsRealm
         JsValue newTarget,
         int callerPc,
         CallFrameKind frameKind = CallFrameKind.FunctionFrame,
-        CallFrameFlag flags = CallFrameFlag.None
+        CallFrameFlag flags = CallFrameFlag.None,
+        bool reuseArgumentWindow = false
     )
     {
         thisValue = PrepareBytecodeThisValue(
@@ -932,7 +954,7 @@ public sealed partial class JsRealm
         var newFp = StackTop;
         var fullStack = Stack.AsSpan();
         var registerWindowSize = Math.Max(func.Script.RegisterCount, argCount);
-        if (argOffset + argCount == StackTop)
+        if (reuseArgumentWindow && argOffset + argCount == StackTop)
             newFp = argOffset;
         if (newFp + HeaderSize + registerWindowSize > fullStack.Length)
             throw new StackOverflowException();
@@ -1525,6 +1547,20 @@ public sealed partial class JsRealm
         {
             thisValue =
                 receiverReg < 0 ? JsValue.Undefined : Unsafe.Add(ref registers, receiverReg);
+            var isCall = ReferenceEquals(callee, Intrinsics.FunctionPrototypeCall);
+            if (
+                (isCall || ReferenceEquals(callee, Intrinsics.FunctionPrototypeApply))
+                && TryForwardFunctionPrototypeInvocation(
+                    thisValue,
+                    argOffset,
+                    argCount,
+                    isCall,
+                    callerPc,
+                    ref currentFunc,
+                    ref acc
+                )
+            )
+                return true;
         }
         else
         {
@@ -1614,6 +1650,70 @@ public sealed partial class JsRealm
         return true;
     }
 
+    private bool TryForwardFunctionPrototypeInvocation(
+        JsValue receiver,
+        int argOffset,
+        int argCount,
+        bool isCall,
+        int callerPc,
+        ref JsBytecodeFunction currentFunc,
+        ref JsValue acc
+    )
+    {
+        if (
+            !receiver.TryGetObject(out var obj)
+            || obj
+                is not JsBytecodeFunction
+                {
+                    Kind: JsBytecodeFunctionKind.Normal,
+                    IsClassConstructor: false
+                } target
+            || !ReferenceEquals(target.Realm, this)
+            || Agent.ExecutionCheckPolicy.HasChecks
+        )
+            return false;
+
+        var thisValue = argCount == 0 ? JsValue.Undefined : Stack[argOffset];
+        if (isCall)
+        {
+            if (argCount > 0)
+            {
+                argOffset++;
+                argCount--;
+            }
+        }
+        else if (argCount < 2 || Stack[argOffset + 1].IsNullOrUndefined)
+        {
+            argCount = 0;
+        }
+        else
+        {
+            if (
+                !Stack[argOffset + 1].TryGetObject(out var list)
+                || list is not JsArgumentsObject arguments
+                || !arguments.TryGetPackedValues(out var packed)
+            )
+                return false;
+
+            argOffset = StackTop + HeaderSize;
+            argCount = packed.Length;
+            if (Math.Max(target.Script.RegisterCount, argCount) > Stack.Length - argOffset)
+                return false;
+            packed.CopyTo(Stack.AsSpan(argOffset));
+        }
+
+        return TryDispatchVmDirectBytecodeInvocation(
+            target,
+            thisValue,
+            argOffset,
+            argCount,
+            false,
+            callerPc,
+            ref currentFunc,
+            ref acc
+        );
+    }
+
     private bool TryDispatchVmDirectBytecodeInvocation(
         JsBytecodeFunction targetBytecode,
         JsValue thisValue,
@@ -1675,10 +1775,25 @@ public sealed partial class JsRealm
     )
     {
         var finalArgOffset = frameFp + HeaderSize;
-        if (bytecodeArgOffset != finalArgOffset)
-            fullStack
-                .Slice(bytecodeArgOffset, bytecodeArgCount)
-                .CopyTo(fullStack[finalArgOffset..]);
+        if (bytecodeArgCount != 0 && bytecodeArgOffset != finalArgOffset)
+        {
+            if (bytecodeArgCount == 1)
+                JsValue.CopyValueTo(ref fullStack[finalArgOffset], in fullStack[bytecodeArgOffset]);
+            else if (bytecodeArgCount == 2)
+            {
+                // Save the first value before either write so tail-call windows can overlap.
+                var first = fullStack[bytecodeArgOffset];
+                JsValue.CopyValueTo(
+                    ref fullStack[finalArgOffset + 1],
+                    in fullStack[bytecodeArgOffset + 1]
+                );
+                JsValue.CopyValueTo(ref fullStack[finalArgOffset], in first);
+            }
+            else
+                fullStack
+                    .Slice(bytecodeArgOffset, bytecodeArgCount)
+                    .CopyTo(fullStack[finalArgOffset..]);
+        }
         if (clearUnusedRegisters)
             JsValue.FillUndefined(
                 fullStack.Slice(
@@ -2035,7 +2150,14 @@ public sealed partial class JsRealm
         var argOffset = CopyArrayLikeArgumentsToStackTop(argumentsList, out var argCount);
         try
         {
-            return DispatchCallFromStack(fn, thisValue, argOffset, argCount, callerPc);
+            return DispatchCallFromStack(
+                fn,
+                thisValue,
+                argOffset,
+                argCount,
+                callerPc,
+                reuseArgumentWindow: true
+            );
         }
         finally
         {
@@ -2055,7 +2177,14 @@ public sealed partial class JsRealm
         try
         {
             var prepared = PrepareConstructInvocation(fn, newTarget);
-            return DispatchConstructFromStack(fn, prepared, argOffset, argCount, callerPc);
+            return DispatchConstructFromStack(
+                fn,
+                prepared,
+                argOffset,
+                argCount,
+                callerPc,
+                reuseArgumentWindow: true
+            );
         }
         finally
         {
@@ -3180,62 +3309,47 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static bool InstanceOfSlowPath(JsRealm realm, in JsValue candidate, in JsValue ctor)
+    internal static bool InstanceOfOperator(JsRealm realm, in JsValue candidate, JsValue ctor)
     {
-        if (!ctor.TryGetObject(out var ctorObj))
-            ThrowTypeError(
-                "INSTANCEOF_RHS_NOT_CALLABLE",
-                "Right-hand side of 'instanceof' is not callable"
-            );
-
-        if (
-            ctorObj.TryGetPropertyAtom(realm, IdSymbolHasInstance, out var hasInstanceMethod, out _)
-            && !hasInstanceMethod.IsUndefined
-            && !hasInstanceMethod.IsNull
-        )
+        while (true)
         {
-            JsFunction? hasInstanceFn = null;
-            if (
-                hasInstanceMethod.TryGetObject(out var hasInstanceObj)
-                && hasInstanceObj is JsFunction okojoFn
-            )
-                hasInstanceFn = okojoFn;
-            if (hasInstanceFn is null)
+            if (!ctor.TryGetObject(out var ctorObj))
                 ThrowTypeError(
-                    "INSTANCEOF_HASINSTANCE_NOT_CALLABLE",
-                    "Symbol.hasInstance is not callable"
+                    "INSTANCEOF_RHS_NOT_CALLABLE",
+                    "Right-hand side of 'instanceof' is not callable"
                 );
 
-            var arg = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in candidate), 1);
-            var result = realm.InvokeFunction(hasInstanceFn, ctor, arg);
-            return ToBoolean(result);
+            var fn = ctorObj as JsFunction;
+            if (
+                ctorObj.TryGetPropertyAtom(realm, IdSymbolHasInstance, out var method, out _)
+                && !method.IsNullOrUndefined
+            )
+            {
+                if (!method.TryGetObject(out var methodObject) || methodObject is not JsFunction)
+                    ThrowTypeError(
+                        "INSTANCEOF_HASINSTANCE_NOT_CALLABLE",
+                        "Symbol.hasInstance is not callable"
+                    );
+                if (!ReferenceEquals(methodObject, realm.Intrinsics.FunctionPrototypeHasInstance))
+                {
+                    var arg = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in candidate), 1);
+                    return ToBoolean(realm.InvokeFunction((JsFunction)methodObject, ctor, arg));
+                }
+                if (fn is null)
+                    return false;
+            }
+            else if (fn is null)
+            {
+                ThrowTypeError(
+                    "INSTANCEOF_RHS_NOT_CALLABLE",
+                    "Right-hand side of 'instanceof' is not callable"
+                );
+            }
+
+            if (fn is not JsBoundFunction bound)
+                return Intrinsics.OrdinaryHasInstance(realm, fn, candidate);
+            ctor = JsValue.FromObject(bound.Target);
         }
-
-        if (ctorObj is not JsFunction)
-            ThrowTypeError(
-                "INSTANCEOF_RHS_NOT_CALLABLE",
-                "Right-hand side of 'instanceof' is not callable"
-            );
-
-        if (!ctorObj.TryGetPropertyAtom(realm, IdPrototype, out var prototypeValue, out _))
-            ThrowTypeError(
-                "INSTANCEOF_BAD_PROTOTYPE",
-                "Function has non-object prototype in instanceof check"
-            );
-        if (!prototypeValue.TryGetObject(out var prototypeObj))
-            ThrowTypeError(
-                "INSTANCEOF_BAD_PROTOTYPE",
-                "Function has non-object prototype in instanceof check"
-            );
-
-        if (!candidate.TryGetObject(out var candidateObj))
-            return false;
-
-        for (var current = candidateObj.Prototype; current is not null; current = current.Prototype)
-            if (ReferenceEquals(current, prototypeObj))
-                return true;
-
-        return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -6837,7 +6951,8 @@ public sealed partial class JsRealm
                 thisValue,
                 spreadArgOffset,
                 spreadArgCount,
-                0
+                0,
+                reuseArgumentWindow: true
             );
         }
         finally
@@ -6892,7 +7007,8 @@ public sealed partial class JsRealm
                 prepared,
                 spreadArgOffset,
                 spreadArgCount,
-                opcodePc
+                opcodePc,
+                reuseArgumentWindow: true
             );
         }
         finally

@@ -2680,7 +2680,7 @@ public sealed partial class JsRealm
                             slotRef = ref Unsafe.Add(ref registerRef, reg);
                             pc = ref Unsafe.Add(ref pc, operandOffset);
                             this.acc = acc;
-                            acc = InstanceOfSlowPath(this, slotRef, acc)
+                            acc = InstanceOfOperator(this, slotRef, acc)
                                 ? JsValue.True
                                 : JsValue.False;
                             break;
