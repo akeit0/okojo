@@ -10,6 +10,43 @@ namespace Okojo.Tests;
 public partial class ExecutionCheckTests
 {
     [Test]
+    public void HasChecks_Tracks_Combined_Runtime_Settings()
+    {
+        using var runtime = JsRuntime.Create();
+        var agent = runtime.DefaultRealm.Agent;
+        var policy = agent.ExecutionCheckPolicy;
+        using var cancellation = new CancellationTokenSource();
+        Assert.That(policy.HasChecks, Is.False);
+        var configured = new ExecutionCheckPolicy(
+            new JsAgentOptions { DebuggerSession = new RecordingDebugger() },
+            TimeProvider.System
+        );
+        Assert.That(configured.HasChecks, Is.True);
+
+        agent.AttachDebugger(new RecordingDebugger());
+        agent.SetExecutionCancellationToken(cancellation.Token);
+        agent.DetachDebugger();
+        Assert.That(policy.HasChecks, Is.True);
+        agent.ClearExecutionCancellationToken();
+        Assert.That(policy.HasChecks, Is.False);
+
+        agent.SetExecutionTimeout(TimeSpan.FromSeconds(1));
+        Assert.That(agent.ResetExecutionTimeout(), Is.True);
+        Assert.That(policy.HasChecks, Is.True);
+        agent.ClearExecutionTimeout();
+        Assert.That(policy.HasChecks, Is.False);
+
+        agent.SetMaxInstructions(100);
+        agent.SetCheckInterval(10);
+        agent.SetMaxInstructions(ulong.MaxValue);
+        Assert.That(policy.HasChecks, Is.True);
+        agent.SetCheckInterval(ulong.MaxValue);
+        Assert.That(policy.HasChecks, Is.False);
+        agent.AddConstraint(new RecordingConstraint());
+        Assert.That(policy.HasChecks, Is.True);
+    }
+
+    [Test]
     public void ExecutionConstraint_Fires_On_Checkpoint()
     {
         var constraint = new ThrowingConstraint();

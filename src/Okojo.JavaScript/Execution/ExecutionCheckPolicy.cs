@@ -9,6 +9,7 @@ internal sealed class ExecutionCheckPolicy
     private ulong checkInterval = ulong.MaxValue;
     private IExecutionConstraint[] constraints = [];
     private IDebuggerSession? debuggerSession;
+    private volatile bool hasChecks;
     private ulong executedInstructions;
     private CancellationToken executionCancellationToken;
     private DateTimeOffset? executionDeadline;
@@ -25,23 +26,10 @@ internal sealed class ExecutionCheckPolicy
             executionDeadline = timeProvider.GetUtcNow() + timeout;
         constraints = options.Constraints.Count == 0 ? [] : options.Constraints.ToArray();
         debuggerSession = options.DebuggerSession;
+        hasChecks = debuggerSession is not null || HasPeriodicChecks;
     }
 
-    internal bool HasChecks
-    {
-        get
-        {
-            lock (gate)
-            {
-                return debuggerSession is not null
-                    || constraints.Length != 0
-                    || executionDeadline is not null
-                    || executionCancellationToken.CanBeCanceled
-                    || maxInstructions != ulong.MaxValue
-                    || checkInterval != ulong.MaxValue;
-            }
-        }
-    }
+    internal bool HasChecks => hasChecks;
 
     internal bool HasPeriodicChecks
     {
@@ -86,6 +74,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             debuggerSession = debugger;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -94,6 +83,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             debuggerSession = null;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -106,6 +96,7 @@ internal sealed class ExecutionCheckPolicy
             Array.Copy(constraints, updated, constraints.Length);
             updated[^1] = constraint;
             constraints = updated;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -117,6 +108,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             checkInterval = interval;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -125,6 +117,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             maxInstructions = max;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -145,6 +138,7 @@ internal sealed class ExecutionCheckPolicy
         {
             executionTimeout = timeout;
             executionDeadline = timeProvider.GetUtcNow() + timeout;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -154,6 +148,7 @@ internal sealed class ExecutionCheckPolicy
         {
             executionTimeout = null;
             executionDeadline = null;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -165,6 +160,7 @@ internal sealed class ExecutionCheckPolicy
                 return false;
 
             executionDeadline = timeProvider.GetUtcNow() + timeout;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
             return true;
         }
     }
@@ -174,6 +170,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             executionCancellationToken = cancellationToken;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
@@ -182,6 +179,7 @@ internal sealed class ExecutionCheckPolicy
         lock (gate)
         {
             executionCancellationToken = default;
+            hasChecks = debuggerSession is not null || HasPeriodicChecks;
         }
     }
 
