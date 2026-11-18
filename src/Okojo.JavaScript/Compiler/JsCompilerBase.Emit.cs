@@ -419,11 +419,6 @@ internal abstract partial class JsCompilerBase
         builder.EmitJumpIfTruethy(JsOpCode.JumpIfToBooleanTrue, target);
     }
 
-    private void EmitJumpIfNull(BytecodeBuilder.Label target)
-    {
-        builder.EmitJump(JsOpCode.JumpIfNull, target);
-    }
-
     private void EmitJumpIfUndefined(BytecodeBuilder.Label target)
     {
         builder.EmitJump(JsOpCode.JumpIfUndefined, target);

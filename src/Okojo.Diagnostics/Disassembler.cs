@@ -210,6 +210,8 @@ public static class Disassembler
             or JsOpCode.JumpIfNull
             or JsOpCode.JumpIfUndefined
             or JsOpCode.JumpIfNotUndefined
+            or JsOpCode.JumpIfNullish
+            or JsOpCode.JumpIfNotNullish
             or JsOpCode.JumpIfJsReceiver => ((short)(operands[0] | (operands[1] << 8))).ToString(),
             JsOpCode.PushTry => $"catch:{(short)(operands[0] | (operands[1] << 8))}",
             JsOpCode.SwitchOnSmi => $"table_start:{operands[0]}, table_len:{operands[1]}",

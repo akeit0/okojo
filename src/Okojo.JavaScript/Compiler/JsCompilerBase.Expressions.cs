@@ -220,6 +220,24 @@ internal abstract partial class JsCompilerBase
                 EmitLogicalTestExpression(ast, node, op, target, jumpIfTrue);
                 return;
             }
+            if (op is JsBinaryOperator.Equal or JsBinaryOperator.NotEqual)
+            {
+                var operand =
+                    ast[node.Arg1].Kind == AstKind.NullLiteral ? node.Arg0
+                    : ast[node.Arg0].Kind == AstKind.NullLiteral ? node.Arg1
+                    : -1;
+                if (operand >= 0)
+                {
+                    EmitExpression(ast, operand);
+                    builder.EmitJump(
+                        jumpIfTrue == (op == JsBinaryOperator.Equal)
+                            ? JsOpCode.JumpIfNullish
+                            : JsOpCode.JumpIfNotNullish,
+                        target
+                    );
+                    return;
+                }
+            }
         }
 
         if (node.Kind == AstKind.ConditionalExpression)
@@ -1595,29 +1613,25 @@ internal abstract partial class JsCompilerBase
                 EmitPreparedMemberLoad(reference);
                 return;
             }
+            var hasDirectObjectRegister = TryGetDirectLocalRegister(
+                ast,
+                node.Arg0,
+                out var directObjectRegister
+            );
             if (
-                ((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) == 0
-                && TryGetDirectLocalRegister(ast, node.Arg0, out var directObjectRegister)
+                hasDirectObjectRegister
+                && (
+                    ((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) == 0
+                    || ExpressionPreservesLocal(ast, node.Arg1, directObjectRegister)
+                )
             )
             {
                 EmitMemberLoad(ast, node, directObjectRegister);
                 return;
             }
-            if (
-                ((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) != 0
-                && TryGetDirectLocalRegister(ast, node.Arg0, out directObjectRegister)
-                && IsSideEffectFreeExpression(ast, node.Arg1)
-            )
-            {
-                if (((AstMemberFlags)node.Arg2 & AstMemberFlags.OptionalChainLink) != 0)
-                    EmitOptionalChainNullCheck(directObjectRegister);
-                EmitExpression(ast, node.Arg1);
-                builder.EmitLdaKeyedProperty(directObjectRegister);
-                return;
-            }
             var objectRegister = builder.AllocateTemporaryRegister();
-            if (TryGetDirectLocalRegister(ast, node.Arg0, out var directObjectRegisterForSnapshot))
-                EmitMove(directObjectRegisterForSnapshot, objectRegister);
+            if (hasDirectObjectRegister)
+                EmitMove(directObjectRegister, objectRegister);
             else
             {
                 EmitExpression(ast, node.Arg0);
@@ -1681,9 +1695,7 @@ internal abstract partial class JsCompilerBase
         if (!optionalChainNullTarget.IsInitialized)
             throw new InvalidOperationException("Optional chain link has no active chain target.");
         EmitLdar(register);
-        EmitJumpIfNull(optionalChainNullTarget);
-        EmitLdar(register);
-        EmitJumpIfUndefined(optionalChainNullTarget);
+        builder.EmitJump(JsOpCode.JumpIfNullish, optionalChainNullTarget);
     }
 
     private void EmitBinaryExpression(JsAst ast, AstNode node, ExpressionResult result)
@@ -1726,12 +1738,8 @@ internal abstract partial class JsCompilerBase
         if (op == JsBinaryOperator.NullishCoalescing)
         {
             EmitExpression(ast, node.Arg0);
-            var evaluateRight = builder.CreateLabel();
             var end = builder.CreateLabel();
-            EmitJumpIfNull(evaluateRight);
-            EmitJumpIfUndefined(evaluateRight);
-            EmitJump(end);
-            builder.BindLabel(evaluateRight);
+            builder.EmitJump(JsOpCode.JumpIfNotNullish, end);
             EmitExpression(ast, node.Arg1, result);
             builder.BindLabel(end);
             return;
@@ -1750,26 +1758,10 @@ internal abstract partial class JsCompilerBase
         if (
             TryGetDirectLocalRegister(ast, node.Arg0, out var directLhs)
             && TryMapBinaryOpcode(op, out var directOpcode)
-            && ast[node.Arg1].Kind
-                is AstKind.NumericLiteral
-                    or AstKind.BigIntLiteral
-                    or AstKind.StringLiteral
-                    or AstKind.BooleanLiteral
-                    or AstKind.NullLiteral
+            && ExpressionPreservesLocal(ast, node.Arg1, directLhs)
         )
         {
             EmitExpression(ast, node.Arg1);
-            EmitRegisterWithSlotOp(directOpcode, directLhs);
-            return;
-        }
-
-        if (
-            TryGetDirectLocalRegister(ast, node.Arg0, out directLhs)
-            && TryGetDirectLocalRegister(ast, node.Arg1, out var directRhs)
-            && TryMapBinaryOpcode(op, out directOpcode)
-        )
-        {
-            EmitLdar(directRhs);
             EmitRegisterWithSlotOp(directOpcode, directLhs);
             return;
         }
@@ -1992,7 +1984,12 @@ internal abstract partial class JsCompilerBase
         builder.BindLabel(end);
     }
 
-    private void EmitUpdateExpression(JsAst ast, AstNode node, bool preserveResult)
+    private void EmitUpdateExpression(
+        JsAst ast,
+        AstNode node,
+        bool preserveResult,
+        int oldValueDestination = -1
+    )
     {
         ref readonly var argument = ref ast[node.Arg0];
         if (argument.Kind == AstKind.MemberExpression)
@@ -2019,14 +2016,17 @@ internal abstract partial class JsCompilerBase
         );
 
         EmitIdentifierLoad(name, argument.Arg1);
-        if (preserveResult)
-            builder.Emit(JsOpCode.ToNumeric);
-        var oldValueRegister =
-            preserveResult && node.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
+        var ownsOldValue = oldValueDestination < 0 && preserveResult && node.Arg2 == 0;
+        var oldValueRegister = ownsOldValue
+            ? builder.AllocateTemporaryRegister()
+            : oldValueDestination;
         try
         {
             if (oldValueRegister >= 0)
+            {
+                builder.Emit(JsOpCode.ToNumeric);
                 EmitStar(oldValueRegister);
+            }
             builder.Emit(
                 (JsUpdateOperator)node.Arg1 == JsUpdateOperator.Increment
                     ? JsOpCode.Inc
@@ -2041,12 +2041,12 @@ internal abstract partial class JsCompilerBase
                 externalBinding,
                 externalDepth
             );
-            if (oldValueRegister >= 0)
+            if (ownsOldValue)
                 EmitLdar(oldValueRegister);
         }
         finally
         {
-            if (oldValueRegister >= 0)
+            if (ownsOldValue)
                 builder.ReleaseTemporaryRegister(oldValueRegister);
         }
     }
@@ -2075,18 +2075,42 @@ internal abstract partial class JsCompilerBase
                 op == JsAssignmentOperator.Assign
                 && ((AstMemberFlags)member.Arg2 & AstMemberFlags.Private) == 0
                 && TryGetDirectLocalRegister(ast, member.Arg0, out var directObjectRegister)
-                && IsSideEffectFreeExpression(ast, right)
+                && ExpressionPreservesLocal(ast, right, directObjectRegister)
                 && (
                     ((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) == 0
-                    || IsSideEffectFreeExpression(ast, member.Arg1)
+                    || ExpressionPreservesLocal(ast, member.Arg1, directObjectRegister)
                 )
             )
             {
                 if (((AstMemberFlags)member.Arg2 & AstMemberFlags.Computed) != 0)
                 {
-                    var keyRegister = builder.AllocateTemporaryRegister();
-                    EmitExpression(ast, member.Arg1);
-                    EmitStar(keyRegister);
+                    if (!TryGetDirectLocalRegister(ast, member.Arg1, out var keyRegister))
+                    {
+                        keyRegister = builder.AllocateTemporaryRegister();
+                        ref readonly var key = ref ast[member.Arg1];
+                        if (
+                            key.Kind == AstKind.UpdateExpression
+                            && key.Arg2 == 0
+                            && ast[key.Arg0].Kind == AstKind.Identifier
+                        )
+                            EmitUpdateExpression(
+                                ast,
+                                key,
+                                preserveResult: true,
+                                oldValueDestination: keyRegister
+                            );
+                        else
+                        {
+                            EmitExpression(ast, member.Arg1);
+                            EmitStar(keyRegister);
+                        }
+                    }
+                    else if (!ExpressionPreservesLocal(ast, right, keyRegister))
+                    {
+                        var savedKey = builder.AllocateTemporaryRegister();
+                        EmitMove(keyRegister, savedKey);
+                        keyRegister = savedKey;
+                    }
                     EmitExpression(ast, right);
                     builder.EmitStaKeyedProperty(directObjectRegister, keyRegister);
                 }
@@ -2144,12 +2168,13 @@ internal abstract partial class JsCompilerBase
         {
             var reference = PrepareMemberReference(ast, member, normalizeComputedKey: true);
             EmitPreparedMemberLoad(reference);
-            if (preserveResult)
-                builder.Emit(JsOpCode.ToNumeric);
             var oldValueRegister =
                 preserveResult && update.Arg2 == 0 ? builder.AllocateTemporaryRegister() : -1;
             if (oldValueRegister >= 0)
+            {
+                builder.Emit(JsOpCode.ToNumeric);
                 EmitStar(oldValueRegister);
+            }
             builder.Emit(
                 (JsUpdateOperator)update.Arg1 == JsUpdateOperator.Increment
                     ? JsOpCode.Inc
@@ -2226,8 +2251,17 @@ internal abstract partial class JsCompilerBase
         return new(objectRegister, -1, nameIndex, builder.AllocateFeedbackSlot(), false);
     }
 
-    private bool IsSideEffectFreeExpression(JsAst ast, int nodeIndex)
+    private bool ExpressionPreservesLocal(JsAst ast, int nodeIndex, int register)
     {
+        var budget = 64;
+        return ExpressionPreservesLocal(ast, nodeIndex, register, ref budget);
+    }
+
+    private bool ExpressionPreservesLocal(JsAst ast, int nodeIndex, int register, ref int budget)
+    {
+        // Bound total compile work. Captured bindings and mapped parameters live in context slots.
+        if (--budget < 0)
+            return false;
         ref readonly var node = ref ast[nodeIndex];
         return node.Kind switch
         {
@@ -2236,8 +2270,38 @@ internal abstract partial class JsCompilerBase
             or AstKind.NumericLiteral
             or AstKind.BigIntLiteral
             or AstKind.StringLiteral
-            or AstKind.ThisExpression => true,
-            AstKind.Identifier => TryGetDirectLocalRegister(ast, nodeIndex, out _),
+            or AstKind.ThisExpression
+            or AstKind.Identifier => true,
+            AstKind.BinaryExpression => ExpressionPreservesLocal(
+                ast,
+                node.Arg0,
+                register,
+                ref budget
+            ) && ExpressionPreservesLocal(ast, node.Arg1, register, ref budget),
+            AstKind.ConditionalExpression => ExpressionPreservesLocal(
+                ast,
+                node.Arg0,
+                register,
+                ref budget
+            )
+                && ExpressionPreservesLocal(ast, node.Arg1, register, ref budget)
+                && ExpressionPreservesLocal(ast, node.Arg2, register, ref budget),
+            AstKind.MemberExpression => ExpressionPreservesLocal(
+                ast,
+                node.Arg0,
+                register,
+                ref budget
+            )
+                && (
+                    ((AstMemberFlags)node.Arg2 & AstMemberFlags.Computed) == 0
+                    || ExpressionPreservesLocal(ast, node.Arg1, register, ref budget)
+                ),
+            AstKind.UpdateExpression => TryGetDirectLocalRegister(
+                ast,
+                node.Arg0,
+                out var updatedRegister
+            )
+                && updatedRegister != register,
             _ => false,
         };
     }
@@ -2522,11 +2586,7 @@ internal abstract partial class JsCompilerBase
                 EmitJumpIfToBooleanTrue(end);
                 return;
             case JsAssignmentOperator.NullishCoalescingAssign:
-                var assign = builder.CreateLabel();
-                EmitJumpIfNull(assign);
-                EmitJumpIfUndefined(assign);
-                EmitJump(end);
-                builder.BindLabel(assign);
+                builder.EmitJump(JsOpCode.JumpIfNotNullish, end);
                 return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(op));

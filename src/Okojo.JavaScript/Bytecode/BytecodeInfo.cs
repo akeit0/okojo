@@ -88,6 +88,8 @@ internal static class BytecodeInfo
             or JsOpCode.JumpIfNull
             or JsOpCode.JumpIfUndefined
             or JsOpCode.JumpIfNotUndefined
+            or JsOpCode.JumpIfNullish
+            or JsOpCode.JumpIfNotNullish
             or JsOpCode.JumpIfJsReceiver
             or JsOpCode.PushTry
             or JsOpCode.SwitchOnSmi

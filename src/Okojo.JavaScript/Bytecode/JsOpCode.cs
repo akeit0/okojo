@@ -194,4 +194,6 @@ public enum JsOpCode : byte
     LdaThisNamedPropertyWide, // [name_idx_lo] [name_idx_hi] [slot_lo] [slot_hi]
     StaThisNamedProperty, // [name_idx] [slot], value in acc
     StaThisNamedPropertyWide, // [name_idx_lo] [name_idx_hi] [slot_lo] [slot_hi]
+    JumpIfNullish, // [offset16]
+    JumpIfNotNullish, // [offset16]
 }

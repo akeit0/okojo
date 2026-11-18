@@ -1805,13 +1805,21 @@ public sealed partial class JsRealm
 
                         case JsOpCode.LdaKeyedProperty:
                             {
-                                operandOffset = 0;
-                                reg = ReadScaledUnsignedOperand(
-                                    ref pc,
-                                    ref operandOffset,
-                                    operandScale
-                                );
-                                pc = ref Unsafe.Add(ref pc, operandOffset);
+                                if (operandScale == BytecodeInfo.OperandScale.Single)
+                                {
+                                    reg = pc;
+                                    pc = ref Unsafe.Add(ref pc, 1);
+                                }
+                                else
+                                {
+                                    operandOffset = 0;
+                                    reg = ReadScaledUnsignedOperandSlow(
+                                        ref pc,
+                                        ref operandOffset,
+                                        operandScale
+                                    );
+                                    pc = ref Unsafe.Add(ref pc, operandOffset);
+                                }
                                 slotRef = ref Unsafe.Add(ref registerRef, reg);
                                 if (!slotRef.TryGetObject(out obj))
                                 {
@@ -2829,6 +2837,15 @@ public sealed partial class JsRealm
                                 else
                                     pc = ref Unsafe.Add(ref pc, 2);
                             }
+                            break;
+                        case JsOpCode.JumpIfNullish:
+                        case JsOpCode.JumpIfNotNullish:
+                            pc = ref Unsafe.Add(
+                                ref pc,
+                                acc.IsNullOrUndefined == (op == JsOpCode.JumpIfNullish)
+                                    ? 2 + Unsafe.ReadUnaligned<short>(ref pc)
+                                    : 2
+                            );
                             break;
                         case JsOpCode.PushTry:
                             {

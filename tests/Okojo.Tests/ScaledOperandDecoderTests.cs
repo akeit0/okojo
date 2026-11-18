@@ -55,7 +55,7 @@ public class ScaledOperandDecoderTests
 
     [TestCase(2)]
     [TestCase(4)]
-    public void ScaledKeyedStore_ReadsBothOperandsAndResetsScale(int width)
+    public void ScaledKeyedAccess_DecodesOperandsAndResetsScale(int width)
     {
         using var runtime = JsRuntime.Create();
         var realm = runtime.DefaultRealm;
@@ -65,23 +65,39 @@ public class ScaledOperandDecoderTests
             (byte)JsOpCode.StarWide,
             0x2C,
             0x01,
+            (byte)JsOpCode.CreateEmptyObjectLiteral,
             (byte)JsOpCode.Star,
             0,
+            (byte)JsOpCode.LdaSmi,
+            6,
+            (byte)JsOpCode.Star,
+            1,
+            (byte)JsOpCode.LdaSmi,
+            99,
+            (byte)JsOpCode.StaKeyedProperty,
+            0,
+            1,
             (byte)JsOpCode.LdaSmi,
             42,
             (byte)JsOpCode.StarWide,
             0x2D,
             0x01,
             (byte)JsOpCode.LdaSmi,
-            42,
+            6,
             (byte)(width == 2 ? JsOpCode.Wide : JsOpCode.ExtraWide),
             (byte)JsOpCode.StaKeyedProperty,
         ];
         foreach (int register in new[] { 300, 301 })
             for (int i = 0; i < width; i++)
                 bytes.Add((byte)(register >> (8 * i)));
-        // A narrow property load immediately after the prefixed two-operand store
-        // detects incorrect total advancement and scale leakage.
+        bytes.AddRange([
+            (byte)JsOpCode.LdaSmi,
+            42,
+            (byte)(width == 2 ? JsOpCode.Wide : JsOpCode.ExtraWide),
+            (byte)JsOpCode.LdaKeyedProperty,
+        ]);
+        for (int i = 0; i < width; i++)
+            bytes.Add((byte)(300 >> (8 * i)));
         bytes.AddRange([(byte)JsOpCode.LdaKeyedProperty, 0, (byte)JsOpCode.Return]);
         var code = new JsFunctionCode(
             bytes.ToArray(),
@@ -94,6 +110,6 @@ public class ScaledOperandDecoderTests
 
         realm.Execute(script);
 
-        Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(42));
+        Assert.That(realm.Accumulator.NumberValue, Is.EqualTo(99));
     }
 }

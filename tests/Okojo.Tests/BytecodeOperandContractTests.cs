@@ -130,6 +130,8 @@ public class BytecodeOperandContractTests
         [JsOpCode.JumpIfNull] = 2,
         [JsOpCode.JumpIfUndefined] = 2,
         [JsOpCode.JumpIfNotUndefined] = 2,
+        [JsOpCode.JumpIfNullish] = 2,
+        [JsOpCode.JumpIfNotNullish] = 2,
         [JsOpCode.JumpIfJsReceiver] = 2,
         [JsOpCode.PushTry] = 2,
         [JsOpCode.SwitchOnSmi] = 2,

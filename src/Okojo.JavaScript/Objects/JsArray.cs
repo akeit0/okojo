@@ -158,12 +158,7 @@ public sealed class JsArray : JsObject
     internal bool TryGetDenseElement(uint index, out JsValue value)
     {
         var dense = Dense;
-        if (
-            dense is not null
-            && index < (uint)Length
-            && index < (uint)dense.Length
-            && (IndexedProperties is null || !IndexedProperties.ContainsKey(index))
-        )
+        if (dense is not null && index < (uint)dense.Length && IndexedProperties is null)
         {
             value = dense[index];
             if (!value.IsTheHole)
