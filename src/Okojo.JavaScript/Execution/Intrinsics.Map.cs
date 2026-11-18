@@ -40,7 +40,10 @@ public partial class Intrinsics
             "Map",
             0,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallMapConstructorBuiltins()

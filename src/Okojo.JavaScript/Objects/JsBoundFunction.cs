@@ -14,6 +14,7 @@ internal sealed class JsBoundFunction : JsFunction
     )
         : base(realm, name, true, length, isConstructor: target.IsConstructor)
     {
+        ConstructsOwnThis = true;
         Target = target;
         BoundThis = boundThis;
         this.boundArguments = boundArguments;

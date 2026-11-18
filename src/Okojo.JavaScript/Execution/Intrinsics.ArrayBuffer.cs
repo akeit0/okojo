@@ -57,7 +57,10 @@ public partial class Intrinsics
             "ArrayBuffer",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallArrayBufferConstructorBuiltins()

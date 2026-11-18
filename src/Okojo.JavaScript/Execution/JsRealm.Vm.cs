@@ -450,13 +450,7 @@ public sealed partial class JsRealm
     private void CreateRestParameterForFrame(int frameFp, int startIndex, ref JsValue acc)
     {
         var args = GetFrameArgumentsSpan(frameFp);
-        var actualCount = args.Length;
-        var from = Math.Max(0, Math.Min(startIndex, actualCount));
-        var arr = CreateArrayObject();
-        uint outIndex = 0;
-        for (var i = from; i < actualCount; i++)
-            arr.SetElement(outIndex++, args[i]);
-        acc = arr;
+        acc = CreateArrayObject(args[Math.Clamp(startIndex, 0, args.Length)..]);
     }
 
     private static long GetArrayLikeLengthLong(JsRealm realm, JsObject obj)
@@ -492,7 +486,7 @@ public sealed partial class JsRealm
         var arr = CreateArrayObject();
         uint outIndex = 0;
         for (var i = (uint)from; i < (uint)actualCount; i++)
-            arr.SetElement(
+            arr.InitializeLiteralElement(
                 outIndex++,
                 obj.TryGetElement(i, out var value) ? value : JsValue.Undefined
             );
@@ -2108,23 +2102,6 @@ public sealed partial class JsRealm
         return CompleteConstructResult(result, prepared.ThisValue, prepared.Flags);
     }
 
-    internal JsArray CreateArrayFromArgumentWindow(ReadOnlySpan<JsValue> args)
-    {
-        var argArray = CreateArrayObject();
-        for (uint i = 0; i < (uint)args.Length; i++)
-            argArray.SetElement(i, args[(int)i]);
-        return argArray;
-    }
-
-    internal JsArray CreateArrayFromArgumentWindow(int argOffset, int argCount)
-    {
-        var argArray = CreateArrayObject();
-        var args = Stack.AsSpan(argOffset, argCount);
-        for (uint i = 0; i < (uint)argCount; i++)
-            argArray.SetElement(i, args[(int)i]);
-        return argArray;
-    }
-
     internal ReadOnlySpan<JsValue> StackAsSpan(int argOffset, int argCount)
     {
         return Stack.AsSpan(argOffset, argCount);
@@ -2401,29 +2378,7 @@ public sealed partial class JsRealm
                 CallFrameFlag.IsConstructorCall | CallFrameFlag.IsDerivedConstructorCall
             );
 
-        if (callee is JsHostFunction { ConstructsOwnThis: true })
-            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
-
-        var intrinsics = callee.Realm.Intrinsics;
-        if (ReferenceEquals(callee, intrinsics.ArrayBufferConstructor))
-            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
-
-        if (ReferenceEquals(callee, intrinsics.DataViewConstructor))
-            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
-
-        if (ReferenceEquals(callee, intrinsics.SharedArrayBufferConstructor))
-            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
-
-        if (ReferenceEquals(callee, intrinsics.PromiseConstructor))
-            return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
-
-        if (
-            ReferenceEquals(callee, intrinsics.TypedArrayConstructor)
-            || (
-                callee is JsHostFunction hostFunction
-                && Array.IndexOf(intrinsics.TypedArrayConstructors, hostFunction) >= 0
-            )
-        )
+        if (callee.ConstructsOwnThis)
             return new(JsValue.Undefined, newTarget, CallFrameFlag.IsConstructorCall);
 
         return new(

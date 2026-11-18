@@ -7,6 +7,30 @@ namespace Okojo.Tests;
 public class ReflectTests
 {
     [Test]
+    public void Construct_OnlyTheAllocatingConstructorReadsNewTargetPrototype()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function countReads(C, args) {
+                let reads = 0;
+                const newTarget = new Proxy(function () {}, { get(t, k, r) {
+                    if (k === "prototype") reads++;
+                    return Reflect.get(t, k, r);
+                } });
+                Reflect.construct(C, args, newTarget);
+                return reads;
+            }
+            const proxy = new Proxy(function () {}, { construct() { return {}; } });
+            const bound = (function () {}).bind(null);
+            [countReads(Array, [1, 2]), countReads(Map, []),
+             countReads(proxy, []), countReads(bound, []), countReads(Proxy, [{}, {}])].join(",");
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("1,1,0,1,0"));
+    }
+
+    [Test]
     public void Reflect_GlobalObject_AndCoreMethods_Work()
     {
         var realm = JsRuntime.Create().DefaultRealm;

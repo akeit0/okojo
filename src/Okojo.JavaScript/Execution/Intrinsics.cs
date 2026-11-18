@@ -127,7 +127,10 @@ public partial class Intrinsics
             "TypedArray",
             0,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
         TypedArrayConstructors = new JsHostFunction[12];
         for (var i = 0; i < TypedArrayConstructors.Length; i++)
         {

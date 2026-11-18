@@ -51,6 +51,14 @@ public abstract class JsFunction : JsObject
 
     public string Name { get; }
     public int Length { get; }
+    internal bool ConstructsOwnThis
+    {
+        get => (Flags & FunctionFlags.ConstructsOwnThis) != 0;
+        init =>
+            Flags = value
+                ? Flags | FunctionFlags.ConstructsOwnThis
+                : Flags & ~FunctionFlags.ConstructsOwnThis;
+    }
     public bool IsConstructor => (Flags & FunctionFlags.IsConstructor) != 0;
 
     public JsValue Call(JsRealm realm, JsValue thisValue, ReadOnlySpan<JsValue> args)
@@ -546,5 +554,6 @@ public abstract class JsFunction : JsObject
         PrototypeHasConstructor = 1 << 4,
         PrototypeValuePending = 1 << 5,
         IsPrototypePropertyConst = 1 << 6,
+        ConstructsOwnThis = 1 << 7,
     }
 }

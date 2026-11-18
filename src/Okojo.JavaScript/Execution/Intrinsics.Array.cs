@@ -40,14 +40,16 @@ public partial class Intrinsics
                     return array;
                 }
 
-                for (uint i = 0; i < (uint)args.Length; i++)
-                    array.SetElement(i, args[(int)i]);
+                args.CopyTo(array.InitializeDenseElementsNoCollision(args.Length));
                 return array;
             },
             "Array",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     internal void InstallArrayPrototypeBuiltins()

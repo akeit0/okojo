@@ -9,6 +9,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
     internal JsProxyFunction(JsRealm realm, JsObject target, JsObject handler, bool isConstructor)
         : base(realm, string.Empty, length: 0, isConstructor: isConstructor)
     {
+        ConstructsOwnThis = true;
         core = new(target, handler);
         Prototype = target.Prototype;
     }
@@ -62,7 +63,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         if (!TryGetFunctionTrap(realm, handler, atomApply, out var trapFn))
             return realm.InvokeFunction(target, thisValue, args);
 
-        var argArray = realm.CreateArrayFromArgumentWindow(args);
+        var argArray = realm.CreateArrayObject(args);
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,
@@ -113,7 +114,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
         if (!TryGetFunctionTrap(realm, handler, atomConstruct, out var trapFn))
             return realm.ConstructWithExplicitNewTarget(target, args, newTarget, callerPc);
 
-        var argArray = realm.CreateArrayFromArgumentWindow(args);
+        var argArray = realm.CreateArrayObject(args);
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,
@@ -195,7 +196,7 @@ internal sealed class JsProxyFunction : JsFunction, IProxyObject
             );
         }
 
-        var argArray = realm.CreateArrayFromArgumentWindow(argOffset, argCount);
+        var argArray = realm.CreateArrayObject(realm.StackAsSpan(argOffset, argCount));
         var trapArgs = new InlineJsValueArray3
         {
             Item0 = target,

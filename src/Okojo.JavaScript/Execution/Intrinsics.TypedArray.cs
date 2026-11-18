@@ -53,7 +53,10 @@ public partial class Intrinsics
             name,
             3,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private JsHostFunction CreateDataViewConstructor()
@@ -124,7 +127,10 @@ public partial class Intrinsics
             "DataView",
             1,
             true
-        );
+        )
+        {
+            ConstructsOwnThis = true,
+        };
     }
 
     private void InstallTypedArrayConstructorBuiltins()
