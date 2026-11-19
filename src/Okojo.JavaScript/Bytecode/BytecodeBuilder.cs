@@ -1502,6 +1502,32 @@ public struct OkojoNamedPropertyIcEntry
     public int NameAtom;
 }
 
+/// <summary>
+/// Per-site polymorphic fallback ways behind the monomorphic named-property entries.
+/// Holds own-slot hits, one-level prototype data hits for loads, and validated
+/// add-property transitions for stores.
+/// </summary>
+internal struct OkojoPolymorphicNamedPropertyIcEntry
+{
+    internal const int Ways = 4;
+    internal const byte KindOwn = 1;
+    internal const byte KindPrototypeData = 2;
+    internal const byte KindTransition = 3;
+
+    public StaticNamedPropertyLayout? ReceiverShape;
+
+    // Load: the prototype holding the data property. Transition: receiver's prototype.
+    public JsObject? Holder;
+    public StaticNamedPropertyLayout? HolderShape;
+
+    // Transition: prototype of Holder (must end the chain) and the shape after adding.
+    public JsObject? Holder2;
+    public StaticNamedPropertyLayout? Holder2Shape;
+    public StaticNamedPropertyLayout? TransitionShape;
+    public SlotInfo SlotInfo;
+    public byte Kind;
+}
+
 public struct OkojoPrototypeNamedPropertyIcEntry
 {
     public StaticNamedPropertyLayout? ReceiverShape;

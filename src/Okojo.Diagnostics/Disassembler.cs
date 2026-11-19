@@ -275,6 +275,7 @@ public static class Disassembler
             JsOpCode.GetNamedPropertyFromSuper => $"name:{operands[0]}",
             JsOpCode.GetNamedPropertyFromSuperWide => $"name:{operands[0] | (operands[1] << 8)}",
             JsOpCode.LdaKeyedProperty => $"obj:r{FormatUnsignedOperand(operands, 0, scale)}",
+            JsOpCode.UpdateLocal => $"r{operands[0]}, mode:{operands[1]}",
             JsOpCode.StaKeyedProperty =>
                 $"obj:r{FormatUnsignedOperand(operands, 0, scale)}, key:r{FormatUnsignedOperand(operands, 1, scale)}",
             JsOpCode.InitializeArrayElement =>

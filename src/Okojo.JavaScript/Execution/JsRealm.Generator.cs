@@ -75,7 +75,11 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal JsValue ResumeGeneratorForOfNextStep(JsGeneratorObject generator, out bool done)
+    internal JsValue ResumeGeneratorIteratorStep(
+        JsGeneratorObject generator,
+        bool readValue,
+        out bool done
+    )
     {
         if (generator.State == GeneratorState.Executing)
             throw new JsRuntimeException(JsErrorKind.TypeError, "Generator is already executing");
@@ -111,7 +115,7 @@ public sealed partial class JsRealm
         var result = resumedValue.AsObject();
         _ = result.TryGetPropertyAtom(this, IdDone, out var doneValue, out _);
         done = ToBoolean(doneValue);
-        return !done && result.TryGetPropertyAtom(this, IdValue, out var value, out _)
+        return !done && readValue && result.TryGetPropertyAtom(this, IdValue, out var value, out _)
             ? value
             : JsValue.Undefined;
     }

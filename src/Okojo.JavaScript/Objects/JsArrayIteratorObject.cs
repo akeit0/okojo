@@ -5,20 +5,33 @@ internal sealed class JsArrayIteratorObject : JsObject
     private readonly JsObject arrayLike;
     private readonly IterationKind kind;
     private bool done;
-    private uint index;
+    private long index;
 
-    internal JsArrayIteratorObject(JsRealm realm, JsObject arrayLike, IterationKind kind)
+    internal JsArrayIteratorObject(
+        JsRealm realm,
+        JsObject arrayLike,
+        IterationKind kind,
+        long index = 0
+    )
         : base(realm)
     {
         this.arrayLike = arrayLike;
         this.kind = kind;
+        this.index = index;
         Prototype = realm.ArrayIteratorPrototype;
     }
 
     internal JsValue Next()
     {
+        var value = NextValue(out var finished);
+        return Realm.CreateIteratorResultObject(value, finished);
+    }
+
+    internal JsValue NextValue(out bool finished)
+    {
+        finished = true;
         if (done)
-            return CreateIteratorResultObject(JsValue.Undefined, true);
+            return JsValue.Undefined;
 
         if (arrayLike is JsTypedArrayObject typedArray)
             if (typedArray.IsOutOfBounds)
@@ -27,45 +40,36 @@ internal sealed class JsArrayIteratorObject : JsObject
                     "Cannot perform Array Iterator.prototype.next on an out-of-bounds TypedArray"
                 );
 
-        var length = (uint)Realm.GetArrayLikeLengthLong(arrayLike);
+        var array = arrayLike as JsArray;
+        var length = array is null ? Realm.GetArrayLikeLengthLong(arrayLike) : array.Length;
         if (index >= length)
         {
             done = true;
-            return CreateIteratorResultObject(JsValue.Undefined, true);
+            return JsValue.Undefined;
         }
 
         var currentIndex = index++;
-        var value = Intrinsics.TryGetArrayLikeIndex(
-            Realm,
-            arrayLike,
-            currentIndex,
-            out var elementValue
+        finished = false;
+        if (kind == IterationKind.Keys)
+            return IndexValue(currentIndex);
+
+        if (
+            (array is null || !array.TryGetDenseElement((uint)currentIndex, out var value))
+            && !Intrinsics.TryGetArrayLikeIndex(Realm, arrayLike, currentIndex, out value)
         )
-            ? elementValue
-            : JsValue.Undefined;
+            value = JsValue.Undefined;
 
-        return kind switch
-        {
-            IterationKind.Keys => JsValue.FromObject(
-                CreateIteratorResultObject(JsValue.FromInt32((int)currentIndex), false)
-            ),
-            IterationKind.Values => JsValue.FromObject(CreateIteratorResultObject(value, false)),
-            _ => JsValue.FromObject(
-                CreateIteratorResultObject(CreateEntryPair(currentIndex, value), false)
-            ),
-        };
+        return kind == IterationKind.Values ? value : CreateEntryPair(currentIndex, value);
     }
 
-    private JsPlainObject CreateIteratorResultObject(JsValue value, bool done)
-    {
-        return Realm.CreateIteratorResultObject(value, done);
-    }
+    private static JsValue IndexValue(long index) =>
+        index <= int.MaxValue ? JsValue.FromInt32((int)index) : new JsValue(index);
 
-    private JsArray CreateEntryPair(uint indexValue, JsValue entryValue)
+    private JsArray CreateEntryPair(long index, JsValue entryValue)
     {
         var pair = Realm.CreateArrayObject();
-        pair.SetElement(0, JsValue.FromInt32((int)indexValue));
-        pair.SetElement(1, entryValue);
+        pair.InitializeLiteralElement(0, IndexValue(index));
+        pair.InitializeLiteralElement(1, entryValue);
         return pair;
     }
 

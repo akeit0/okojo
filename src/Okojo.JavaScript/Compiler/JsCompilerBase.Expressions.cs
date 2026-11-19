@@ -1745,6 +1745,28 @@ internal abstract partial class JsCompilerBase
             return;
         }
 
+        // Both additions concatenate. Only the middle expression can run
+        // code or require primitive conversion.
+        if (
+            op == JsBinaryOperator.Add
+            && ast[node.Arg1].Kind == AstKind.StringLiteral
+            && ast[node.Arg0] is { Kind: AstKind.BinaryExpression } left
+            && (JsBinaryOperator)left.Arg2 == JsBinaryOperator.Add
+            && ast[left.Arg0].Kind == AstKind.StringLiteral
+        )
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            var affixes = builder.AllocateTemporaryRegisterBlock(2);
+            EmitStringLiteral(ast.GetString(ast[left.Arg0].Arg0));
+            EmitStar(affixes);
+            EmitStringLiteral(ast.GetString(ast[node.Arg1].Arg0));
+            EmitStar(affixes + 1);
+            EmitExpression(ast, left.Arg1);
+            builder.EmitCallRuntime((int)RuntimeId.ConcatStringAffixes, affixes, 2);
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            return;
+        }
+
         if (
             TryGetSmallIntLiteral(ast, node.Arg1, out var rhsSmi)
             && TryMapSmiBinaryOpcode(op, out var smiOpcode)
@@ -2009,12 +2031,33 @@ internal abstract partial class JsCompilerBase
             out var binding,
             out var contextDepth
         );
+        if (
+            hasLocalBinding
+            && contextDepth == 0
+            && (uint)binding.Register <= byte.MaxValue
+            && !binding.Planned.IsConst
+            && binding.Planned.Kind != CompilerCollectedBindingKind.FunctionNameSelf
+            && (
+                binding.Planned.StorageKind == CompilerPlannedStorageKind.LocalRegister
+                || binding.Planned.StorageKind == CompilerPlannedStorageKind.LexicalRegister
+                    && IsKnownInitializedLexical(binding)
+            )
+        )
+        {
+            var mode = (JsUpdateOperator)node.Arg1 == JsUpdateOperator.Increment ? 0 : 1;
+            if (oldValueDestination >= 0 || (preserveResult && node.Arg2 == 0))
+                mode |= 2;
+            builder.Emit(JsOpCode.UpdateLocal, (byte)binding.Register, (byte)mode);
+            if (oldValueDestination >= 0)
+                EmitStar(oldValueDestination);
+            return;
+        }
+
         var hasExternalBinding = TryResolveExternalBinding(
             name,
             out var externalBinding,
             out var externalDepth
         );
-
         EmitIdentifierLoad(name, argument.Arg1);
         var ownsOldValue = oldValueDestination < 0 && preserveResult && node.Arg2 == 0;
         var oldValueRegister = ownsOldValue

@@ -10,6 +10,8 @@ public class NumberFormattingTests
     [TestCase(-0.0, "0")]
     [TestCase(1.0, "1")]
     [TestCase(-1.0, "-1")]
+    [TestCase(9007199254740991d, "9007199254740991")]
+    [TestCase(-9007199254740991d, "-9007199254740991")]
     [TestCase(123.456, "123.456")]
     [TestCase(0.000001, "0.000001")]
     [TestCase(0.0000001, "1e-7")]
@@ -19,12 +21,19 @@ public class NumberFormattingTests
     public void ToJsString_MatchesEcmaNumberToString(double value, string expected)
     {
         Assert.That(NumberFormatting.ToString(value), Is.EqualTo(expected));
+        Span<char> buffer = stackalloc char[NumberFormatting.MaxLength];
+        Assert.That(NumberFormatting.TryFormat(value, buffer, out var written), Is.True);
+        Assert.That(buffer[..written].ToString(), Is.EqualTo(expected));
     }
 }
 
 [TestFixture]
 public class NumberPrecisionFormattingTests
 {
+    [TestCase(0.0, 0, "0e+0")]
+    [TestCase(1.0, 0, "1e+0")]
+    [TestCase(-2.5, 1, "-2.5e+0")]
+    [TestCase(123.456, 3, "1.235e+2")]
     [TestCase(123.456, 2, "1.23e+2")]
     [TestCase(123.456, 5, "1.23456e+2")]
     [TestCase(0.00123456, 3, "1.235e-3")]
@@ -50,26 +59,6 @@ public class NumberPrecisionFormattingTests
             NumberPrecisionFormatting.FormatPrecision(value, precision),
             Is.EqualTo(expected)
         );
-    }
-
-    [TestCase(0.0, false, 0, "0")]
-    [TestCase(1.0, false, 0, "1")]
-    [TestCase(-2.5, true, 0, "25")]
-    [TestCase(123.456, false, 2, "1235")]
-    public void RoundToSignificantDigits_ProducesExpected(
-        double value,
-        bool negative,
-        int exponent,
-        string digits
-    )
-    {
-        var result = NumberPrecisionFormatting.RoundToSignificantDigits(value, digits.Length);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.Negative, Is.EqualTo(negative));
-            Assert.That(result.Exponent, Is.EqualTo(exponent));
-            Assert.That(result.Digits, Is.EqualTo(digits));
-        });
     }
 }
 

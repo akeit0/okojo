@@ -11,6 +11,7 @@ public sealed class JsScript
 {
     private byte[] executionBytecode;
     private OkojoPrototypeNamedPropertyIcEntry[]? prototypeNamedPropertyIcEntries;
+    private OkojoPolymorphicNamedPropertyIcEntry[]?[]? polymorphicNamedPropertyIcEntries;
     private string? materializedFunctionSourceText;
     private readonly int[]? globalDeclarationAtoms;
     private bool executionValidated;
@@ -97,6 +98,37 @@ public sealed class JsScript
 
     internal OkojoPrototypeNamedPropertyIcEntry[]? PrototypeNamedPropertyIcEntries =>
         Volatile.Read(ref prototypeNamedPropertyIcEntries);
+
+    internal OkojoPolymorphicNamedPropertyIcEntry[]? GetPolymorphicNamedPropertyIcEntries(
+        int slot
+    ) => Volatile.Read(ref polymorphicNamedPropertyIcEntries)?[slot];
+
+    internal OkojoPolymorphicNamedPropertyIcEntry[] GetOrCreatePolymorphicNamedPropertyIcEntries(
+        int slot
+    )
+    {
+        var sites = Volatile.Read(ref polymorphicNamedPropertyIcEntries);
+        if (sites is null)
+        {
+            OkojoPolymorphicNamedPropertyIcEntry[]?[] createdSites =
+                new OkojoPolymorphicNamedPropertyIcEntry[Code.NamedPropertySlotCount][];
+            sites =
+                Interlocked.CompareExchange(
+                    ref polymorphicNamedPropertyIcEntries,
+                    createdSites,
+                    null
+                ) ?? createdSites;
+        }
+
+        ref var site = ref sites[slot];
+        var entries = Volatile.Read(ref site);
+        if (entries is not null)
+            return entries;
+        var created = new OkojoPolymorphicNamedPropertyIcEntry[
+            OkojoPolymorphicNamedPropertyIcEntry.Ways
+        ];
+        return Interlocked.CompareExchange(ref site, created, null) ?? created;
+    }
 
     internal OkojoPrototypeNamedPropertyIcEntry[] GetOrCreatePrototypeNamedPropertyIcEntries()
     {

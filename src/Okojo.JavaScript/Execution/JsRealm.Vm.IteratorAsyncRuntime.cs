@@ -82,8 +82,8 @@ public sealed partial class JsRealm
         acc = generator.HasActiveDelegateIterator ? JsValue.True : JsValue.False;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void HandleRuntimeForOfFastPathLength(
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void HandleRuntimeForOfIteratorNext(
         JsRealm realm,
         JsScript script,
         int opcodePc,
@@ -94,38 +94,15 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 3)
             ThrowTypeError(
-                "FOROF_FASTPATH_LENGTH_ARGC",
-                "ForOfFastPathLength requires one argument"
+                "FOROF_ITERATOR_NEXT_ARGC",
+                "ForOfIteratorNext requires three registers"
             );
-        var iterable = Unsafe.Add(ref registers, argRegStart);
-        if (
-            iterable.TryGetObject(out var obj)
-            && obj is JsArray array
-            && array.Length <= int.MaxValue
-        )
-            acc = JsValue.FromInt32((int)array.Length);
-        else
-            acc = JsValue.FromInt32(-1);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void HandleRuntimeForOfStepValue(
-        JsRealm realm,
-        JsScript script,
-        int opcodePc,
-        ref JsValue registers,
-        int fp,
-        int argRegStart,
-        int argCount,
-        ref JsValue acc
-    )
-    {
-        if (argCount != 1)
-            ThrowTypeError("FOROF_STEP_VALUE_ARGC", "ForOfStepValue requires one argument");
-        var iterable = Unsafe.Add(ref registers, argRegStart);
-        acc = realm.ForOfStepValue(iterable);
+        ref var iteratorValue = ref Unsafe.Add(ref registers, argRegStart);
+        var value = realm.AdvanceSyncIterator(ref iteratorValue, true);
+        Unsafe.Add(ref iteratorValue, 2) = value;
+        acc = value.IsTheHole ? JsValue.False : JsValue.True;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -289,7 +266,7 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void HandleRuntimeCreateArrayDestructureIterator(
+    private static void HandleRuntimeCreateSyncIteratorRecord(
         JsRealm realm,
         JsScript script,
         int opcodePc,
@@ -300,15 +277,17 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 2)
             ThrowTypeError(
-                "DESTRUCTURE_ITERATOR_CREATE_ARGC",
-                "CreateArrayDestructureIterator requires one argument"
+                "ITERATOR_RECORD_CREATE_ARGC",
+                "CreateSyncIteratorRecord requires two registers"
             );
 
-        acc = JsValue.FromObject(
-            realm.CreateArrayDestructureIterator(Unsafe.Add(ref registers, argRegStart))
-        );
+        ref var iterator = ref Unsafe.Add(ref registers, argRegStart);
+        var iteratorObject = realm.GetSyncIterator(iterator, out var nextMethod);
+        iterator = JsValue.FromObject(iteratorObject);
+        Unsafe.Add(ref iterator, 1) = nextMethod;
+        acc = iterator;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -323,20 +302,82 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 2)
             ThrowTypeError(
                 "DESTRUCTURE_ITERATOR_STEP_ARGC",
-                "DestructureIteratorStepValue requires one iterator"
+                "DestructureIteratorStepValue requires an iterator record"
             );
 
-        var iteratorValue = Unsafe.Add(ref registers, argRegStart);
+        var value = realm.AdvanceSyncIterator(ref Unsafe.Add(ref registers, argRegStart), true);
+        acc = value.IsTheHole ? JsValue.Undefined : value;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void HandleRuntimeDestructureIteratorSkip(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        if (argCount != 2)
+            ThrowTypeError(
+                "DESTRUCTURE_ITERATOR_STEP_ARGC",
+                "DestructureIteratorSkip requires an iterator record"
+            );
+
+        _ = realm.AdvanceSyncIterator(ref Unsafe.Add(ref registers, argRegStart), false);
+        acc = JsValue.Undefined;
+    }
+
+    private JsValue AdvanceSyncIterator(ref JsValue iteratorValue, bool readValue)
+    {
+        ref var nextSlot = ref Unsafe.Add(ref iteratorValue, 1);
+        var nextMethod = nextSlot;
+        if (nextMethod.IsTheHole)
+            return JsValue.TheHole;
+
+        if (nextMethod.IsInt32)
+            return StepArrayIteratorRecord(
+                (JsArray)iteratorValue.Obj!,
+                ref nextSlot,
+                unchecked((uint)nextMethod.Int32Value)
+            );
+
         if (!iteratorValue.TryGetObject(out var iterator))
             ThrowTypeError(
                 "DESTRUCTURE_ITERATOR_STEP_OBJECT",
                 "destructuring iterator must be an object"
             );
 
-        acc = realm.DestructureIteratorStepValue(iterator);
+        nextSlot = JsValue.TheHole;
+        var value = DestructureArrayStepValue(iterator, nextMethod, out var done, readValue);
+        if (!done)
+            nextSlot = nextMethod;
+        return value;
+    }
+
+    private static JsValue StepArrayIteratorRecord(JsArray array, ref JsValue nextSlot, uint index)
+    {
+        if (index >= array.Length)
+        {
+            nextSlot = JsValue.TheHole;
+            return JsValue.TheHole;
+        }
+
+        if (!array.TryGetDenseElement(index, out var value))
+        {
+            nextSlot = JsValue.TheHole;
+            if (!Intrinsics.TryGetArrayLikeIndex(array.Realm, array, index, out value))
+                value = JsValue.Undefined;
+        }
+
+        nextSlot = JsValue.FromInt32(unchecked((int)(index + 1)));
+        return value;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -351,21 +392,15 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 2)
             ThrowTypeError(
                 "DESTRUCTURE_ITERATOR_CLOSE_ARGC",
-                "DestructureIteratorClose requires one iterator"
+                "DestructureIteratorClose requires an iterator"
             );
 
-        var iteratorValue = Unsafe.Add(ref registers, argRegStart);
-        if (!iteratorValue.TryGetObject(out var iterator))
-            ThrowTypeError(
-                "DESTRUCTURE_ITERATOR_CLOSE_OBJECT",
-                "destructuring iterator must be an object"
-            );
-
-        realm.DestructureIteratorClose(iterator);
         acc = JsValue.Undefined;
+        if (realm.GetIteratorForClose(ref Unsafe.Add(ref registers, argRegStart)) is { } iterator)
+            realm.IteratorCloseForDestructuring(iterator);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -380,21 +415,34 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 2)
             ThrowTypeError(
                 "DESTRUCTURE_ITERATOR_CLOSE_BESTEFFORT_ARGC",
-                "DestructureIteratorCloseBestEffort requires one iterator"
+                "DestructureIteratorCloseBestEffort requires an iterator"
             );
 
-        var iteratorValue = Unsafe.Add(ref registers, argRegStart);
-        if (!iteratorValue.TryGetObject(out var iterator))
-            ThrowTypeError(
-                "DESTRUCTURE_ITERATOR_CLOSE_BESTEFFORT_OBJECT",
-                "destructuring iterator must be an object"
-            );
-
-        realm.BestEffortDestructureIteratorClose(iterator);
         acc = JsValue.Undefined;
+        if (realm.GetIteratorForClose(ref Unsafe.Add(ref registers, argRegStart)) is { } iterator)
+            realm.BestEffortIteratorCloseOnThrow(iterator);
+    }
+
+    private JsObject? GetIteratorForClose(ref JsValue iteratorValue)
+    {
+        var next = Unsafe.Add(ref iteratorValue, 1);
+        if (next.IsTheHole)
+            return null;
+        if (!iteratorValue.TryGetObject(out var iterator))
+            ThrowTypeError("ITERATOR_RECORD_NOT_OBJECT", "Iterator record must contain an object");
+
+        // Return can be installed after acquisition, and its receiver can escape.
+        return next.IsInt32
+            ? new JsArrayIteratorObject(
+                this,
+                iterator,
+                JsArrayIteratorObject.IterationKind.Values,
+                unchecked((uint)next.Int32Value)
+            )
+            : iterator;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -409,10 +457,10 @@ public sealed partial class JsRealm
         ref JsValue acc
     )
     {
-        if (argCount != 1)
+        if (argCount != 2)
             ThrowTypeError(
                 "DESTRUCTURE_ITERATOR_REST_ARGC",
-                "DestructureIteratorRestArray requires one iterator"
+                "DestructureIteratorRestArray requires an iterator record"
             );
 
         var iteratorValue = Unsafe.Add(ref registers, argRegStart);
@@ -422,7 +470,10 @@ public sealed partial class JsRealm
                 "destructuring iterator must be an object"
             );
 
-        acc = JsValue.FromObject(realm.DestructureIteratorRestArray(iterator));
+        ref var nextSlot = ref Unsafe.Add(ref registers, argRegStart + 1);
+        var nextMethod = nextSlot;
+        nextSlot = JsValue.TheHole;
+        acc = JsValue.FromObject(realm.DestructureIteratorRestArray(iterator, nextMethod));
     }
 
     private static void HandleRuntimeGetAsyncIteratorMethod(
@@ -442,20 +493,10 @@ public sealed partial class JsRealm
                 "GetAsyncIteratorMethod requires one argument"
             );
 
-        var value = Unsafe.Add(ref registers, argRegStart);
-        if (!value.TryGetObject(out var obj))
-        {
-            acc = JsValue.Undefined;
-            return;
-        }
-
-        if (obj is JsGeneratorObject { IsAsyncGenerator: true })
-        {
-            acc = JsValue.FromObject(realm.AsyncIteratorSelfFunction);
-            return;
-        }
-
-        _ = obj.TryGetPropertyAtom(realm, IdSymbolAsyncIterator, out acc, out _);
+        acc = realm.GetIteratorMethod(
+            Unsafe.Add(ref registers, argRegStart),
+            IdSymbolAsyncIterator
+        );
     }
 
     private static void HandleRuntimeGetIteratorMethod(
@@ -472,30 +513,20 @@ public sealed partial class JsRealm
         if (argCount != 1)
             ThrowTypeError("GET_ITERATOR_METHOD_ARGC", "GetIteratorMethod requires one argument");
 
-        var value = Unsafe.Add(ref registers, argRegStart);
-        if (
-            value.IsString
-            && Intrinsics.TryGetIteratorMethodForPrimitiveString(realm, value, out var stringMethod)
-        )
-        {
-            acc = stringMethod;
-            return;
-        }
+        acc = realm.GetIteratorMethod(Unsafe.Add(ref registers, argRegStart), IdSymbolIterator);
+    }
 
-        if (!value.TryGetObject(out var obj))
-            if (!realm.TryToObject(value, out obj))
-            {
-                acc = JsValue.Undefined;
-                return;
-            }
+    private JsValue GetIteratorMethod(in JsValue value, int symbol)
+    {
+        JsObject obj;
+        if (value.IsString)
+            obj = StringPrototype;
+        else if (!this.TryToObject(value, out obj!))
+            return JsValue.Undefined;
 
-        if (obj is JsGeneratorObject { IsAsyncGenerator: false })
-        {
-            acc = JsValue.FromObject(realm.IteratorSelfFunction);
-            return;
-        }
-
-        _ = obj.TryGetPropertyAtom(realm, IdSymbolIterator, out acc, out _);
+        return obj.TryGetPropertyAtomWithReceiverValue(this, value, symbol, out var method, out _)
+            ? method
+            : JsValue.Undefined;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -569,70 +600,69 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsObject CreateArrayDestructureIterator(in JsValue source)
+    private JsObject GetSyncIterator(JsValue source, out JsValue nextMethod)
     {
-        if (!this.TryToObject(source, out var iterableObj))
-            throw TypeError(
-                "DESTRUCTURE_ASSIGN_NOT_ITERABLE",
-                "Destructuring assignment value is not iterable"
-            );
-
-        JsValue iteratorMethod;
-        if (iterableObj is JsGeneratorObject { IsAsyncGenerator: false })
-            iteratorMethod = JsValue.FromObject(IteratorSelfFunction);
-        else if (!iterableObj.TryGetPropertyAtom(this, IdSymbolIterator, out iteratorMethod, out _))
-            throw TypeError(
-                "DESTRUCTURE_ASSIGN_NOT_ITERABLE",
-                "Destructuring assignment value is not iterable"
-            );
-
+        var iteratorMethod = GetIteratorMethod(source, IdSymbolIterator);
         if (
             !iteratorMethod.TryGetObject(out var iteratorMethodObj)
             || iteratorMethodObj is not JsFunction iteratorFn
         )
-            throw TypeError(
-                "DESTRUCTURE_ASSIGN_NOT_ITERABLE",
-                "Destructuring assignment value is not iterable"
-            );
+            throw TypeError("VALUE_NOT_ITERABLE", "Value is not iterable");
 
-        var iteratorValue = InvokeFunction(iteratorFn, iterableObj, ReadOnlySpan<JsValue>.Empty);
+        // An unobservable built-in array iterator is represented by its source and index.
+        if (
+            source.Obj is JsArray array
+            && ReferenceEquals(iteratorFn, ArrayPrototypeValuesFunction)
+            && ArrayIteratorPrototype.TryGetOwnNamedDataSlotIndex(IdNext, out var nextSlot)
+            && ArrayIteratorPrototype.GetNamedSlotUnchecked(nextSlot).Obj is JsHostFunction host
+            && ReferenceEquals(host.BodyField, Intrinsics.ArrayIteratorNextBody)
+        )
+        {
+            nextMethod = JsValue.FromInt32(0);
+            return array;
+        }
+
+        var iteratorValue = InvokeFunction(iteratorFn, source, ReadOnlySpan<JsValue>.Empty);
         if (!iteratorValue.TryGetObject(out var iteratorObj))
             throw TypeError("ITERATOR_RESULT_NOT_OBJECT", "iterator is not an object");
 
+        if (
+            !iteratorObj.TryGetPropertyAtom(this, IdNext, out nextMethod, out _)
+            || nextMethod.IsInt32
+        )
+            nextMethod = JsValue.Undefined;
         return iteratorObj;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsValue DestructureIteratorStepValue(JsObject iterator)
-    {
-        var value = DestructureArrayStepValue(iterator, out _);
-        return value.IsTheHole ? JsValue.TheHole : value;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void DestructureIteratorClose(JsObject iterator)
-    {
-        IteratorCloseForDestructuring(iterator);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void BestEffortDestructureIteratorClose(JsObject iterator)
-    {
-        BestEffortIteratorCloseOnThrow(iterator);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsArray DestructureIteratorRestArray(JsObject iterator)
+    private JsArray DestructureIteratorRestArray(JsObject iterator, JsValue nextMethod)
     {
         var restArray = CreateArrayObject();
+        if (nextMethod.IsTheHole)
+            return restArray;
+
         uint restIndex = 0;
-        var done = false;
-        while (!done)
+        if (nextMethod.IsInt32)
         {
-            var restValue = DestructureArrayStepValue(iterator, out done);
-            if (restValue.IsTheHole)
+            var array = (JsArray)iterator;
+            for (var index = unchecked((uint)nextMethod.Int32Value); index < array.Length; index++)
+            {
+                if (
+                    !array.TryGetDenseElement(index, out var item)
+                    && !Intrinsics.TryGetArrayLikeIndex(this, array, index, out item)
+                )
+                    item = JsValue.Undefined;
+                restArray.InitializeLiteralElement(restIndex++, item);
+            }
+            return restArray;
+        }
+
+        while (true)
+        {
+            var restValue = DestructureArrayStepValue(iterator, nextMethod, out var done);
+            if (done)
                 break;
-            restArray.SetElement(restIndex++, restValue);
+            FreshArrayOperations.DefineElement(restArray, restIndex++, restValue);
         }
 
         return restArray;

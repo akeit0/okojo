@@ -11,6 +11,40 @@ namespace Okojo.Tests;
 public class GeneratorCompilerTests
 {
     [Test]
+    public void YieldStar_UsesGeneratorIteratorOverride()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const iterator = (function* () { yield 1; })();
+            iterator[Symbol.iterator] = function* () { yield 7; };
+            function* delegate() { yield* iterator; }
+            delegate().next().value;
+            """
+        );
+        Assert.That(result.Int32Value, Is.EqualTo(7));
+    }
+
+    [Test]
+    public void SyncGeneratorMethods_RejectAsyncGeneratorReceiver()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const sync = (function* () {})();
+            const asyncIterator = (async function* () {})();
+            let rejected = 0;
+            for (const method of [sync.next, sync.return, sync.throw]) {
+              try { method.call(asyncIterator); }
+              catch (error) { if (error instanceof TypeError) rejected++; }
+            }
+            rejected;
+            """
+        );
+        Assert.That(result.Int32Value, Is.EqualTo(3));
+    }
+
+    [Test]
     public void Generator_FastIteration_ConsumesDelegatedIteratorResults()
     {
         using var runtime = JsRuntime.Create();

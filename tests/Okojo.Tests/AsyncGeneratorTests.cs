@@ -11,6 +11,21 @@ namespace Okojo.Tests;
 public class AsyncGeneratorTests
 {
     [Test]
+    public void AsyncYieldStar_UsesGeneratorIteratorOverride()
+    {
+        using var runtime = JsRuntime.Create();
+        runtime.Execute(
+            """
+            const iterator = (async function* () { yield 1; })();
+            iterator[Symbol.asyncIterator] = async function* () { yield 7; };
+            async function* delegate() { yield* iterator; }
+            delegate().next().then(result => { globalThis.value = result.value; });
+            """
+        );
+        Assert.That(runtime.Evaluate("globalThis.value").Int32Value, Is.EqualTo(7));
+    }
+
+    [Test]
     public void AsyncGeneratorExpression_IsTaggedAsAsyncGeneratorKind()
     {
         var realm = JsRuntime.Create().DefaultRealm;

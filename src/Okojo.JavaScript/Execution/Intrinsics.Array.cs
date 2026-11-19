@@ -8,6 +8,16 @@ public partial class Intrinsics
 {
     private const long MaxSafeIntegerLength = 9007199254740991L;
 
+    internal static readonly JsHostFunctionBody ArrayIteratorNextBody = static (in info) =>
+    {
+        if (!info.ThisValue.TryGetObject(out var obj) || obj is not JsArrayIteratorObject iterator)
+            throw new JsRuntimeException(
+                JsErrorKind.TypeError,
+                "Array Iterator.prototype.next called on incompatible receiver"
+            );
+        return iterator.Next();
+    };
+
     internal JsHostFunction CreateArrayConstructor()
     {
         return new(
@@ -227,6 +237,7 @@ public partial class Intrinsics
             "push",
             1
         );
+        pushFn.LeafBodyField = TryLeafPush;
 
         var popFn = new JsHostFunction(
             realm,
@@ -257,6 +268,7 @@ public partial class Intrinsics
             "pop",
             0
         );
+        popFn.LeafBodyField = TryLeafPop;
 
         var shiftFn = new JsHostFunction(
             realm,
@@ -1129,24 +1141,7 @@ public partial class Intrinsics
             0
         );
 
-        var iteratorNextFn = new JsHostFunction(
-            realm,
-            static (in info) =>
-            {
-                var thisValue = info.ThisValue;
-                if (
-                    !thisValue.TryGetObject(out var obj)
-                    || obj is not JsArrayIteratorObject iterator
-                )
-                    throw new JsRuntimeException(
-                        JsErrorKind.TypeError,
-                        "Array Iterator.prototype.next called on incompatible receiver"
-                    );
-                return iterator.Next();
-            },
-            "next",
-            0
-        );
+        var iteratorNextFn = new JsHostFunction(realm, ArrayIteratorNextBody, "next", 0);
 
         var iteratorSelfFn = new JsHostFunction(
             realm,

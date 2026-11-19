@@ -3,7 +3,12 @@
 Run the same JavaScript on all four engines. The inputs are V8 benchmark
 suite v7 at V8 tag `4.5.1` and the 74 functions in Ekuma's pinned QuickJS
 `microbench.js`. The runner checks Ekuma's input hashes as it loads each
-file. [Ekuma's upstream suite](https://github.com/hajimehoshi/ekuma/blob/41a55ec4e7cda95eb97417fb05a3b4dac7e06a6a/_bench/README.md)
+file. Use `--micro-source quickjs-release` to select the 71 comparable
+functions bundled with the pinned QuickJS 2026-06-04 release. Both sources
+are hash-checked. The self-timed `sort_bench` belongs to QuickJS's native
+driver and runs separately with `qjs --std tests/microbench.js sort_bench`.
+[Ekuma's upstream suite](https://github.com/hajimehoshi/ekuma/blob/41a55ec4e7cda95eb97417fb05a3b4dac7e06a6a/_bench/README.md)
+[Bundled QuickJS suite](https://github.com/bellard/quickjs/blob/3d5e064e9dd67c70f7962836505a7fa067bf0a4e/tests/microbench.js)
 
 Each sample starts a fresh process and realm, loads one script and warms its
 workload before timing. The script uses `Date.now()` around a batch loop.
@@ -13,14 +18,13 @@ Okojo uses Release .NET and V8 uses Node's `--jitless` with an ordinary
 global object. [Node VM documentation](https://nodejs.org/api/vm.html#vmconstantsdont_contextify)
 
 A V8 iteration is one workload call. The harness runs its setup, any
-prerequisite workload, and teardown outside the timer. A QuickJS iteration
-is one loop iteration as defined by the upstream function. Every call to a
-microbenchmark uses a fixed batch of 100 iterations, with batches of one
-for the two large concatenation cases. This means setup inside those
-functions is amortized over the same batch size on every engine. The
-in-script timer differs from Ekuma's upstream Go harness, and the fixed
-microbenchmark batch sizes can change the share of time spent in each
-function's own setup.
+prerequisite workload, and teardown outside the timer. The QuickJS
+microbenchmark numbers are divided by the supplied `n` argument. Some
+workloads perform multiple operations per unit of `n`. Calls use `n = 100`
+except for the two large concatenation workloads, which use `n = 1`.
+The same function and argument run on every engine. QuickJS's native
+driver uses the function's returned operation count and an adaptive
+batch size. Ekuma's upstream Go harness uses a separate timer.
 
 The runner rotates engine order, keeps raw samples and errors, and reports
 the geometric mean of the median same-round ratios to Ekuma. A comparison

@@ -1,4 +1,4 @@
-"""Run Ekuma's pinned JavaScript workloads across engines."""
+"""Run pinned V8 and QuickJS JavaScript workloads across engines."""
 
 import argparse
 import hashlib
@@ -16,10 +16,18 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 V8_URL = "https://raw.githubusercontent.com/v8/v8/4.5.1/benchmarks/"
-MICRO_URL = (
-    "https://raw.githubusercontent.com/bellard/quickjs/"
-    "888481da0b69b369333bfcbf52156273954f8c72/tests/microbench.js"
-)
+MICRO_INPUTS = {
+    "ekuma": (
+        "888481da0b69b369333bfcbf52156273954f8c72",
+        "c0085abf015ffbf0a0b349d53d2f72c11e563146ee008384f1a85709907b4168",
+        "microbench.js",
+    ),
+    "quickjs-release": (
+        "3d5e064e9dd67c70f7962836505a7fa067bf0a4e",
+        "4abf0c34fd83cef925fd2f36009a1043f5009e98fdf6efe55e183a31dddd75f3",
+        "quickjs-release.js",
+    ),
+}
 # Input hashes from Ekuma _bench/internal/comparison/suites.go.
 V8_INPUTS = {
     "base.js": "ac383759c3cbf5f3a499ade526a4e296f7925733d8c3889b6d5840ce6867ff51",
@@ -32,7 +40,6 @@ V8_INPUTS = {
     "richards.js": "d86eac4108343a54ba6e10621a77b46f82f554c3b0a46e8fb4032d5cf65a2a11",
     "splay.js": "1f875cec579d03af40d256ceaeb6823f3ef16c883652650ca51d183472a8185d",
 }
-MICRO_HASH = "c0085abf015ffbf0a0b349d53d2f72c11e563146ee008384f1a85709907b4168"
 V8_CASES = {
     "Richards": "richards.js",
     "DeltaBlue": "deltablue.js",
@@ -80,7 +87,7 @@ benchmarkSelection.TearDown();
 """
 
 
-def cases(cache, suite, match):
+def cases(cache, suite, match, micro_source="ekuma"):
     if suite in ("all", "v8"):
         chosen = [(name, filename) for name, filename in V8_CASES.items() if match.search(name)]
         if chosen:
@@ -89,7 +96,9 @@ def cases(cache, suite, match):
                 workload = pinned_input(cache / "v8-v7" / filename, V8_URL + filename, V8_INPUTS[filename])
                 yield "v8", name, 1, v8_case(base, workload, name)
     if suite in ("all", "micro"):
-        micro = pinned_input(cache / "microbench/microbench.js", MICRO_URL, MICRO_HASH)
+        revision, sha256, filename = MICRO_INPUTS[micro_source]
+        url = f"https://raw.githubusercontent.com/bellard/quickjs/{revision}/tests/microbench.js"
+        micro = pinned_input(cache / "microbench" / filename, url, sha256)
         names = re.search(r"var test_list = \[(.*?)\];", micro, re.S)[1].split(",")
         names += re.findall(r"test_list\.push\((\w+)\);", micro)
         definitions, _ = micro.rsplit('if (typeof scriptArgs === "undefined") {', 1)
@@ -157,6 +166,10 @@ def main():
     parser.add_argument("--cache", type=Path, default=ROOT / "artifacts/ekuma-study")
     parser.add_argument("--out", required=True, type=Path, help="raw sample JSON")
     parser.add_argument("--suite", choices=("all", "v8", "micro"), default="all")
+    parser.add_argument(
+        "--micro-source", choices=MICRO_INPUTS, default="ekuma",
+        help="use Ekuma's pinned revision or the microbench.js bundled with the QuickJS release",
+    )
     parser.add_argument("--match", type=re.compile, default=re.compile("."), help="case name regex")
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--warmup-ms", type=int, default=100)
@@ -176,7 +189,7 @@ def main():
     }
     if args.okojo_baseline is not None:
         engines["okojo-baseline"] = ["dotnet", str(args.okojo_baseline.resolve())]
-    selected = list(cases(args.cache, args.suite, args.match))
+    selected = list(cases(args.cache, args.suite, args.match, args.micro_source))
     if not selected:
         parser.error("no matching benchmarks")
     rows = [
@@ -184,7 +197,10 @@ def main():
          "samples": {engine: [] for engine in engines}}
         for suite, name, iterations, _ in selected
     ]
-    config = {"rounds": args.rounds, "warmupMs": args.warmup_ms, "sampleMs": args.sample_ms}
+    config = {
+        "rounds": args.rounds, "warmupMs": args.warmup_ms, "sampleMs": args.sample_ms,
+        "microSource": args.micro_source,
+    }
     report = {"platform": platform.platform(), "config": config, "cases": rows}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     timer = (HERE / "measure.js").read_text(encoding="utf-8")

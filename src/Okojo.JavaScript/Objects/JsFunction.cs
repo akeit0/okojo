@@ -4,6 +4,7 @@ public abstract class JsFunction : JsObject
 {
     protected FunctionFlags Flags;
     private JsObject? intrinsicPrototype;
+    private StaticNamedPropertyLayout? constructRootShape;
 
     private protected JsFunction(
         JsRealm realm,
@@ -508,6 +509,39 @@ public abstract class JsFunction : JsObject
             throw new InvalidOperationException("Prototype property already initialized.");
         intrinsicPrototype = value;
         Flags |= FunctionFlags.HasPrototypeProperty | FunctionFlags.IsPrototypePropertyConst;
+    }
+
+    /// <summary>Transition root shared by ordinary objects this function constructs.</summary>
+    internal StaticNamedPropertyLayout GetOrCreateConstructRootShape() =>
+        constructRootShape ??= StaticNamedPropertyLayout.CreateConstructorRoot(Realm);
+
+    /// <summary>
+    /// Reads an own data "prototype" object without the generic property protocol.
+    /// Returns false when the property is absent, an accessor or not an object.
+    /// </summary>
+    internal bool TryGetOwnPrototypeObjectFast(
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JsObject? prototype
+    )
+    {
+        if ((Flags & FunctionFlags.HasPrototypeProperty) != 0)
+        {
+            var value = EnsurePrototypePropertyValue();
+            if (value.TryGetObject(out prototype))
+                return true;
+            prototype = null;
+            return false;
+        }
+
+        if (
+            !UsesDynamicNamedProperties
+            && Shape.TryGetSlotInfo(IdPrototype, out var info)
+            && (info.Flags & JsShapePropertyFlags.BothAccessor) == 0
+            && SlotRef(info.Slot).TryGetObject(out prototype)
+        )
+            return true;
+
+        prototype = null;
+        return false;
     }
 
     private JsValue EnsurePrototypePropertyValue()

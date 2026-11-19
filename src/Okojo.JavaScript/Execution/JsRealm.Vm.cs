@@ -26,7 +26,7 @@ public sealed partial class JsRealm
         HandleRuntimeThrowConstAssignError, // ThrowConstAssignError = 0
         HandleIntrinsicGeneratorGetResumeMode, // GeneratorGetResumeMode = 1
         HandleIntrinsicGeneratorClearResumeState, // GeneratorClearResumeState = 2
-        HandleRuntimeForOfFastPathLength, // ForOfFastPathLength = 4
+        HandleRuntimeForOfIteratorNext,
         HandleRuntimeDeleteKeyedProperty, // DeleteKeyedProperty = 6
         HandleRuntimeDefineClassMethod, // DefineClassMethod = 11
         HandleRuntimeCallSuperConstructor, // CallSuperConstructor = 15
@@ -71,7 +71,7 @@ public sealed partial class JsRealm
         HandleRuntimeSetFunctionPrivateBrandMappingExact, // SetFunctionPrivateBrandMappingExact = 54
         HandleRuntimeCreateRestParameterFromArrayLike, // CreateRestParameterFromArrayLike = 55
         HandleRuntimeAsyncIteratorClose, // AsyncIteratorClose = 56
-        HandleRuntimeCreateArrayDestructureIterator, // CreateArrayDestructureIterator = 57
+        HandleRuntimeCreateSyncIteratorRecord, // CreateSyncIteratorRecord = 57
         HandleRuntimeDestructureIteratorStepValue, // DestructureIteratorStepValue = 58
         HandleRuntimeDestructureIteratorClose, // DestructureIteratorClose = 59
         HandleRuntimeDestructureIteratorCloseBestEffort, // DestructureIteratorCloseBestEffort = 60
@@ -97,6 +97,8 @@ public sealed partial class JsRealm
         HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
         HandleRuntimeSetClassInstanceInitializer,
         HandleRuntimeLoadClassInstanceInitializer,
+        HandleRuntimeConcatStringAffixes,
+        HandleRuntimeDestructureIteratorSkip,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -2425,6 +2427,21 @@ public sealed partial class JsRealm
 
     private JsPlainObject CreateConstructReceiver(JsValue newTarget, JsFunction fallbackCtor)
     {
+        // Common `new F()`: ordinary bytecode constructor from this realm with an own data
+        // prototype object. Instances share a per-constructor transition root that learns
+        // their final slot count, so construction allocates storage once.
+        if (
+            fallbackCtor is JsBytecodeFunction
+            && newTarget.TryGetObject(out var directTarget)
+            && ReferenceEquals(directTarget, fallbackCtor)
+            && ReferenceEquals(fallbackCtor.Realm, this)
+            && fallbackCtor.TryGetOwnPrototypeObjectFast(out var fastPrototype)
+        )
+        {
+            var root = fallbackCtor.GetOrCreateConstructRootShape();
+            return JsPlainObject.CreateWithSlots(root, fastPrototype, root.ExpectedSlotCount);
+        }
+
         JsObject? receiverPrototype = Intrinsics.ObjectPrototype;
         var resolved = false;
         if (
@@ -2761,6 +2778,20 @@ public sealed partial class JsRealm
                 "Cannot mix BigInt and other types, use explicit conversions"
             );
         return new(realm.ToNumberSlowPath(leftPrim) + imm);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private JsValue UpdateLocalSlowPath(ref JsValue slot, int delta, bool returnOld)
+    {
+        var oldValue = slot;
+        this.acc = oldValue;
+        if (!oldValue.IsNumeric)
+            oldValue = this.ToNumericSlowPath(oldValue);
+        var updated = oldValue.IsBigInt
+            ? IncrementBigIntSlowPath(oldValue, delta)
+            : JsValue.FromFloat64(oldValue.NumberValue + delta);
+        slot = updated;
+        return returnOld ? oldValue : updated;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -3147,6 +3178,28 @@ public sealed partial class JsRealm
         JsValue rhs
     )
     {
+        // Doubles such as 0xffffffff miss the Int32 fast path; convert finite numbers
+        // directly. (long) truncation then wrap matches ToInt32 for |x| < 2^63.
+        if (
+            lhs.IsNumber
+            && rhs.IsNumber
+            && TryNumberToInt32Bits(lhs, out var fastLeft)
+            && TryNumberToInt32Bits(rhs, out var fastRight)
+        )
+        {
+            var fastShift = (int)fastRight & 0x1F;
+            return op switch
+            {
+                JsOpCode.BitwiseAnd => JsValue.FromInt32((int)(fastLeft & fastRight)),
+                JsOpCode.BitwiseOr => JsValue.FromInt32((int)(fastLeft | fastRight)),
+                JsOpCode.BitwiseXor => JsValue.FromInt32((int)(fastLeft ^ fastRight)),
+                JsOpCode.ShiftLeft => JsValue.FromInt32((int)fastLeft << fastShift),
+                JsOpCode.ShiftRight => JsValue.FromInt32((int)fastLeft >> fastShift),
+                JsOpCode.ShiftRightLogical => ShiftRightLogicalResult(fastLeft, fastShift),
+                _ => throw new NotImplementedException($"Bitwise opcode {op} not implemented."),
+            };
+        }
+
         var leftNumeric = realm.ToNumericSlowPath(lhs);
         var rightNumeric = realm.ToNumericSlowPath(rhs);
         if (leftNumeric.IsBigInt || rightNumeric.IsBigInt)
@@ -3196,6 +3249,27 @@ public sealed partial class JsRealm
             var result = left >> shiftAmount;
             return result <= int.MaxValue ? JsValue.FromInt32((int)result) : new((double)result);
         }
+    }
+
+    /// <summary>ToUint32 bits of a Number when |value| &lt; 2^63; false for NaN/Infinity/huge.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryNumberToInt32Bits(in JsValue value, out uint bits)
+    {
+        if (value.IsInt32)
+        {
+            bits = (uint)value.Int32Value;
+            return true;
+        }
+
+        var number = value.FastNumberValue;
+        if (Math.Abs(number) < 9.2233720368547758E+18)
+        {
+            bits = (uint)(long)number;
+            return true;
+        }
+
+        bits = 0;
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -3935,6 +4009,13 @@ public sealed partial class JsRealm
         bool strict
     )
     {
+        if (
+            key.IsInt32
+            && obj is JsArray array
+            && array.TryAppendDenseElement((uint)key.Int32Value, in value)
+        )
+            return;
+
         var normalizedKey = NormalizePropertyKey(realm, key);
         if (
             obj is JsTypedArrayObject typedArray
@@ -4017,6 +4098,8 @@ public sealed partial class JsRealm
         [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ToBooleanSlowPath(JsValue v)
         {
+            if (v.IsObject)
+                return true;
             if (v.IsNullOrUndefined)
                 return false;
             if (v.IsNumber)
@@ -4356,40 +4439,6 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsValue ForOfStepValue(in JsValue iterable)
-    {
-        if (!iterable.TryGetObject(out var iterableObj))
-            throw TypeError("FOROF_NOT_ITERABLE", "for-of value is not iterable");
-
-        if (
-            iterableObj is JsGeneratorObject generator
-            && TryGetGeneratorNextMethodObject(iterableObj, out var nextObj)
-            && ReferenceEquals(nextObj, Intrinsics.GeneratorNextFunction)
-        )
-        {
-            var value = ResumeGeneratorForOfNextStep(generator, out var done);
-            return done ? JsValue.TheHole : value;
-        }
-
-        if (!iterableObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
-        if (!nextMethod.TryGetObject(out var nextFnObj) || nextFnObj is not JsFunction nextFn)
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
-
-        var result = InvokeFunction(nextFn, iterableObj, ReadOnlySpan<JsValue>.Empty);
-        if (!result.TryGetObject(out var resultObj))
-            throw TypeError("ITERATOR_RESULT_NOT_OBJECT", "iterator result is not an object");
-
-        _ = resultObj.TryGetPropertyAtom(this, IdDone, out var doneValue, out _);
-        if (ToBoolean(doneValue))
-            return JsValue.TheHole;
-
-        return resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
-            ? valueOut
-            : JsValue.Undefined;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private JsValue RuntimeDestructureArrayAssignment(
         in JsValue source,
         ReadOnlySpan<JsValue> elementFlags
@@ -4693,22 +4742,40 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal JsValue DestructureArrayStepValue(JsObject iteratorObj, out bool done)
     {
+        if (!iteratorObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
+            nextMethod = JsValue.Undefined;
+        return DestructureArrayStepValue(iteratorObj, nextMethod, out done);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private JsValue DestructureArrayStepValue(
+        JsObject iteratorObj,
+        JsValue nextMethod,
+        out bool done,
+        bool readValue = true
+    )
+    {
+        if (!nextMethod.TryGetObject(out var nextFnObj) || nextFnObj is not JsFunction nextFn)
+            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
+
         if (
-            iteratorObj is JsGeneratorObject generator
-            && TryGetGeneratorNextMethodObject(iteratorObj, out var nextObj)
-            && ReferenceEquals(nextObj, Intrinsics.GeneratorNextFunction)
+            iteratorObj is JsArrayIteratorObject arrayIterator
+            && nextFn is JsHostFunction hostFunction
+            && ReferenceEquals(hostFunction.BodyField, Intrinsics.ArrayIteratorNextBody)
         )
         {
-            var value = ResumeGeneratorForOfNextStep(generator, out done);
+            var value = arrayIterator.NextValue(out done);
             return done ? JsValue.TheHole : value;
         }
 
         if (
-            !iteratorObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _)
-            || !nextMethod.TryGetObject(out var nextFnObj)
-            || nextFnObj is not JsFunction nextFn
+            iteratorObj is JsGeneratorObject { IsAsyncGenerator: false } generator
+            && ReferenceEquals(nextFn, Intrinsics.GeneratorNextFunction)
         )
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
+        {
+            var value = ResumeGeneratorIteratorStep(generator, readValue, out done);
+            return done ? JsValue.TheHole : value;
+        }
 
         var result = InvokeFunction(nextFn, iteratorObj, ReadOnlySpan<JsValue>.Empty);
         if (!result.TryGetObject(out var resultObj))
@@ -4722,7 +4789,7 @@ public sealed partial class JsRealm
         }
 
         done = false;
-        return resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
+        return readValue && resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
             ? valueOut
             : JsValue.Undefined;
     }
@@ -4946,18 +5013,6 @@ public sealed partial class JsRealm
         if (thisValue.IsObject)
             return thisValue;
         return this.BoxPrimitive(thisValue);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryGetGeneratorNextMethodObject(JsObject iterator, out JsObject method)
-    {
-        method = null!;
-        if (!iterator.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
-            return false;
-        if (!nextMethod.TryGetObject(out var methodObj))
-            return false;
-        method = methodObj;
-        return true;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -5527,6 +5582,25 @@ public sealed partial class JsRealm
         if (!deleted.IsTrue)
             ThrowTypeError("DELETE_KEYED_STRICT_FAILED", "Cannot delete property in strict mode");
         acc = JsValue.True;
+    }
+
+    private static void HandleRuntimeConcatStringAffixes(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        var prefix = (string)Unsafe.Add(ref registers, argRegStart).Obj!;
+        var suffix = (string)Unsafe.Add(ref registers, argRegStart + 1).Obj!;
+        var middle = acc.IsString
+            ? acc.AsJsString()
+            : realm.ToJsStringValueSlowPath(realm.ToPrimitiveDefaultHintSlowPath(acc));
+        acc = JsValue.FromString(JsString.Concat(prefix, middle, suffix));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

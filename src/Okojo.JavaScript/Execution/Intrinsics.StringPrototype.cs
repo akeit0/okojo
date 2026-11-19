@@ -516,8 +516,8 @@ public partial class Intrinsics
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
                 var result = ToCoercibleJsString(realm, thisValue, "concat");
-                if (args.Length == 0)
-                    return JsValue.FromString(result);
+                if (args.Length >= 3 && TryConcatShortStrings(result, args, out var joined))
+                    return JsValue.FromString(joined);
                 for (var i = 0; i < args.Length; i++)
                     result = JsString.Concat(result, realm.ToJsStringValueSlowPath(args[i]));
                 return JsValue.FromString(result);
@@ -2229,6 +2229,33 @@ public partial class Intrinsics
             args.Length == 1
                 ? JsValue.FromLatin1Char(chars[0])
                 : JsValue.FromString(chars.ToString());
+        return true;
+    }
+
+    private static bool TryConcatShortStrings(
+        JsString receiver,
+        ReadOnlySpan<JsValue> args,
+        out string result
+    )
+    {
+        result = string.Empty;
+        Span<char> buffer = stackalloc char[256];
+        if (!receiver.TryGetFlatSpanChars(out var prefix) || !prefix.TryCopyTo(buffer))
+            return false;
+
+        var length = prefix.Length;
+        foreach (ref readonly var arg in args)
+        {
+            if (
+                !arg.IsString
+                || !arg.AsJsString().TryGetFlatSpanChars(out var chars)
+                || !chars.TryCopyTo(buffer[length..])
+            )
+                return false;
+            length += chars.Length;
+        }
+
+        result = new string(buffer[..length]);
         return true;
     }
 

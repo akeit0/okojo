@@ -6,6 +6,43 @@ namespace Okojo.Tests;
 
 public class ArrayIteratorFeatureTests
 {
+    [TestCase(1L)]
+    [TestCase(4294967296L)]
+    public void Array_Keys_DoesNotReadElementAndPreservesArrayLikeLength(long length)
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            $$"""
+            const iterator = Array.prototype.keys.call({
+              length: {{length}},
+              get 0() { throw new Error("unexpected indexed read"); }
+            });
+            const first = iterator.next();
+            !first.done && first.value === 0;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void Array_Entries_DefinesOwnPairElements()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let calls = 0;
+            Object.defineProperty(Array.prototype, "0", {
+              configurable: true,
+              set(value) { calls++; }
+            });
+            const pair = [7].entries().next().value;
+            delete Array.prototype[0];
+            calls === 0 && pair[0] === 0 && pair[1] === 7;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
     [Test]
     public void Array_Prototype_SymbolIterator_Aliases_Values_And_Yields_Items()
     {

@@ -196,4 +196,5 @@ public enum JsOpCode : byte
     StaThisNamedPropertyWide, // [name_idx_lo] [name_idx_hi] [slot_lo] [slot_hi]
     JumpIfNullish, // [offset16]
     JumpIfNotNullish, // [offset16]
+    UpdateLocal, // [register] [mode] (bit 0 decrements, bit 1 returns the old numeric value)
 }

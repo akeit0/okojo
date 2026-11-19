@@ -10,11 +10,11 @@ public partial class Intrinsics
 {
     internal static bool TryFillDense(JsObject obj, long start, long end, JsValue value)
     {
-        if (!TryOpenDenseRange(obj, end, out var target, out var store))
+        if (!TryOpenDenseRange(obj, end, out var target, out _))
             return false;
         if (!ReceiverChainFreeOfElements(obj))
             return false;
-        store.AsSpan((int)start, (int)(end - start)).Fill(value);
+        target.Dense.AsSpan((int)start, (int)(end - start)).Fill(value);
         return true;
     }
 
@@ -52,7 +52,7 @@ public partial class Intrinsics
         )
             return false;
 
-        store.AsSpan(0, (int)length).Reverse();
+        target.Dense.AsSpan(0, (int)length).Reverse();
         return true;
     }
 }

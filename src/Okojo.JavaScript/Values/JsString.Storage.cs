@@ -162,6 +162,17 @@ public readonly partial struct JsString
         return new RopeNode(left, right, leftLength, totalLength);
     }
 
+    internal static JsString Concat(string prefix, JsString middle, string suffix)
+    {
+        if (
+            middle.StringLikeObject is string text
+            && (long)prefix.Length + text.Length + suffix.Length <= FlatConcatThreshold
+        )
+            return new(string.Concat(prefix, text, suffix));
+
+        return Concat(Concat(new JsString(prefix), middle), new JsString(suffix));
+    }
+
     private static object Slice(object value, int start, int length)
     {
         var totalLength = GetLength(value);

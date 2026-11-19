@@ -26,17 +26,17 @@ public static class NumberFormatting
     /// </summary>
     public static bool IsIntegralSafe(double number)
     {
-        return !double.IsNaN(number)
-            && !double.IsInfinity(number)
-            && Math.Abs(number) <= 9007199254740991d
-            && number == Math.Floor(number);
+        return Math.Abs(number) <= 9007199254740991d && number == Math.Truncate(number);
     }
 
     /// <summary>Formats a <see cref="double"/> per ECMAScript <c>Number::toString(10)</c>.</summary>
     public static string ToString(double number)
     {
+        if (IsIntegralSafe(number))
+            return ((long)number).ToString(CultureInfo.InvariantCulture);
+
         Span<char> buffer = stackalloc char[MaxLength];
-        TryFormat(number, buffer, out var written);
+        TryFormatShortest(number, buffer, out var written);
         return new string(buffer.Slice(0, written));
     }
 
@@ -74,6 +74,23 @@ public static class NumberFormatting
         if (destination.Length < MaxLength)
             return false;
 
+        if (IsIntegralSafe(number))
+            return ((long)number).TryFormat(
+                destination,
+                out charsWritten,
+                provider: CultureInfo.InvariantCulture
+            );
+
+        return TryFormatShortest(number, destination, out charsWritten);
+    }
+
+    private static bool TryFormatShortest(
+        double number,
+        Span<char> destination,
+        out int charsWritten
+    )
+    {
+        charsWritten = 0;
         if (double.IsNaN(number))
         {
             "NaN".CopyTo(destination);
@@ -94,17 +111,13 @@ public static class NumberFormatting
         }
 
         Span<char> digits = stackalloc char[MaxSignificantDigits];
-        var digitCount = 0;
-        var decimalPoint = 0; // value == 0.digits * 10^decimalPoint
-
-        if (number == 0d)
-        {
-            digits[0] = '0';
-            digitCount = 1;
-            decimalPoint = 1;
-        }
-        else if (
-            !TryGenerateShortestDigits(Math.Abs(number), digits, out digitCount, out decimalPoint)
+        if (
+            !TryGenerateShortestDigits(
+                Math.Abs(number),
+                digits,
+                out var digitCount,
+                out var decimalPoint
+            )
         )
         {
             return false;

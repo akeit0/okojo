@@ -70,6 +70,7 @@ internal static class BytecodeInfo
             or JsOpCode.Negate => 1,
 
             JsOpCode.Mov
+            or JsOpCode.UpdateLocal
             or JsOpCode.LdaGlobal
             or JsOpCode.StaGlobal
             or JsOpCode.StaGlobalInit

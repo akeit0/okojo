@@ -394,7 +394,7 @@ public class OkojoDynamicPlainObjectTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsObject, Is.True);
-        Assert.That(realm.Accumulator.AsObject(), Is.TypeOf<JsPlainObject>());
+        Assert.That(realm.Accumulator.AsObject(), Is.InstanceOf<JsPlainObject>());
         Assert.That(
             ((JsPlainObject)realm.Accumulator.AsObject()).UsesDynamicNamedProperties,
             Is.True
@@ -420,7 +420,7 @@ public class OkojoDynamicPlainObjectTests
         realm.Execute(script);
 
         Assert.That(realm.Accumulator.IsObject, Is.True);
-        Assert.That(realm.Accumulator.AsObject(), Is.TypeOf<JsPlainObject>());
+        Assert.That(realm.Accumulator.AsObject(), Is.InstanceOf<JsPlainObject>());
         Assert.That(
             ((JsPlainObject)realm.Accumulator.AsObject()).UsesDynamicNamedProperties,
             Is.True

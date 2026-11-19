@@ -9,6 +9,42 @@ namespace Okojo.Tests;
 public class ArrayLengthTests
 {
     [Test]
+    public void IndexedAppendObservesPrototypeChangesAfterDenseWrites()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function append(array, index, value) {
+              "use strict";
+              array[index] = value;
+            }
+            const array = [];
+            for (let i = 0; i < 8; ++i) append(array, i, i);
+
+            let seen = 0;
+            Object.defineProperty(Array.prototype, "8", {
+              set(value) { seen = this === array ? value : -1; },
+              configurable: true
+            });
+            append(array, 8, 42);
+            const setterObserved = seen === 42 && array.length === 8 && !Object.hasOwn(array, 8);
+            delete Array.prototype[8];
+
+            Object.defineProperty(Object.prototype, "8", { value: 99, configurable: true });
+            let threw = false;
+            try { append(array, 8, 43); } catch (e) { threw = e instanceof TypeError; }
+            delete Object.prototype[8];
+
+            append(array, 8, 44);
+            const descriptor = Object.getOwnPropertyDescriptor(array, "8");
+            setterObserved && threw && array.length === 9 && descriptor.value === 44 &&
+              descriptor.writable && descriptor.enumerable && descriptor.configurable;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void RestrictedArrayAssignmentCanCallAnInheritedIndexSetter()
     {
         using var runtime = JsRuntime.Create();

@@ -1133,13 +1133,24 @@ public sealed partial class JsRealm
 
         // A10: boilerplate slot typed by the compiler as a static layout -
         // cast is compiler-guaranteed, skip the runtime type test.
-        acc = new JsPlainObject(Unsafe.As<StaticNamedPropertyLayout>(objectPool[boilerplateIdx]));
+        var shape = Unsafe.As<StaticNamedPropertyLayout>(objectPool[boilerplateIdx]);
+        acc = JsPlainObject.CreateWithSlots(
+            shape,
+            Intrinsics.ObjectPrototype,
+            shape.StorageSlotCount
+        );
         return pcOffset - startOffset;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsArray CreateArrayLiteralFromPool(object[] objectPool, int constantIndex) =>
-        CreateArrayObject(((JsArrayLiteral)objectPool[constantIndex]).Elements);
+    private JsArray CreateArrayLiteralFromPool(object[] objectPool, int constantIndex)
+    {
+        var array = new JsArray(this);
+        array.InitializeSharedDenseElements(
+            Unsafe.As<JsArrayLiteral>(objectPool[constantIndex]).SharedElements
+        );
+        return array;
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
@@ -1774,17 +1785,14 @@ public sealed partial class JsRealm
                                 )
                                     break;
 
-                                if (obj!.TryGetPropertyAtom(this, intNum1, out acc, out slotInfo))
-                                    UpdateNamedPropertyIcAfterGet(
-                                        currentFunc.Script,
-                                        ref prototypeNamedPropertyIcEntries,
-                                        namedPropertyIcEntries,
-                                        intNum2,
-                                        true,
-                                        obj!,
-                                        intNum1,
-                                        slotInfo
-                                    );
+                                acc = LoadNamedPropertyIcMiss(
+                                    currentFunc.Script,
+                                    ref prototypeNamedPropertyIcEntries,
+                                    namedPropertyIcEntries,
+                                    intNum2,
+                                    obj!,
+                                    intNum1
+                                );
                             }
                             break;
                         case JsOpCode.GetNamedPropertyFromSuper:
@@ -1912,23 +1920,15 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                if (
-                                    !obj!.TrySetPropertyAtom(this, intNum1, acc, out slotInfo)
-                                    && currentFunc.IsStrict
-                                )
-                                    ThrowTypeError(
-                                        "ASSIGN_READONLY",
-                                        "Cannot assign to read only property"
-                                    );
-
-                                if (CanCacheNamedPropertyResult(boolTemp, obj, slotInfo))
-                                    UpdateNamedPropertyIc(
-                                        namedPropertyIcEntries,
-                                        intNum2,
-                                        obj,
-                                        intNum1,
-                                        slotInfo
-                                    );
+                                StoreNamedPropertyIcMiss(
+                                    currentFunc,
+                                    namedPropertyIcEntries,
+                                    intNum2,
+                                    boolTemp,
+                                    obj!,
+                                    intNum1,
+                                    acc
+                                );
                             }
                             break;
 
@@ -2359,6 +2359,35 @@ public sealed partial class JsRealm
                                         acc,
                                         intNum1
                                     );
+                            }
+                            break;
+                        case JsOpCode.UpdateLocal:
+                            {
+                                slotRef = ref Unsafe.Add(ref registerRef, pc);
+                                intNum1 = Unsafe.Add(ref pc, 1);
+                                pc = ref Unsafe.Add(ref pc, 2);
+                                intNum2 = 1 - ((intNum1 & 1) << 1);
+                                uRhs = slotRef.U;
+                                if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
+                                {
+                                    longNum = (long)(int)uRhs + intNum2;
+                                    uLhs = longNum is >= int.MinValue and <= int.MaxValue
+                                        ? JsValue.JsInt32Top32Bits | (uint)longNum
+                                        : Unsafe.BitCast<double, ulong>(longNum);
+                                    // The Int32 tag proves the register has no object reference.
+                                    Unsafe.As<JsValue, ulong>(ref slotRef) = uLhs;
+                                    ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
+                                    accBits = (intNum1 & 2) == 0 ? uLhs : uRhs;
+                                    Unsafe.Add(ref accBits, 1) = 0;
+                                }
+                                else
+                                {
+                                    acc = UpdateLocalSlowPath(
+                                        ref slotRef,
+                                        intNum2,
+                                        (intNum1 & 2) != 0
+                                    );
+                                }
                             }
                             break;
                         case JsOpCode.Inc:
