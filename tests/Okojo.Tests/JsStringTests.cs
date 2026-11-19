@@ -66,6 +66,29 @@ public class JsStringTests
     }
 
     [Test]
+    public void String_Addition_With_Literal_Affixes_Uses_The_Default_Hint_Once()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const hints = [];
+            function wrap(value) { return "[" + value + "]"; }
+            const wrapped = wrap({
+                [Symbol.toPrimitive](hint) {
+                    hints.push(hint);
+                    return 1n;
+                }
+            });
+            let symbolError;
+            try { wrap(Symbol()); } catch (e) { symbolError = e.name; }
+            const long = wrap("a".repeat(128) + "b".repeat(128));
+            [wrapped, hints.join(","), symbolError, long.length, long.slice(-3)].join("|");
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("[1]|default|TypeError|258|bb]"));
+    }
+
+    [Test]
     public void String_Search_Methods_Work_On_Large_Rope_Strings()
     {
         var realm = JsRuntime.Create().DefaultRealm;

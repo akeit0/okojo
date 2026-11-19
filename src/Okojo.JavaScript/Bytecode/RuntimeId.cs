@@ -209,4 +209,5 @@ internal enum RuntimeId : byte
 
     SetClassInstanceInitializer,
     LoadClassInstanceInitializer,
+    ConcatStringAffixes, // [prefix, suffix], with the middle value in the accumulator
 }

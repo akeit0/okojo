@@ -97,6 +97,7 @@ public sealed partial class JsRealm
         HandleRuntimeDeleteGlobalBinding, // appended: portable global delete
         HandleRuntimeSetClassInstanceInitializer,
         HandleRuntimeLoadClassInstanceInitializer,
+        HandleRuntimeConcatStringAffixes,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -5541,6 +5542,25 @@ public sealed partial class JsRealm
         if (!deleted.IsTrue)
             ThrowTypeError("DELETE_KEYED_STRICT_FAILED", "Cannot delete property in strict mode");
         acc = JsValue.True;
+    }
+
+    private static void HandleRuntimeConcatStringAffixes(
+        JsRealm realm,
+        JsScript script,
+        int opcodePc,
+        ref JsValue registers,
+        int fp,
+        int argRegStart,
+        int argCount,
+        ref JsValue acc
+    )
+    {
+        var prefix = (string)Unsafe.Add(ref registers, argRegStart).Obj!;
+        var suffix = (string)Unsafe.Add(ref registers, argRegStart + 1).Obj!;
+        var middle = acc.IsString
+            ? acc.AsJsString()
+            : realm.ToJsStringValueSlowPath(realm.ToPrimitiveDefaultHintSlowPath(acc));
+        acc = JsValue.FromString(JsString.Concat(prefix, middle, suffix));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

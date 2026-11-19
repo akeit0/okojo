@@ -1745,6 +1745,28 @@ internal abstract partial class JsCompilerBase
             return;
         }
 
+        // Both additions concatenate. Only the middle expression can run
+        // code or require primitive conversion.
+        if (
+            op == JsBinaryOperator.Add
+            && ast[node.Arg1].Kind == AstKind.StringLiteral
+            && ast[node.Arg0] is { Kind: AstKind.BinaryExpression } left
+            && (JsBinaryOperator)left.Arg2 == JsBinaryOperator.Add
+            && ast[left.Arg0].Kind == AstKind.StringLiteral
+        )
+        {
+            var marker = builder.GetTemporaryRegisterScopeMarker();
+            var affixes = builder.AllocateTemporaryRegisterBlock(2);
+            EmitStringLiteral(ast.GetString(ast[left.Arg0].Arg0));
+            EmitStar(affixes);
+            EmitStringLiteral(ast.GetString(ast[node.Arg1].Arg0));
+            EmitStar(affixes + 1);
+            EmitExpression(ast, left.Arg1);
+            builder.EmitCallRuntime((int)RuntimeId.ConcatStringAffixes, affixes, 2);
+            builder.ReleaseTemporaryRegistersToMarker(marker);
+            return;
+        }
+
         if (
             TryGetSmallIntLiteral(ast, node.Arg1, out var rhsSmi)
             && TryMapSmiBinaryOpcode(op, out var smiOpcode)
