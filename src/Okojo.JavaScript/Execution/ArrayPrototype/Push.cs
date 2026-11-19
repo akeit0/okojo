@@ -8,6 +8,28 @@ namespace Okojo.JavaScript.Execution;
 // chain is consulted for the returned value.
 public partial class Intrinsics
 {
+    private static bool TryLeafPush(
+        JsRealm realm,
+        JsValue receiver,
+        ReadOnlySpan<JsValue> items,
+        out JsValue result
+    )
+    {
+        result = default;
+        return receiver.TryGetObject(out var obj) && TryPushDense(obj, items, out result);
+    }
+
+    private static bool TryLeafPop(
+        JsRealm realm,
+        JsValue receiver,
+        ReadOnlySpan<JsValue> args,
+        out JsValue result
+    )
+    {
+        result = default;
+        return receiver.TryGetObject(out var obj) && TryPopDense(obj, out result);
+    }
+
     internal static bool TryPushDense(JsObject obj, ReadOnlySpan<JsValue> items, out JsValue result)
     {
         result = default;

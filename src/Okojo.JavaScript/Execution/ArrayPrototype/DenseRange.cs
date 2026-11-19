@@ -67,7 +67,7 @@ public partial class Intrinsics
         for (JsObject? p = receiver.Prototype; p is not null; p = p.Prototype)
         {
             if (
-                p is not (JsPlainObject or JsArray { Length: 0 })
+                p is not (JsArray { Length: 0 } or JsPlainObject)
                 || p.IndexedProperties is { Count: > 0 }
             )
                 return false;

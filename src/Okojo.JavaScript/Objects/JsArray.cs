@@ -189,6 +189,27 @@ public sealed class JsArray : JsObject
         return false;
     }
 
+    internal bool TryAppendDenseElement(uint index, in JsValue value)
+    {
+        if (
+            index != Length
+            || !lengthWritable
+            || !IsExtensibleFlag
+            || IndexedProperties is not null
+            || dense is not { } store
+            || index > (uint)store.Length
+            || index >= Array.MaxLength
+            || !Intrinsics.ReceiverChainFreeOfElements(this)
+        )
+            return false;
+
+        if (index == (uint)store.Length)
+            DenseArrayFastPath.EnsureCapacity(this, (long)index + 1);
+        JsValue.CopyValueTo(ref Dense![index], in value);
+        Length = index + 1;
+        return true;
+    }
+
     internal bool CanDefineElementAtIndex(uint index)
     {
         if (!lengthWritable && index >= Length)

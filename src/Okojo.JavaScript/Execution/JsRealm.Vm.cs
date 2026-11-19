@@ -4008,6 +4008,13 @@ public sealed partial class JsRealm
         bool strict
     )
     {
+        if (
+            key.IsInt32
+            && obj is JsArray array
+            && array.TryAppendDenseElement((uint)key.Int32Value, in value)
+        )
+            return;
+
         var normalizedKey = NormalizePropertyKey(realm, key);
         if (
             obj is JsTypedArrayObject typedArray

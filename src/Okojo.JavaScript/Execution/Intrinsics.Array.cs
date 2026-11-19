@@ -227,6 +227,7 @@ public partial class Intrinsics
             "push",
             1
         );
+        pushFn.LeafBodyField = TryLeafPush;
 
         var popFn = new JsHostFunction(
             realm,
@@ -257,6 +258,7 @@ public partial class Intrinsics
             "pop",
             0
         );
+        popFn.LeafBodyField = TryLeafPop;
 
         var shiftFn = new JsHostFunction(
             realm,
