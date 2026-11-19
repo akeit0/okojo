@@ -16,7 +16,10 @@ public partial class Intrinsics
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
-                if (!thisValue.TryGetObject(out var obj) || obj is not JsGeneratorObject generator)
+                if (
+                    !thisValue.TryGetObject(out var obj)
+                    || obj is not JsGeneratorObject { IsAsyncGenerator: false } generator
+                )
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
                         "Generator.prototype.next called on incompatible receiver"
@@ -36,7 +39,10 @@ public partial class Intrinsics
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
-                if (!thisValue.TryGetObject(out var obj) || obj is not JsGeneratorObject generator)
+                if (
+                    !thisValue.TryGetObject(out var obj)
+                    || obj is not JsGeneratorObject { IsAsyncGenerator: false } generator
+                )
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
                         "Generator.prototype.return called on incompatible receiver"
@@ -55,7 +61,10 @@ public partial class Intrinsics
                 var realm = info.Realm;
                 var thisValue = info.ThisValue;
                 var args = info.Arguments;
-                if (!thisValue.TryGetObject(out var obj) || obj is not JsGeneratorObject generator)
+                if (
+                    !thisValue.TryGetObject(out var obj)
+                    || obj is not JsGeneratorObject { IsAsyncGenerator: false } generator
+                )
                     throw new JsRuntimeException(
                         JsErrorKind.TypeError,
                         "Generator.prototype.throw called on incompatible receiver"

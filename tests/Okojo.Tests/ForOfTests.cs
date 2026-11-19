@@ -1,5 +1,4 @@
 using Okojo.JavaScript;
-using Okojo.JavaScript.Bytecode;
 using Okojo.JavaScript.Compiler;
 using Okojo.JavaScript.Embedding;
 using Okojo.JavaScript.Execution;
@@ -173,47 +172,86 @@ public class ForOfTests
     }
 
     [Test]
-    public void ForOf_Compiler_EmitsFastPathAndIteratorStepRuntimeCalls()
+    public void ForOf_ArrayUsesCustomIterator()
     {
-        var realm = JsRuntime.Create().DefaultRealm;
-        var script = JsCompiler.Compile(
-            realm,
-            JavaScriptParser.ParseScript(
-                """
-                function t(a) {
-                    let s = 0;
-                    for (let x of a) s = s + 1;
-                    return s;
-                }
-                """
-            )
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const source = [1, 2];
+            source[Symbol.iterator] = function* () { yield 5; };
+            let sum = 0;
+            for (const value of source) sum += value;
+            sum;
+            """
         );
+        Assert.That(result.Int32Value, Is.EqualTo(5));
+    }
 
-        var t = script
-            .ObjectConstants.OfType<JsScript>()
-            .Select(static instance => instance.CreateClosure())
-            .Single(f => f.Name == "t");
-        var code = t.Script.BytecodeArray;
-
-        var sawForOfFastPathLengthProbe = false;
-        var sawGetIteratorMethod = false;
-        for (var i = 0; i + 3 < code.Length; i++)
-        {
-            if ((JsOpCode)code[i] != JsOpCode.CallRuntime)
+    [Test]
+    public void ForOf_ArrayClosesWithLiveReturnAndIteratorPosition()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const prototype = Object.getPrototypeOf([].values());
+            const next = prototype.next;
+            let seen = "";
+            for (const value of [4, 5, 6]) {
+              seen += value;
+              if (value === 4) {
+                prototype.next = function () { throw new Error("next was read twice"); };
                 continue;
-            var runtimeId = (RuntimeId)code[i + 1];
-            if (runtimeId == RuntimeId.ForOfFastPathLength)
-            {
-                sawForOfFastPathLengthProbe = true;
-                continue;
+              }
+              prototype.return = function () {
+                seen += next.call(this).value;
+                return {};
+              };
+              break;
             }
+            seen;
+            """
+        );
+        Assert.That(result.AsString(), Is.EqualTo("456"));
+    }
 
-            if (runtimeId == RuntimeId.GetIteratorMethod)
-                sawGetIteratorMethod = true;
-        }
+    [Test]
+    public void ForOf_ArrayIteratorNextGetterReceivesLiveIterator()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const prototype = Object.getPrototypeOf([].values());
+            const next = prototype.next;
+            let captured, reads = 0;
+            Object.defineProperty(prototype, "next", {
+              get() { reads++; captured = this; return next; }
+            });
+            let first;
+            for (const value of [2, 3]) { first = value; break; }
+            first === 2 && reads === 1 && next.call(captured).value === 3;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
 
-        Assert.That(sawForOfFastPathLengthProbe, Is.True);
-        Assert.That(sawGetIteratorMethod, Is.True);
+    [Test]
+    public void ForOf_IteratorStepFailureDoesNotClose()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let closed = false, thrown;
+            const iterator = {
+              [Symbol.iterator]() { return this; },
+              next() { return { done: false, get value() { throw 7; } }; },
+              return() { closed = true; return {}; }
+            };
+            try { for (const value of iterator) {} }
+            catch (error) { thrown = error; }
+            thrown === 7 && !closed;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
     }
 
     [Test]

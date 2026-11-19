@@ -9,6 +9,142 @@ namespace Okojo.Tests;
 public class DestructuringRegressionTests
 {
     [Test]
+    public void ArrayPattern_CapturesNextBeforeBindingAndRest()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let reads = 0, step = 0;
+            const iterator = {
+              [Symbol.iterator]() { return this; },
+              get next() {
+                reads++;
+                return () => {
+                  step++;
+                  return { done: step > 3, value: step === 1 ? undefined : step };
+                };
+              }
+            };
+            function replaceNext() {
+              Object.defineProperty(iterator, "next", { value: null });
+              return 1;
+            }
+            const [first = replaceNext(), second, ...rest] = iterator;
+            reads === 1 && first === 1 && second === 2 && rest.length === 1 && rest[0] === 3;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void EmptyArrayPattern_ReadsNextThenClosesWithoutCallingNext()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let order = "";
+            const [] = {
+              [Symbol.iterator]() { return this; },
+              get next() { order += "next"; return null; },
+              return() { order += "return"; return {}; }
+            };
+            order === "nextreturn";
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPattern_BuiltinNextUsesLiveIteratorAndGetterSideEffects()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            const source = [1, 2, 3];
+            const iterator = source.values();
+            const generator = (function* () { yield -1; })();
+            generator[Symbol.iterator] = () => iterator;
+            let closed = false;
+            Object.defineProperty(source, "0", {
+              get() {
+                iterator.next = null;
+                source[1] = 12;
+                iterator.return = function () { closed = this === iterator; return {}; };
+                return 10;
+              }
+            });
+            const [first, second] = generator;
+            first === 10 && second === 12 && closed;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPattern_ElisionChecksDoneWithoutReadingValue()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let steps = 0, doneReads = 0, valueReads = 0;
+            const [, value] = {
+              [Symbol.iterator]() { return this; },
+              next() {
+                const step = ++steps;
+                return {
+                  get done() { doneReads++; return false; },
+                  get value() { valueReads++; return step; }
+                };
+              }
+            };
+            steps === 2 && doneReads === 2 && valueReads === 1 && value === 2;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPattern_ElisionSkipsValueGetterOfDelegatedGeneratorResult()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let valueReads = 0;
+            function* generator() {
+              yield* {
+                [Symbol.iterator]() { return this; },
+                next() {
+                  return { done: false, get value() { return ++valueReads; } };
+                }
+              };
+            }
+            const [, value] = generator();
+            value === 1 && valueReads === 1;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void ArrayPattern_RestDefinesOwnElementsWithoutCallingInheritedSetter()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.Evaluate(
+            """
+            let writes = 0;
+            Object.defineProperty(Array.prototype, "0", {
+              configurable: true,
+              set(value) { writes++; }
+            });
+            const [...rest] = [7];
+            delete Array.prototype[0];
+            writes === 0 && rest.length === 1 && rest[0] === 7;
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void ConstStatement_ArrayPatternEmpty_DoesNotIterate()
     {
         var realm = JsRuntime.Create().DefaultRealm;

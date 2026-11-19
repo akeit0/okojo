@@ -7,11 +7,8 @@ internal enum RuntimeId : byte
     GeneratorGetResumeMode = 1,
     GeneratorClearResumeState = 2,
 
-    // Iteration helpers.
-    // Generic indexed-iteration fast-path probe for `for...of`.
-    // Returns non-negative length when fast indexed iteration is available;
-    // returns -1 to fall back to iterator protocol path.
-    ForOfFastPathLength,
+    // Step [iterator, next, value] for for-of, writing the value and returning whether it yielded.
+    ForOfIteratorNext,
 
     // Delete keyed property/element. Args: [target, key]. Returns boolean.
     DeleteKeyedProperty,
@@ -151,10 +148,11 @@ internal enum RuntimeId : byte
     // Close an async iterator for for-await loop abrupt completion.
     AsyncIteratorClose,
 
-    // Create a sync iterator for array destructuring without consuming it.
-    CreateArrayDestructureIterator,
+    // Replace [source, scratch] with [iterator, next] or [array, index] for the built-in array path.
+    // An exhausted or failed iterator record has TheHole in its second register.
+    CreateSyncIteratorRecord,
 
-    // Step a destructuring iterator and return next value or TheHole when done.
+    // Step an [iterator, next] register pair and return the next value or undefined when done.
     DestructureIteratorStepValue,
 
     // Perform IteratorClose for sync destructuring iterators.
@@ -163,7 +161,7 @@ internal enum RuntimeId : byte
     // Best-effort IteratorClose used while preserving an original throw completion.
     DestructureIteratorCloseBestEffort,
 
-    // Drain remaining iterator values into a new array for array-rest destructuring.
+    // Drain an [iterator, next] register pair into a new array for array-rest destructuring.
     DestructureIteratorRestArray,
 
     // Close an async iterator while preserving an original throw completion.
@@ -210,4 +208,7 @@ internal enum RuntimeId : byte
     SetClassInstanceInitializer,
     LoadClassInstanceInitializer,
     ConcatStringAffixes, // [prefix, suffix], with the middle value in the accumulator
+
+    // Step an [iterator, next] pair for an elision, checking done without reading value.
+    DestructureIteratorSkip,
 }

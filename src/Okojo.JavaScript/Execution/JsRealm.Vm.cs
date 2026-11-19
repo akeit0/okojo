@@ -26,7 +26,7 @@ public sealed partial class JsRealm
         HandleRuntimeThrowConstAssignError, // ThrowConstAssignError = 0
         HandleIntrinsicGeneratorGetResumeMode, // GeneratorGetResumeMode = 1
         HandleIntrinsicGeneratorClearResumeState, // GeneratorClearResumeState = 2
-        HandleRuntimeForOfFastPathLength, // ForOfFastPathLength = 4
+        HandleRuntimeForOfIteratorNext,
         HandleRuntimeDeleteKeyedProperty, // DeleteKeyedProperty = 6
         HandleRuntimeDefineClassMethod, // DefineClassMethod = 11
         HandleRuntimeCallSuperConstructor, // CallSuperConstructor = 15
@@ -71,7 +71,7 @@ public sealed partial class JsRealm
         HandleRuntimeSetFunctionPrivateBrandMappingExact, // SetFunctionPrivateBrandMappingExact = 54
         HandleRuntimeCreateRestParameterFromArrayLike, // CreateRestParameterFromArrayLike = 55
         HandleRuntimeAsyncIteratorClose, // AsyncIteratorClose = 56
-        HandleRuntimeCreateArrayDestructureIterator, // CreateArrayDestructureIterator = 57
+        HandleRuntimeCreateSyncIteratorRecord, // CreateSyncIteratorRecord = 57
         HandleRuntimeDestructureIteratorStepValue, // DestructureIteratorStepValue = 58
         HandleRuntimeDestructureIteratorClose, // DestructureIteratorClose = 59
         HandleRuntimeDestructureIteratorCloseBestEffort, // DestructureIteratorCloseBestEffort = 60
@@ -98,6 +98,7 @@ public sealed partial class JsRealm
         HandleRuntimeSetClassInstanceInitializer,
         HandleRuntimeLoadClassInstanceInitializer,
         HandleRuntimeConcatStringAffixes,
+        HandleRuntimeDestructureIteratorSkip,
     ];
 
     private static readonly IntrinsicHandler?[] SIntrinsicHandlers =
@@ -4438,40 +4439,6 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsValue ForOfStepValue(in JsValue iterable)
-    {
-        if (!iterable.TryGetObject(out var iterableObj))
-            throw TypeError("FOROF_NOT_ITERABLE", "for-of value is not iterable");
-
-        if (
-            iterableObj is JsGeneratorObject generator
-            && TryGetGeneratorNextMethodObject(iterableObj, out var nextObj)
-            && ReferenceEquals(nextObj, Intrinsics.GeneratorNextFunction)
-        )
-        {
-            var value = ResumeGeneratorForOfNextStep(generator, out var done);
-            return done ? JsValue.TheHole : value;
-        }
-
-        if (!iterableObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
-        if (!nextMethod.TryGetObject(out var nextFnObj) || nextFnObj is not JsFunction nextFn)
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
-
-        var result = InvokeFunction(nextFn, iterableObj, ReadOnlySpan<JsValue>.Empty);
-        if (!result.TryGetObject(out var resultObj))
-            throw TypeError("ITERATOR_RESULT_NOT_OBJECT", "iterator result is not an object");
-
-        _ = resultObj.TryGetPropertyAtom(this, IdDone, out var doneValue, out _);
-        if (ToBoolean(doneValue))
-            return JsValue.TheHole;
-
-        return resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
-            ? valueOut
-            : JsValue.Undefined;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private JsValue RuntimeDestructureArrayAssignment(
         in JsValue source,
         ReadOnlySpan<JsValue> elementFlags
@@ -4775,22 +4742,40 @@ public sealed partial class JsRealm
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal JsValue DestructureArrayStepValue(JsObject iteratorObj, out bool done)
     {
+        if (!iteratorObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
+            nextMethod = JsValue.Undefined;
+        return DestructureArrayStepValue(iteratorObj, nextMethod, out done);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private JsValue DestructureArrayStepValue(
+        JsObject iteratorObj,
+        JsValue nextMethod,
+        out bool done,
+        bool readValue = true
+    )
+    {
+        if (!nextMethod.TryGetObject(out var nextFnObj) || nextFnObj is not JsFunction nextFn)
+            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
+
         if (
-            iteratorObj is JsGeneratorObject generator
-            && TryGetGeneratorNextMethodObject(iteratorObj, out var nextObj)
-            && ReferenceEquals(nextObj, Intrinsics.GeneratorNextFunction)
+            iteratorObj is JsArrayIteratorObject arrayIterator
+            && nextFn is JsHostFunction hostFunction
+            && ReferenceEquals(hostFunction.BodyField, Intrinsics.ArrayIteratorNextBody)
         )
         {
-            var value = ResumeGeneratorForOfNextStep(generator, out done);
+            var value = arrayIterator.NextValue(out done);
             return done ? JsValue.TheHole : value;
         }
 
         if (
-            !iteratorObj.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _)
-            || !nextMethod.TryGetObject(out var nextFnObj)
-            || nextFnObj is not JsFunction nextFn
+            iteratorObj is JsGeneratorObject { IsAsyncGenerator: false } generator
+            && ReferenceEquals(nextFn, Intrinsics.GeneratorNextFunction)
         )
-            throw TypeError("ITERATOR_NEXT_NOT_FUNCTION", "iterator.next is not a function");
+        {
+            var value = ResumeGeneratorIteratorStep(generator, readValue, out done);
+            return done ? JsValue.TheHole : value;
+        }
 
         var result = InvokeFunction(nextFn, iteratorObj, ReadOnlySpan<JsValue>.Empty);
         if (!result.TryGetObject(out var resultObj))
@@ -4804,7 +4789,7 @@ public sealed partial class JsRealm
         }
 
         done = false;
-        return resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
+        return readValue && resultObj.TryGetPropertyAtom(this, IdValue, out var valueOut, out _)
             ? valueOut
             : JsValue.Undefined;
     }
@@ -5028,18 +5013,6 @@ public sealed partial class JsRealm
         if (thisValue.IsObject)
             return thisValue;
         return this.BoxPrimitive(thisValue);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool TryGetGeneratorNextMethodObject(JsObject iterator, out JsObject method)
-    {
-        method = null!;
-        if (!iterator.TryGetPropertyAtom(this, IdNext, out var nextMethod, out _))
-            return false;
-        if (!nextMethod.TryGetObject(out var methodObj))
-            return false;
-        method = methodObj;
-        return true;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

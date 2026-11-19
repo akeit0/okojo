@@ -438,45 +438,53 @@ internal abstract partial class JsCompilerBase
         try
         {
             EmitExpression(ast, parts[1]);
-            var sourceRegister = builder.AllocateTemporaryRegister();
-            EmitStar(sourceRegister);
+            var iteratorRegister = builder.AllocateTemporaryRegisterBlock(3);
+            EmitStar(iteratorRegister);
+            builder.EmitCallRuntime((int)RuntimeId.CreateSyncIteratorRecord, iteratorRegister, 2);
+            var valueRegister = iteratorRegister + 2;
+            var exceptionRegister = builder.AllocateTemporaryRegister();
             var needsPerIterationContext =
                 hasLexicalScope && ShouldReplaceLoopHeadContextPerIteration(activeScopes.Peek());
-            var arrayLengthRegister = builder.AllocateTemporaryRegister();
-            builder.EmitCallRuntime((int)RuntimeId.ForOfFastPathLength, sourceRegister, 1);
-            EmitStar(arrayLengthRegister);
-
-            var fastArrayLabel = builder.CreateLabel();
-            var fallbackLabel = builder.CreateLabel();
+            var loopStart = builder.CreateLabel();
+            var catchTarget = builder.CreateLabel();
+            var exhaustedLabel = builder.CreateLabel();
             var doneLabel = builder.CreateLabel();
 
-            EmitLdar(arrayLengthRegister);
-            builder.Emit(JsOpCode.TestLessThanSmi, 0);
-            EmitJumpIfToBooleanFalse(fastArrayLabel);
-            EmitJump(fallbackLabel);
+            builder.EmitJump(JsOpCode.PushTry, catchTarget);
+            builder.BindLabel(loopStart);
+            if (needsPerIterationContext)
+                EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
+            builder.EmitCallRuntime((int)RuntimeId.ForOfIteratorNext, iteratorRegister, 3);
+            EmitJumpIfToBooleanFalse(exhaustedLabel);
 
-            EmitForOfFastArrayPath(
-                ast,
-                left,
-                parts[2],
-                sourceRegister,
-                arrayLengthRegister,
-                fastArrayLabel,
-                doneLabel,
-                labels,
-                needsPerIterationContext
-            );
-            EmitForOfIteratorFallbackPath(
-                ast,
-                left,
-                parts[2],
-                sourceRegister,
-                fallbackLabel,
-                doneLabel,
-                labels,
-                needsPerIterationContext
-            );
+            PushForOfControlScope(doneLabel, loopStart, iteratorRegister, labels);
+            EnterBreakableContext();
+            try
+            {
+                EmitLdar(valueRegister);
+                EmitForIterationAssignment(ast, left);
+                EmitForOfIterationBodyWithResources(ast, left, valueRegister, parts[2], false);
+            }
+            finally
+            {
+                ExitBreakableContext();
+                controlScopes.Pop();
+            }
+            EmitJump(loopStart);
 
+            builder.BindLabel(exhaustedLabel);
+            builder.Emit(JsOpCode.PopTry);
+            EmitJump(doneLabel);
+
+            builder.BindLabel(catchTarget);
+            EmitStar(exceptionRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.DestructureIteratorCloseBestEffort,
+                iteratorRegister,
+                2
+            );
+            EmitLdar(exceptionRegister);
+            builder.Emit(JsOpCode.Throw);
             builder.BindLabel(doneLabel);
         }
         finally
@@ -486,140 +494,6 @@ internal abstract partial class JsCompilerBase
             if (hasLexicalScope)
                 LeaveScope();
         }
-    }
-
-    private void EmitForOfFastArrayPath(
-        JsAst ast,
-        int left,
-        int body,
-        int sourceRegister,
-        int arrayLengthRegister,
-        BytecodeBuilder.Label fastArrayLabel,
-        BytecodeBuilder.Label doneLabel,
-        string[]? labels,
-        bool needsPerIterationContext
-    )
-    {
-        builder.BindLabel(fastArrayLabel);
-        var indexRegister = builder.AllocateTemporaryRegister();
-        var valueRegister = builder.AllocateTemporaryRegister();
-        EmitSmi(0);
-        EmitStar(indexRegister);
-
-        var loopStart = builder.CreateLabel();
-        var continueTarget = builder.CreateLabel();
-        builder.BindLabel(loopStart);
-        if (needsPerIterationContext)
-            EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
-
-        builder.EmitCallRuntime((int)RuntimeId.ForOfFastPathLength, sourceRegister, 1);
-        EmitStar(arrayLengthRegister);
-        EmitLdar(arrayLengthRegister);
-        builder.Emit(JsOpCode.TestLessThan, (byte)indexRegister);
-        EmitJumpIfToBooleanFalse(doneLabel);
-
-        EmitLdar(indexRegister);
-        builder.EmitLdaKeyedProperty(sourceRegister);
-        EmitStar(valueRegister);
-
-        PushIterationControlScope(doneLabel, continueTarget, labels);
-        EnterBreakableContext();
-        try
-        {
-            EmitLdar(valueRegister);
-            EmitForIterationAssignment(ast, left);
-            EmitForOfIterationBodyWithResources(ast, left, valueRegister, body, false);
-        }
-        finally
-        {
-            ExitBreakableContext();
-            controlScopes.Pop();
-        }
-
-        builder.BindLabel(continueTarget);
-        EmitLdar(indexRegister);
-        builder.Emit(JsOpCode.Inc);
-        EmitStar(indexRegister);
-        EmitJump(loopStart);
-    }
-
-    private void EmitForOfIteratorFallbackPath(
-        JsAst ast,
-        int left,
-        int body,
-        int sourceRegister,
-        BytecodeBuilder.Label fallbackLabel,
-        BytecodeBuilder.Label doneLabel,
-        string[]? labels,
-        bool needsPerIterationContext
-    )
-    {
-        builder.BindLabel(fallbackLabel);
-
-        var methodRegister = builder.AllocateTemporaryRegister();
-        builder.EmitCallRuntime((int)RuntimeId.GetIteratorMethod, sourceRegister, 1);
-        EmitStar(methodRegister);
-        builder.EmitCallProperty(methodRegister, sourceRegister, 0, 0);
-        var iteratorRegister = builder.AllocateTemporaryRegister();
-        EmitStar(iteratorRegister);
-
-        var nextName = builder.AddAtomizedStringConstant("next");
-        var doneName = builder.AddAtomizedStringConstant("done");
-        var valueName = builder.AddAtomizedStringConstant("value");
-        var nextFunctionRegister = builder.AllocateTemporaryRegister();
-        var resultRegister = builder.AllocateTemporaryRegister();
-        builder.EmitLdaNamedProperty(iteratorRegister, nextName, builder.AllocateFeedbackSlot());
-        EmitStar(nextFunctionRegister);
-        var valueRegister = builder.AllocateTemporaryRegister();
-        var exceptionRegister = builder.AllocateTemporaryRegister();
-        var loopStart = builder.CreateLabel();
-        var continueTarget = builder.CreateLabel();
-        var catchTarget = builder.CreateLabel();
-        var resultIsObject = builder.CreateLabel();
-
-        builder.BindLabel(loopStart);
-        if (needsPerIterationContext)
-            EmitReplaceCurrentContext(activeScopes.Peek().ContextSlotCount);
-        builder.EmitCallProperty(nextFunctionRegister, iteratorRegister, 0, 0);
-        EmitStar(resultRegister);
-        builder.EmitJump(JsOpCode.JumpIfJsReceiver, resultIsObject);
-        builder.EmitCallRuntime((int)RuntimeId.ThrowIteratorResultNotObject, 0, 0);
-        builder.BindLabel(resultIsObject);
-        builder.EmitLdaNamedProperty(resultRegister, doneName, builder.AllocateFeedbackSlot());
-        EmitJumpIfToBooleanTrue(doneLabel);
-        builder.EmitLdaNamedProperty(resultRegister, valueName, builder.AllocateFeedbackSlot());
-        EmitStar(valueRegister);
-
-        builder.EmitJump(JsOpCode.PushTry, catchTarget);
-        PushForOfControlScope(doneLabel, continueTarget, iteratorRegister, labels);
-        PushTryControlScope();
-        EnterBreakableContext();
-        try
-        {
-            EmitLdar(valueRegister);
-            EmitForIterationAssignment(ast, left);
-            EmitForOfIterationBodyWithResources(ast, left, valueRegister, body, false);
-        }
-        finally
-        {
-            ExitBreakableContext();
-            controlScopes.Pop();
-            controlScopes.Pop();
-        }
-        builder.Emit(JsOpCode.PopTry);
-
-        builder.BindLabel(continueTarget);
-        EmitJump(loopStart);
-
-        builder.BindLabel(catchTarget);
-        EmitStar(exceptionRegister);
-        builder.EmitCallRuntime(
-            (int)RuntimeId.DestructureIteratorCloseBestEffort,
-            iteratorRegister,
-            1
-        );
-        EmitLdar(exceptionRegister);
-        builder.Emit(JsOpCode.Throw);
     }
 
     private void EmitSimpleForAwaitOfStatement(JsAst ast, ReadOnlySpan<int> parts)
@@ -1152,10 +1026,11 @@ internal abstract partial class JsCompilerBase
                     command == AbruptCommand.Return ? builder.AllocateTemporaryRegister() : -1;
                 if (returnValueRegister >= 0)
                     EmitStar(returnValueRegister);
+                builder.Emit(JsOpCode.PopTry);
                 builder.EmitCallRuntime(
                     (int)RuntimeId.DestructureIteratorClose,
                     scope.IteratorRegister,
-                    1
+                    2
                 );
                 if (command == AbruptCommand.Break && isTarget)
                 {
@@ -1174,8 +1049,6 @@ internal abstract partial class JsCompilerBase
                 if (command == AbruptCommand.Return)
                 {
                     EmitStar(scope.CompletionValueRegister);
-                    EmitSmi(1);
-                    EmitStar(scope.CompletionKindRegister);
                     EmitJump(scope.Finally);
                     return;
                 }
@@ -2218,27 +2091,12 @@ internal abstract partial class JsCompilerBase
         var marker = builder.GetTemporaryRegisterScopeMarker();
         try
         {
-            EmitLdar(sourceRegister);
-            builder.EmitCallRuntime(
-                (int)RuntimeId.CreateArrayDestructureIterator,
-                sourceRegister,
-                1
-            );
-            var iteratorRegister = builder.AllocateTemporaryRegister();
-            EmitStar(iteratorRegister);
-            var doneRegister = builder.AllocateTemporaryRegister();
-            builder.EmitLda(JsOpCode.LdaFalse);
-            EmitStar(doneRegister);
+            var iteratorRegister = builder.AllocateTemporaryRegisterBlock(2);
+            EmitMove(sourceRegister, iteratorRegister);
+            builder.EmitCallRuntime((int)RuntimeId.CreateSyncIteratorRecord, iteratorRegister, 2);
             var valueRegister = builder.AllocateTemporaryRegister();
-            var inStepRegister = builder.AllocateTemporaryRegister();
-            builder.EmitLda(JsOpCode.LdaFalse);
-            EmitStar(inStepRegister);
-            var kindRegister = builder.AllocateTemporaryRegister();
-            builder.EmitLda(JsOpCode.LdaZero);
-            EmitStar(kindRegister);
             var catchLabel = builder.CreateLabel();
             var abruptExitLabel = builder.CreateLabel();
-            var closeEntryLabel = builder.CreateLabel();
             var endLabel = builder.CreateLabel();
 
             builder.EmitJump(JsOpCode.PushTry, catchLabel);
@@ -2249,8 +2107,7 @@ internal abstract partial class JsCompilerBase
                     default,
                     abruptExitLabel,
                     CurrentContextDepth,
-                    kindRegister,
-                    valueRegister
+                    CompletionValueRegister: valueRegister
                 )
             );
             var elements = ast.ChildRange(pattern.Arg0, pattern.Arg1);
@@ -2258,11 +2115,10 @@ internal abstract partial class JsCompilerBase
             {
                 if (elements[i] < 0)
                 {
-                    EmitArrayBindingElision(
+                    builder.EmitCallRuntime(
+                        (int)RuntimeId.DestructureIteratorSkip,
                         iteratorRegister,
-                        doneRegister,
-                        valueRegister,
-                        inStepRegister
+                        2
                     );
                     continue;
                 }
@@ -2280,15 +2136,16 @@ internal abstract partial class JsCompilerBase
                                 ast[element.Arg0],
                                 normalizeComputedKey: false
                             );
-                        EmitArrayBindingRest(
+                        builder.EmitCallRuntime(
+                            (int)RuntimeId.DestructureIteratorRestArray,
+                            iteratorRegister,
+                            2
+                        );
+                        EmitStoreDestructuringTarget(
                             ast,
                             element.Arg0,
-                            iteratorRegister,
-                            doneRegister,
-                            valueRegister,
                             assignment,
-                            preparedRestTarget,
-                            inStepRegister
+                            preparedRestTarget
                         );
                         continue;
                     }
@@ -2311,11 +2168,10 @@ internal abstract partial class JsCompilerBase
                             ast[targetIndex],
                             normalizeComputedKey: false
                         );
-                    EmitArrayBindingStep(
+                    builder.EmitCallRuntime(
+                        (int)RuntimeId.DestructureIteratorStepValue,
                         iteratorRegister,
-                        doneRegister,
-                        valueRegister,
-                        inStepRegister
+                        2
                     );
                     if (defaultIndex >= 0)
                         EmitBindingDefault(ast, targetIndex, defaultIndex, valueRegister);
@@ -2328,56 +2184,22 @@ internal abstract partial class JsCompilerBase
             }
             controlScopes.Pop();
             builder.Emit(JsOpCode.PopTry);
-            EmitJump(closeEntryLabel);
+            builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 2);
+            EmitJump(endLabel);
 
             builder.BindLabel(abruptExitLabel);
             builder.Emit(JsOpCode.PopTry);
-            EmitJump(closeEntryLabel);
-
-            builder.BindLabel(catchLabel);
-            EmitStar(valueRegister);
-            EmitSmi(2);
-            EmitStar(kindRegister);
-            EmitJump(closeEntryLabel);
-
-            builder.BindLabel(closeEntryLabel);
-            var throwCloseLabel = builder.CreateLabel();
-            var dispatchLabel = builder.CreateLabel();
-            var returnDispatchLabel = builder.CreateLabel();
-            var throwDispatchLabel = builder.CreateLabel();
-            var rethrowLabel = builder.CreateLabel();
-            EmitSmi(2);
-            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
-            EmitJumpIfToBooleanTrue(throwCloseLabel);
-            EmitCloseArrayBindingIterator(iteratorRegister, doneRegister);
-            EmitJump(dispatchLabel);
-
-            builder.BindLabel(throwCloseLabel);
-            EmitLdar(doneRegister);
-            EmitJumpIfToBooleanTrue(rethrowLabel);
-            EmitLdar(inStepRegister);
-            EmitJumpIfToBooleanTrue(rethrowLabel);
-            builder.EmitCallRuntime(
-                (int)RuntimeId.DestructureIteratorCloseBestEffort,
-                iteratorRegister,
-                1
-            );
-            builder.BindLabel(rethrowLabel);
-
-            builder.BindLabel(dispatchLabel);
-            EmitSmi(1);
-            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
-            EmitJumpIfToBooleanTrue(returnDispatchLabel);
-            EmitSmi(2);
-            EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, kindRegister);
-            EmitJumpIfToBooleanTrue(throwDispatchLabel);
-            EmitJump(endLabel);
-
-            builder.BindLabel(returnDispatchLabel);
+            builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 2);
             EmitLdar(valueRegister);
             EmitAbruptCommand(AbruptCommand.Return);
 
-            builder.BindLabel(throwDispatchLabel);
+            builder.BindLabel(catchLabel);
+            EmitStar(valueRegister);
+            builder.EmitCallRuntime(
+                (int)RuntimeId.DestructureIteratorCloseBestEffort,
+                iteratorRegister,
+                2
+            );
             EmitLdar(valueRegister);
             builder.Emit(JsOpCode.Throw);
             builder.BindLabel(endLabel);
@@ -2386,92 +2208,6 @@ internal abstract partial class JsCompilerBase
         {
             builder.ReleaseTemporaryRegistersToMarker(marker);
         }
-    }
-
-    private void EmitArrayBindingStep(
-        int iteratorRegister,
-        int doneRegister,
-        int valueRegister,
-        int inStepRegister
-    )
-    {
-        var doneLabel = builder.CreateLabel();
-        var hasValueLabel = builder.CreateLabel();
-        var endLabel = builder.CreateLabel();
-        EmitLdar(doneRegister);
-        EmitJumpIfToBooleanTrue(doneLabel);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(inStepRegister);
-        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
-        EmitStar(valueRegister);
-        builder.EmitLda(JsOpCode.LdaFalse);
-        EmitStar(inStepRegister);
-        builder.EmitLda(JsOpCode.LdaTheHole);
-        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
-        EmitJumpIfToBooleanFalse(hasValueLabel);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(doneRegister);
-        builder.BindLabel(doneLabel);
-        builder.EmitLda(JsOpCode.LdaUndefined);
-        EmitJump(endLabel);
-        builder.BindLabel(hasValueLabel);
-        EmitLdar(valueRegister);
-        builder.BindLabel(endLabel);
-    }
-
-    private void EmitArrayBindingElision(
-        int iteratorRegister,
-        int doneRegister,
-        int valueRegister,
-        int inStepRegister
-    )
-    {
-        var endLabel = builder.CreateLabel();
-        EmitLdar(doneRegister);
-        EmitJumpIfToBooleanTrue(endLabel);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(inStepRegister);
-        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorStepValue, iteratorRegister, 1);
-        EmitStar(valueRegister);
-        builder.EmitLda(JsOpCode.LdaFalse);
-        EmitStar(inStepRegister);
-        builder.EmitLda(JsOpCode.LdaTheHole);
-        EmitRegisterWithSlotOp(JsOpCode.TestEqualStrict, valueRegister);
-        EmitJumpIfToBooleanFalse(endLabel);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(doneRegister);
-        builder.BindLabel(endLabel);
-    }
-
-    private void EmitArrayBindingRest(
-        JsAst ast,
-        int targetIndex,
-        int iteratorRegister,
-        int doneRegister,
-        int valueRegister,
-        bool assignment,
-        PreparedMemberReference? preparedTarget,
-        int inStepRegister
-    )
-    {
-        var emptyLabel = builder.CreateLabel();
-        var storeLabel = builder.CreateLabel();
-        EmitLdar(doneRegister);
-        EmitJumpIfToBooleanTrue(emptyLabel);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(inStepRegister);
-        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorRestArray, iteratorRegister, 1);
-        EmitStar(valueRegister);
-        builder.EmitLda(JsOpCode.LdaFalse);
-        EmitStar(inStepRegister);
-        builder.EmitLda(JsOpCode.LdaTrue);
-        EmitStar(doneRegister);
-        EmitLdar(valueRegister);
-        EmitJump(storeLabel);
-        builder.BindLabel(emptyLabel);
-        builder.Emit(JsOpCode.CreateEmptyArrayLiteral);
-        builder.BindLabel(storeLabel);
-        EmitStoreDestructuringTarget(ast, targetIndex, assignment, preparedTarget);
     }
 
     private void EmitBindingDefault(JsAst ast, int targetIndex, int defaultIndex, int valueRegister)
@@ -2487,15 +2223,6 @@ internal abstract partial class JsCompilerBase
             EmitExpressionWithInferredName(ast, defaultIndex, ast.GetString(ast[targetIndex].Arg0));
         else
             EmitExpression(ast, defaultIndex);
-        builder.BindLabel(endLabel);
-    }
-
-    private void EmitCloseArrayBindingIterator(int iteratorRegister, int doneRegister)
-    {
-        var endLabel = builder.CreateLabel();
-        EmitLdar(doneRegister);
-        EmitJumpIfToBooleanTrue(endLabel);
-        builder.EmitCallRuntime((int)RuntimeId.DestructureIteratorClose, iteratorRegister, 1);
         builder.BindLabel(endLabel);
     }
 
