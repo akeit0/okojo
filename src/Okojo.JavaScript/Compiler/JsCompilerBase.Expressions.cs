@@ -2009,12 +2009,33 @@ internal abstract partial class JsCompilerBase
             out var binding,
             out var contextDepth
         );
+        if (
+            hasLocalBinding
+            && contextDepth == 0
+            && (uint)binding.Register <= byte.MaxValue
+            && !binding.Planned.IsConst
+            && binding.Planned.Kind != CompilerCollectedBindingKind.FunctionNameSelf
+            && (
+                binding.Planned.StorageKind == CompilerPlannedStorageKind.LocalRegister
+                || binding.Planned.StorageKind == CompilerPlannedStorageKind.LexicalRegister
+                    && IsKnownInitializedLexical(binding)
+            )
+        )
+        {
+            var mode = (JsUpdateOperator)node.Arg1 == JsUpdateOperator.Increment ? 0 : 1;
+            if (oldValueDestination >= 0 || (preserveResult && node.Arg2 == 0))
+                mode |= 2;
+            builder.Emit(JsOpCode.UpdateLocal, (byte)binding.Register, (byte)mode);
+            if (oldValueDestination >= 0)
+                EmitStar(oldValueDestination);
+            return;
+        }
+
         var hasExternalBinding = TryResolveExternalBinding(
             name,
             out var externalBinding,
             out var externalDepth
         );
-
         EmitIdentifierLoad(name, argument.Arg1);
         var ownsOldValue = oldValueDestination < 0 && preserveResult && node.Arg2 == 0;
         var oldValueRegister = ownsOldValue

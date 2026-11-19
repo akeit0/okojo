@@ -2361,6 +2361,35 @@ public sealed partial class JsRealm
                                     );
                             }
                             break;
+                        case JsOpCode.UpdateLocal:
+                            {
+                                slotRef = ref Unsafe.Add(ref registerRef, pc);
+                                intNum1 = Unsafe.Add(ref pc, 1);
+                                pc = ref Unsafe.Add(ref pc, 2);
+                                intNum2 = 1 - ((intNum1 & 1) << 1);
+                                uRhs = slotRef.U;
+                                if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)
+                                {
+                                    longNum = (long)(int)uRhs + intNum2;
+                                    uLhs = longNum is >= int.MinValue and <= int.MaxValue
+                                        ? JsValue.JsInt32Top32Bits | (uint)longNum
+                                        : Unsafe.BitCast<double, ulong>(longNum);
+                                    // The Int32 tag proves the register has no object reference.
+                                    Unsafe.As<JsValue, ulong>(ref slotRef) = uLhs;
+                                    ref var accBits = ref Unsafe.As<JsValue, ulong>(ref acc);
+                                    accBits = (intNum1 & 2) == 0 ? uLhs : uRhs;
+                                    Unsafe.Add(ref accBits, 1) = 0;
+                                }
+                                else
+                                {
+                                    acc = UpdateLocalSlowPath(
+                                        ref slotRef,
+                                        intNum2,
+                                        (intNum1 & 2) != 0
+                                    );
+                                }
+                            }
+                            break;
                         case JsOpCode.Inc:
                             uRhs = acc.U;
                             if ((uRhs & JsValue.Top32Mask) == JsValue.JsInt32Top32Bits)

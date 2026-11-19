@@ -593,7 +593,7 @@ public class AssignmentTests
     }
 
     [Test]
-    public void Updates_ConvertSeparatelyWhenReturningTheOldValue()
+    public void InitializedLocalUpdatesUseSingleInstruction()
     {
         var realm = JsRuntime.Create().DefaultRealm;
         var script = JsCompiler.Compile(
@@ -625,7 +625,8 @@ public class AssignmentTests
             effects.Script,
             new() { UnitKind = "function", UnitName = "effects" }
         );
-        Assert.That(effectsDisasm, Does.Not.Contain("ToNumeric"));
+        Assert.That(effectsDisasm, Does.Contain("UpdateLocal r0, mode:0"));
+        Assert.That(effectsDisasm, Does.Contain("UpdateLocal r0, mode:1"));
 
         var values = script
             .ObjectConstants.OfType<JsScript>()
@@ -635,7 +636,9 @@ public class AssignmentTests
             values.Script,
             new() { UnitKind = "function", UnitName = "values" }
         );
-        Assert.That(valuesDisasm, Does.Contain("ToNumeric"));
+        Assert.That(valuesDisasm, Does.Contain("UpdateLocal r0, mode:2"));
+        realm.Execute(script);
+        Assert.That(realm.Accumulator.Int32Value, Is.Zero);
     }
 
     [Test]
@@ -980,6 +983,27 @@ public class AssignmentTests
 
         realm.Execute(script);
         Assert.That(realm.Accumulator.IsTrue, Is.True);
+    }
+
+    [Test]
+    public void LocalUpdatesPreserveCoercionAndNumericResult()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            function update(x) {
+                const oldValue = x++;
+                return [oldValue, --x];
+            }
+            let calls = 0;
+            const big = update({ valueOf() { calls++; return 1n; } });
+            const edge = update(2147483647);
+            calls === 1 && big[0] === 1n && big[1] === 1n &&
+                edge[0] === 2147483647 && edge[1] === 2147483647 &&
+                Object.is(update(-0)[0], -0);
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
     }
 
     [Test]

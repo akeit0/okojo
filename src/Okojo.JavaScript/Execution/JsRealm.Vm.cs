@@ -2764,6 +2764,20 @@ public sealed partial class JsRealm
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
+    private JsValue UpdateLocalSlowPath(ref JsValue slot, int delta, bool returnOld)
+    {
+        var oldValue = slot;
+        this.acc = oldValue;
+        if (!oldValue.IsNumeric)
+            oldValue = this.ToNumericSlowPath(oldValue);
+        var updated = oldValue.IsBigInt
+            ? IncrementBigIntSlowPath(oldValue, delta)
+            : JsValue.FromFloat64(oldValue.NumberValue + delta);
+        slot = updated;
+        return returnOld ? oldValue : updated;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static JsValue IncrementSlowPath(JsRealm realm, JsValue value, int delta)
     {
         var primitive = realm.ToPrimitiveSlowPath(value, false);
