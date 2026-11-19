@@ -12,6 +12,9 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
 {
     private const int LinearEntryLimit = 15;
 
+    // Upper bound for slots preallocated from a constructor root's learned instance size.
+    internal const int MaxExpectedSlotCount = 32;
+
     private readonly object transitionLock = new();
     private Dictionary<ulong, StaticNamedPropertyLayout>? transitions;
 
@@ -42,6 +45,23 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
 
     public int PropertyCount => Entries.Length;
     public int StorageSlotCount { get; }
+
+    /// <summary>
+    /// Constructor-owned transition root this shape descends from, or null for shared roots.
+    /// The root records the largest storage any of its descendants needs, so new instances
+    /// and growing instances can allocate final-size slot arrays (V8-style slack tracking).
+    /// </summary>
+    internal StaticNamedPropertyLayout? SlackRoot { get; private set; }
+
+    /// <summary>Learned slot count for instances under this constructor root.</summary>
+    internal int ExpectedSlotCount { get; private set; }
+
+    internal static StaticNamedPropertyLayout CreateConstructorRoot(JsRealm owner)
+    {
+        var root = new StaticNamedPropertyLayout(owner, Array.Empty<Entry>(), 0);
+        root.SlackRoot = root;
+        return root;
+    }
 
     internal Entry[] UnsafeEntries => Entries;
 
@@ -228,6 +248,12 @@ public sealed class StaticNamedPropertyLayout : NamedPropertyLayout
 
             nextEntries[Entries.Length] = new(atom, slotInfo);
             var next = new StaticNamedPropertyLayout(Owner, nextEntries, StorageSlotCount + width);
+            if (SlackRoot is { } root)
+            {
+                next.SlackRoot = root;
+                if (next.StorageSlotCount > root.ExpectedSlotCount)
+                    root.ExpectedSlotCount = Math.Min(next.StorageSlotCount, MaxExpectedSlotCount);
+            }
 
             this.transitions.Add(transitionKey, next);
             return next;

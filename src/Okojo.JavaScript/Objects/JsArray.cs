@@ -9,8 +9,50 @@ public sealed class JsArray : JsObject
     private const int DenseToSparseGapThreshold = 256;
 
     // Dense-first array storage. When indices become too sparse, we fall back to sparse map storage.
-    internal JsValue[]? Dense;
+    // The store may be shared with a compiled array-literal boilerplate (copy-on-write): every
+    // access through Dense un-shares first, so only audited read-only paths use DenseForRead.
+    private JsValue[]? dense;
     private bool lengthWritable = true;
+    private bool denseShared;
+
+    /// <summary>Writable dense store. Copies a shared literal store before returning it.</summary>
+    internal JsValue[]? Dense
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (denseShared)
+                UnshareDense();
+            return dense;
+        }
+        set
+        {
+            dense = value;
+            denseShared = false;
+        }
+    }
+
+    /// <summary>Read-only dense store that may be shared. Never write through it.</summary>
+    internal JsValue[]? DenseForRead
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => dense;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void UnshareDense()
+    {
+        dense = (JsValue[])dense!.Clone();
+        denseShared = false;
+    }
+
+    /// <summary>Adopts an immutable literal store; the first write copies it.</summary>
+    internal void InitializeSharedDenseElements(JsValue[] sharedElements)
+    {
+        dense = sharedElements;
+        denseShared = sharedElements.Length != 0;
+        Length = (uint)sharedElements.Length;
+    }
 
     public JsArray(JsRealm realm)
         : base(realm)
@@ -21,11 +63,13 @@ public sealed class JsArray : JsObject
         Prototype = realm.Intrinsics is null ? realm.ObjectPrototype : realm.ArrayPrototype;
     }
 
+    // A span is a view of this array's storage. Detach before exposing it so
+    // subsequent in-place writes are visible through the view.
     public ReadOnlySpan<JsValue> AsReadOnlySpan() =>
-        Dense is not null ? Dense.AsSpan(0, (int)Length) : [];
+        Dense is { } store ? store.AsSpan(0, (int)Length) : [];
 
     public Span<JsValue> AsSpan() =>
-        Dense is not null && IsExtensibleFlag ? Dense.AsSpan(0, (int)Length) : [];
+        IsExtensibleFlag && Dense is { } store ? store.AsSpan(0, (int)Length) : [];
 
     public uint Length { get; private set; }
 
@@ -157,7 +201,7 @@ public sealed class JsArray : JsObject
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal bool TryGetDenseElement(uint index, out JsValue value)
     {
-        var dense = Dense;
+        var dense = this.dense;
         if (dense is not null && index < (uint)dense.Length && IndexedProperties is null)
         {
             value = dense[index];
@@ -203,10 +247,11 @@ public sealed class JsArray : JsObject
             return true;
         }
 
-        if (Dense is not null)
-            if (index < (uint)Dense.Length)
+        var dense = this.dense;
+        if (dense is not null)
+            if (index < (uint)dense.Length)
             {
-                var v = Dense[index];
+                var v = dense[index];
                 if (!v.IsTheHole)
                 {
                     value = v;

@@ -1133,13 +1133,24 @@ public sealed partial class JsRealm
 
         // A10: boilerplate slot typed by the compiler as a static layout -
         // cast is compiler-guaranteed, skip the runtime type test.
-        acc = new JsPlainObject(Unsafe.As<StaticNamedPropertyLayout>(objectPool[boilerplateIdx]));
+        var shape = Unsafe.As<StaticNamedPropertyLayout>(objectPool[boilerplateIdx]);
+        acc = JsPlainObject.CreateWithSlots(
+            shape,
+            Intrinsics.ObjectPrototype,
+            shape.StorageSlotCount
+        );
         return pcOffset - startOffset;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private JsArray CreateArrayLiteralFromPool(object[] objectPool, int constantIndex) =>
-        CreateArrayObject(((JsArrayLiteral)objectPool[constantIndex]).Elements);
+    private JsArray CreateArrayLiteralFromPool(object[] objectPool, int constantIndex)
+    {
+        var array = new JsArray(this);
+        array.InitializeSharedDenseElements(
+            Unsafe.As<JsArrayLiteral>(objectPool[constantIndex]).SharedElements
+        );
+        return array;
+    }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool TryCatchRunCoreException(
@@ -1774,17 +1785,14 @@ public sealed partial class JsRealm
                                 )
                                     break;
 
-                                if (obj!.TryGetPropertyAtom(this, intNum1, out acc, out slotInfo))
-                                    UpdateNamedPropertyIcAfterGet(
-                                        currentFunc.Script,
-                                        ref prototypeNamedPropertyIcEntries,
-                                        namedPropertyIcEntries,
-                                        intNum2,
-                                        true,
-                                        obj!,
-                                        intNum1,
-                                        slotInfo
-                                    );
+                                acc = LoadNamedPropertyIcMiss(
+                                    currentFunc.Script,
+                                    ref prototypeNamedPropertyIcEntries,
+                                    namedPropertyIcEntries,
+                                    intNum2,
+                                    obj!,
+                                    intNum1
+                                );
                             }
                             break;
                         case JsOpCode.GetNamedPropertyFromSuper:
@@ -1912,23 +1920,15 @@ public sealed partial class JsRealm
                                     break;
                                 }
 
-                                if (
-                                    !obj!.TrySetPropertyAtom(this, intNum1, acc, out slotInfo)
-                                    && currentFunc.IsStrict
-                                )
-                                    ThrowTypeError(
-                                        "ASSIGN_READONLY",
-                                        "Cannot assign to read only property"
-                                    );
-
-                                if (CanCacheNamedPropertyResult(boolTemp, obj, slotInfo))
-                                    UpdateNamedPropertyIc(
-                                        namedPropertyIcEntries,
-                                        intNum2,
-                                        obj,
-                                        intNum1,
-                                        slotInfo
-                                    );
+                                StoreNamedPropertyIcMiss(
+                                    currentFunc,
+                                    namedPropertyIcEntries,
+                                    intNum2,
+                                    boolTemp,
+                                    obj!,
+                                    intNum1,
+                                    acc
+                                );
                             }
                             break;
 

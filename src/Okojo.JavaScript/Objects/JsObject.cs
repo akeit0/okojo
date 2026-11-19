@@ -16,7 +16,12 @@ public class JsObject
     protected bool IsExtensibleFlag = true;
     internal NamedPropertyLayout NamedPropertyLayout;
     private byte redefineChurn;
+
+    // Named-property storage. Logical slot s lives inline when s < InlineSlotCapacity
+    // (JsPlainObjectInline* only), otherwise at SlotsArray[s]; the first entries of an
+    // inline object's SlotsArray are unused so both halves share logical indices.
     internal JsValue[] SlotsArray = Array.Empty<JsValue>();
+    private protected byte InlineSlotCapacity;
 
     protected JsObject(JsRealm realm, bool useDictionaryMode = false)
     {
@@ -30,6 +35,28 @@ public class JsObject
         NamedPropertyLayout = shape;
         if (shape.StorageSlotCount != 0)
             SlotsArray = new JsValue[shape.StorageSlotCount];
+    }
+
+    /// <summary>Creates an object at a constructor root with preallocated slot capacity.</summary>
+    protected JsObject(StaticNamedPropertyLayout shape, JsObject? prototype, int slotCapacity)
+    {
+        NamedPropertyLayout = shape;
+        Prototype = prototype;
+        if (slotCapacity != 0)
+            SlotsArray = new JsValue[slotCapacity];
+    }
+
+    /// <summary>Creates an object whose first slots live in the derived type's inline storage.</summary>
+    private protected JsObject(
+        StaticNamedPropertyLayout shape,
+        JsObject? prototype,
+        byte inlineSlotCapacity,
+        bool inlineStorage
+    )
+    {
+        NamedPropertyLayout = shape;
+        Prototype = prototype;
+        InlineSlotCapacity = inlineSlotCapacity;
     }
 
     public JsObject? Prototype { get; internal set; }
@@ -48,7 +75,82 @@ public class JsObject
             return Unsafe.As<StaticNamedPropertyLayout>(NamedPropertyLayout);
         }
     }
-    internal JsValue[] Slots => SlotsArray;
+
+    /// <summary>
+    /// Out-of-line slot array addressed by logical slot. Inline storage is migrated out
+    /// first, so callers may index it directly; hot paths should use <see cref="SlotRef"/>.
+    /// </summary>
+    internal JsValue[] Slots
+    {
+        get
+        {
+            if (InlineSlotCapacity != 0)
+                DropInlineSlots();
+            return SlotsArray;
+        }
+    }
+
+    /// <summary>Storage reference for a logical named-property slot.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref JsValue SlotRef(int slot)
+    {
+        if ((uint)slot < InlineSlotCapacity)
+            return ref Unsafe.Add(ref InlineSlotsStart(), slot);
+        return ref SlotsArray[slot];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ref JsValue InlineSlotsStart()
+    {
+        switch (InlineSlotCapacity)
+        {
+            case 2:
+                return ref ((JsPlainObjectInline2)this).InlineSlots[0];
+            case 4:
+                return ref ((JsPlainObjectInline4)this).InlineSlots[0];
+            default:
+                return ref ((JsPlainObjectInline8)this).InlineSlots[0];
+        }
+    }
+
+    private int SlotCapacity
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Math.Max(InlineSlotCapacity, SlotsArray.Length);
+    }
+
+    /// <summary>Replaces all slot storage with an out-of-line array indexed by logical slot.</summary>
+    private void ReplaceSlots(JsValue[] slots)
+    {
+        if (InlineSlotCapacity != 0)
+            ClearInlineSlots();
+        SlotsArray = slots;
+    }
+
+    /// <summary>Moves inline slots into SlotsArray so all storage is out-of-line.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void DropInlineSlots()
+    {
+        var capacity = InlineSlotCapacity;
+        var slots = SlotsArray;
+        if (slots.Length < capacity)
+        {
+            var grown = new JsValue[capacity];
+            slots.AsSpan().CopyTo(grown);
+            slots = grown;
+        }
+
+        MemoryMarshal.CreateSpan(ref InlineSlotsStart(), capacity).CopyTo(slots);
+        ClearInlineSlots();
+        SlotsArray = slots;
+    }
+
+    private void ClearInlineSlots()
+    {
+        MemoryMarshal.CreateSpan(ref InlineSlotsStart(), InlineSlotCapacity).Clear();
+        InlineSlotCapacity = 0;
+    }
+
     internal bool UsesDynamicNamedProperties => NamedPropertyLayout.IsDynamic;
 
     private StaticNamedPropertyLayout StaticNamedPropertyLayout =>
@@ -196,7 +298,7 @@ public class JsObject
                 slotInfo = foundInfo;
 
             var flags = foundInfo.Flags;
-            ref var valRef = ref SlotsArray[foundInfo.Slot];
+            ref var valRef = ref SlotRef(foundInfo.Slot);
             if (valRef.IsTheHole)
                 ILazyHostMethodProvider.GetOrCreateLazyHostMethod(atom, this, out valRef);
             if ((flags & JsShapePropertyFlags.HasGetter) != 0)
@@ -383,7 +485,7 @@ public class JsObject
                 return false;
             }
 
-            SlotsArray[foundInfo.Slot] = value;
+            SlotRef(foundInfo.Slot) = value;
             return true;
         }
 
@@ -433,9 +535,9 @@ public class JsObject
         );
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
-        if (required > SlotsArray.Length)
+        if (required > SlotCapacity)
             EnsureStaticNamedSlotCapacity(required);
-        SlotsArray[slotInfo.Slot] = value;
+        SlotRef(slotInfo.Slot) = value;
     }
 
     public void SetElement(uint index, JsValue value)
@@ -591,7 +693,7 @@ public class JsObject
         }
 
         NamedPropertyLayout = nextShape;
-        SlotsArray = nextSlots;
+        ReplaceSlots(nextSlots);
         PromoteAfterDeleteChurn(realm);
         return true;
     }
@@ -664,25 +766,25 @@ public class JsObject
 
     internal JsValue GetNamedSlotUnchecked(int slot)
     {
-        return SlotsArray[slot];
+        return SlotRef(slot);
     }
 
     public void SetNamedSlotUnchecked(int slot, JsValue value)
     {
-        SlotsArray[slot] = value;
+        SlotRef(slot) = value;
     }
 
     internal void InitializeLiteralNamedSlot(int slot, JsValue value)
     {
         EnsureNamedSlotCapacity(slot + 1);
-        SlotsArray[slot] = value;
+        SlotRef(slot) = value;
     }
 
     internal void InitializeStorageFromCachedShape(StaticNamedPropertyLayout shape)
     {
         NamedPropertyLayout = shape;
         var count = shape.StorageSlotCount;
-        SlotsArray = count == 0 ? Array.Empty<JsValue>() : new JsValue[count];
+        ReplaceSlots(count == 0 ? Array.Empty<JsValue>() : new JsValue[count]);
         if (count != 0)
             JsValue.FillUndefined(SlotsArray);
     }
@@ -835,7 +937,7 @@ public class JsObject
         }
 
         NamedPropertyLayout = nextShape;
-        SlotsArray = nextSlots;
+        ReplaceSlots(nextSlots);
     }
 
     internal void InitializeDynamicOpenDataPropertiesNoCollision(
@@ -860,7 +962,7 @@ public class JsObject
 
         // Dynamic layouts belong to one object; fill its fresh layout instead of replacing it.
         DynamicNamedPropertyLayout.InitializeOpenDataNoCollision(atoms);
-        SlotsArray = new JsValue[values.Length];
+        ReplaceSlots(new JsValue[values.Length]);
         values.CopyTo(SlotsArray);
     }
 
@@ -917,7 +1019,7 @@ public class JsObject
     internal JsValue GetNamedByCachedSlotInfo(JsRealm realm, SlotInfo slotInfo)
     {
         if ((slotInfo.Flags & JsShapePropertyFlags.BothAccessor) == 0)
-            return SlotsArray[slotInfo.Slot];
+            return SlotRef(slotInfo.Slot);
 
         return GetNamedValueBySlotInfo(realm, JsValue.FromObject(this), slotInfo);
     }
@@ -929,7 +1031,7 @@ public class JsObject
             == JsShapePropertyFlags.Writable
         )
         {
-            SlotsArray[slotInfo.Slot] = value;
+            SlotRef(slotInfo.Slot) = value;
             return true;
         }
 
@@ -946,7 +1048,7 @@ public class JsObject
         if ((flags & JsShapePropertyFlags.HasGetter) != 0)
             return InvokeAccessorGetter(realm, receiverValue, slotInfo);
         if ((flags & JsShapePropertyFlags.HasSetter) == 0)
-            return SlotsArray[slotInfo.Slot];
+            return SlotRef(slotInfo.Slot);
         return JsValue.Undefined;
     }
 
@@ -965,7 +1067,7 @@ public class JsObject
         if ((flags & JsShapePropertyFlags.Writable) == 0)
             return false;
 
-        SlotsArray[slotInfo.Slot] = value;
+        SlotRef(slotInfo.Slot) = value;
         return true;
     }
 
@@ -978,7 +1080,7 @@ public class JsObject
         {
             var getterValue =
                 (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
-                    ? SlotsArray[slotInfo.Slot]
+                    ? SlotRef(slotInfo.Slot)
                     : JsValue.Undefined;
             JsFunction? setter = null;
             if ((slotInfo.Flags & JsShapePropertyFlags.HasSetter) != 0)
@@ -988,7 +1090,7 @@ public class JsObject
                     == JsShapePropertyFlags.BothAccessor
                         ? slotInfo.AccessorSetterSlot
                         : slotInfo.Slot;
-                var setterValue = SlotsArray[setterSlot];
+                var setterValue = SlotRef(setterSlot);
                 if (
                     !setterValue.IsUndefined
                     && setterValue.TryGetObject(out var setterObj)
@@ -1000,7 +1102,7 @@ public class JsObject
             return new(getterValue, setter, slotInfo.Flags);
         }
 
-        return new(SlotsArray[slotInfo.Slot], null, slotInfo.Flags);
+        return new(SlotRef(slotInfo.Slot), null, slotInfo.Flags);
     }
 
     public bool TryGetOwnPropertyFlags(string name, out JsShapePropertyFlags flags)
@@ -1059,7 +1161,7 @@ public class JsObject
         if (NamedPropertyLayout.TryGetSlotInfo(atom, out var existing))
         {
             // Preserve existing descriptor flags; only overwrite value on existing property.
-            SlotsArray[existing.Slot] = value;
+            SlotRef(existing.Slot) = value;
             return;
         }
 
@@ -1206,7 +1308,7 @@ public class JsObject
                 return true;
             }
 
-            SlotsArray[dynamicExisting.Slot] = value;
+            SlotRef(dynamicExisting.Slot) = value;
             RewriteDynamicNamedPropertyFlags(atom, static (_, newFlags) => newFlags, flags);
             return true;
         }
@@ -1238,7 +1340,7 @@ public class JsObject
                 return true;
             }
 
-            SlotsArray[existing.Slot] = value;
+            SlotRef(existing.Slot) = value;
             RewriteOwnNamedPropertyFlags(atom, static (_, newFlags) => newFlags, flags);
             return true;
         }
@@ -1248,9 +1350,9 @@ public class JsObject
 
         var nextShape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = nextShape;
-        if (nextShape.StorageSlotCount > SlotsArray.Length)
+        if (nextShape.StorageSlotCount > SlotCapacity)
             EnsureStaticNamedSlotCapacity(nextShape.StorageSlotCount);
-        SlotsArray[slotInfo.Slot] = value;
+        SlotRef(slotInfo.Slot) = value;
         return true;
     }
 
@@ -1300,7 +1402,7 @@ public class JsObject
                 && (dynamicExisting.Flags & JsShapePropertyFlags.HasGetter) != 0
             )
             {
-                var getterValue = SlotsArray[dynamicExisting.Slot];
+                var getterValue = SlotRef(dynamicExisting.Slot);
                 if (
                     !getterValue.IsUndefined
                     && getterValue.TryGetObject(out var getterObj)
@@ -1319,7 +1421,7 @@ public class JsObject
                     == JsShapePropertyFlags.BothAccessor
                         ? dynamicExisting.AccessorSetterSlot
                         : dynamicExisting.Slot;
-                var setterValue = SlotsArray[setterSlot];
+                var setterValue = SlotRef(setterSlot);
                 if (
                     !setterValue.IsUndefined
                     && setterValue.TryGetObject(out var setterObj)
@@ -1407,7 +1509,7 @@ public class JsObject
             var mergedSetter = setter;
             if (mergedGetter is null && existingHasGetter)
             {
-                var getterValue = SlotsArray[existing.Slot];
+                var getterValue = SlotRef(existing.Slot);
                 if (
                     !getterValue.IsUndefined
                     && getterValue.TryGetObject(out var getterObj)
@@ -1423,7 +1525,7 @@ public class JsObject
                     == JsShapePropertyFlags.BothAccessor
                         ? existing.AccessorSetterSlot
                         : existing.Slot;
-                var setterValue = SlotsArray[existingSetterSlot];
+                var setterValue = SlotRef(existingSetterSlot);
                 if (
                     !setterValue.IsUndefined
                     && setterValue.TryGetObject(out var setterObj)
@@ -1458,7 +1560,7 @@ public class JsObject
 
         shape = shape.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
-        if (shape.StorageSlotCount > SlotsArray.Length)
+        if (shape.StorageSlotCount > SlotCapacity)
             EnsureStaticNamedSlotCapacity(shape.StorageSlotCount);
         WriteAccessorSlots(slotInfo, getter, setter);
     }
@@ -1498,16 +1600,16 @@ public class JsObject
 
             if (hasGetter && hasSetter)
             {
-                SlotsArray[dynamicExisting.Slot] = getterValue;
-                SlotsArray[dynamicExisting.AccessorSetterSlot] = setterValue;
+                SlotRef(dynamicExisting.Slot) = getterValue;
+                SlotRef(dynamicExisting.AccessorSetterSlot) = setterValue;
             }
             else if (hasGetter)
             {
-                SlotsArray[dynamicExisting.Slot] = getterValue;
+                SlotRef(dynamicExisting.Slot) = getterValue;
             }
             else
             {
-                SlotsArray[dynamicExisting.Slot] = setterValue;
+                SlotRef(dynamicExisting.Slot) = setterValue;
             }
 
             RewriteDynamicNamedPropertyFlags(atom, static (_, newFlags) => newFlags, flags);
@@ -1556,16 +1658,16 @@ public class JsObject
 
             if (hasGetter && hasSetter)
             {
-                SlotsArray[existing.Slot] = getterValue;
-                SlotsArray[existing.AccessorSetterSlot] = setterValue;
+                SlotRef(existing.Slot) = getterValue;
+                SlotRef(existing.AccessorSetterSlot) = setterValue;
             }
             else if (hasGetter)
             {
-                SlotsArray[existing.Slot] = getterValue;
+                SlotRef(existing.Slot) = getterValue;
             }
             else
             {
-                SlotsArray[existing.Slot] = setterValue;
+                SlotRef(existing.Slot) = setterValue;
             }
 
             RewriteOwnNamedPropertyFlags(atom, static (_, newFlags) => newFlags, flags);
@@ -1577,7 +1679,7 @@ public class JsObject
 
         var nextShape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = nextShape;
-        if (nextShape.StorageSlotCount > SlotsArray.Length)
+        if (nextShape.StorageSlotCount > SlotCapacity)
             EnsureStaticNamedSlotCapacity(nextShape.StorageSlotCount);
         WriteAccessorSlots(slotInfo, getter, setter);
         return true;
@@ -1596,7 +1698,7 @@ public class JsObject
         {
             if ((existing.Flags & JsShapePropertyFlags.HasGetter) != 0 && mergedGetter is null)
             {
-                var existingGetter = SlotsArray[existing.Slot];
+                var existingGetter = SlotRef(existing.Slot);
                 if (
                     existingGetter.TryGetObject(out var existingGetterObj)
                     && existingGetterObj is JsFunction fn
@@ -1611,7 +1713,7 @@ public class JsObject
                     == JsShapePropertyFlags.BothAccessor
                         ? existing.AccessorSetterSlot
                         : existing.Slot;
-                var existingSetter = SlotsArray[existingSetterSlot];
+                var existingSetter = SlotRef(existingSetterSlot);
                 if (
                     existingSetter.TryGetObject(out var existingSetterObj)
                     && existingSetterObj is JsFunction fn
@@ -2046,7 +2148,7 @@ public class JsObject
 
     private JsValue GetSlotValueMaterialized(int atom, int slot)
     {
-        ref var slotRef = ref SlotsArray[slot];
+        ref var slotRef = ref SlotRef(slot);
         if (slotRef.IsTheHole)
             ILazyHostMethodProvider.GetOrCreateLazyHostMethod(atom, this, out slotRef);
         return slotRef;
@@ -2054,7 +2156,7 @@ public class JsObject
 
     private JsValue GetSlotValueMaterialized(int slot)
     {
-        ref var slotRef = ref SlotsArray[slot];
+        ref var slotRef = ref SlotRef(slot);
         if (slotRef.IsTheHole)
             return JsValue.Undefined;
         return slotRef;
@@ -2074,10 +2176,10 @@ public class JsObject
     {
         var dynamicLayout = Unsafe.As<DynamicNamedPropertyLayout>(NamedPropertyLayout);
         var slot = dynamicLayout.StorageSlotCount;
-        if (SlotsArray.Length <= slot + 1)
+        if (SlotCapacity <= slot + 1)
             ResizeNamedSlotCapacity(slot + 1);
 
-        SlotsArray[slot] = value;
+        SlotRef(slot) = value;
         dynamicLayout.AddNewSlotInfoUnchecked(atom, new(slot, flags), hint);
     }
 
@@ -2101,7 +2203,7 @@ public class JsObject
 
     private void EnsureNamedSlotCapacity(int minimumLength)
     {
-        if (SlotsArray.Length >= minimumLength)
+        if (SlotCapacity >= minimumLength)
             return;
 
         var newLength = SlotsArray.Length == 0 ? 4 : SlotsArray.Length * 2;
@@ -2112,19 +2214,39 @@ public class JsObject
 
     private void EnsureStaticNamedSlotCapacity(int minimumLength)
     {
-        if (SlotsArray.Length >= minimumLength)
+        if (SlotCapacity >= minimumLength)
             return;
 
         var newLength = SlotsArray.Length + StaticNamedPropertyCapacityIncrement;
         if (newLength < minimumLength)
             newLength = minimumLength;
+        // Constructor-rooted shapes know how large their instances end up; grow there at once.
+        if (
+            NamedPropertyLayout is StaticNamedPropertyLayout { SlackRoot: { } root }
+            && root.ExpectedSlotCount > newLength
+        )
+            newLength = root.ExpectedSlotCount;
         Array.Resize(ref SlotsArray, newLength);
+    }
+
+    /// <summary>Applies a cached add-property transition validated by the caller's IC.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void AddNamedByCachedTransition(
+        StaticNamedPropertyLayout next,
+        int slot,
+        in JsValue value
+    )
+    {
+        NamedPropertyLayout = next;
+        if (next.StorageSlotCount > SlotCapacity)
+            EnsureStaticNamedSlotCapacity(next.StorageSlotCount);
+        SlotRef(slot) = value;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void ResizeNamedSlotCapacity(int minimumLength)
     {
-        if (SlotsArray.Length >= minimumLength)
+        if (SlotCapacity >= minimumLength)
             return;
 
         var newLength = SlotsArray.Length == 0 ? 4 : SlotsArray.Length * 2;
@@ -2171,9 +2293,9 @@ public class JsObject
         );
         NamedPropertyLayout = shape;
         var required = shape.StorageSlotCount;
-        if (required > SlotsArray.Length)
+        if (required > SlotCapacity)
             EnsureStaticNamedSlotCapacity(required);
-        SlotsArray[slotInfo.Slot] = value;
+        SlotRef(slotInfo.Slot) = value;
         return true;
     }
 
@@ -2198,9 +2320,9 @@ public class JsObject
         // selecting this static-only add helper.
         var shape = StaticNamedPropertyLayout.GetOrAddTransition(atom, flags, out var slotInfo);
         NamedPropertyLayout = shape;
-        if (shape.StorageSlotCount > SlotsArray.Length)
+        if (shape.StorageSlotCount > SlotCapacity)
             EnsureStaticNamedSlotCapacity(shape.StorageSlotCount);
-        SlotsArray[slotInfo.Slot] = value;
+        SlotRef(slotInfo.Slot) = value;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -2236,7 +2358,7 @@ public class JsObject
         }
 
         NamedPropertyLayout = nextShape;
-        SlotsArray = nextSlots;
+        ReplaceSlots(nextSlots);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -2275,7 +2397,7 @@ public class JsObject
         }
 
         NamedPropertyLayout = nextShape;
-        SlotsArray = nextSlots;
+        ReplaceSlots(nextSlots);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -2337,7 +2459,7 @@ public class JsObject
         }
 
         NamedPropertyLayout = nextShape;
-        SlotsArray = nextSlots;
+        ReplaceSlots(nextSlots);
     }
 
     private void CopyExistingSlots(
@@ -2351,14 +2473,14 @@ public class JsObject
             == JsShapePropertyFlags.BothAccessor
         )
         {
-            destination[destinationInfo.Slot] = SlotsArray[sourceInfo.Slot];
-            destination[destinationInfo.AccessorSetterSlot] = SlotsArray[
+            destination[destinationInfo.Slot] = SlotRef(sourceInfo.Slot);
+            destination[destinationInfo.AccessorSetterSlot] = SlotRef(
                 sourceInfo.AccessorSetterSlot
-            ];
+            );
             return;
         }
 
-        destination[destinationInfo.Slot] = SlotsArray[sourceInfo.Slot];
+        destination[destinationInfo.Slot] = SlotRef(sourceInfo.Slot);
     }
 
     private static void WriteSlotsForFlags(
@@ -2400,12 +2522,12 @@ public class JsObject
             == JsShapePropertyFlags.BothAccessor
         )
         {
-            SlotsArray[slotInfo.Slot] = getter is null ? JsValue.Undefined : getter;
-            SlotsArray[slotInfo.AccessorSetterSlot] = setter is null ? JsValue.Undefined : setter;
+            SlotRef(slotInfo.Slot) = getter is null ? JsValue.Undefined : getter;
+            SlotRef(slotInfo.AccessorSetterSlot) = setter is null ? JsValue.Undefined : setter;
             return;
         }
 
-        SlotsArray[slotInfo.Slot] =
+        SlotRef(slotInfo.Slot) =
             (slotInfo.Flags & JsShapePropertyFlags.HasGetter) != 0
                 ? getter is null
                     ? JsValue.Undefined
@@ -2454,7 +2576,7 @@ public class JsObject
             == JsShapePropertyFlags.BothAccessor
                 ? slotInfo.AccessorSetterSlot
                 : slotInfo.Slot;
-        var fnVal = SlotsArray[setterSlot];
+        var fnVal = SlotRef(setterSlot);
         var fn = (JsFunction)fnVal.Obj!;
         var arg = MemoryMarshal.CreateReadOnlySpan(in value, 1);
         _ = InvokeAccessorFunction(realm, receiver, fn, arg);
@@ -2472,7 +2594,7 @@ public class JsObject
             == JsShapePropertyFlags.BothAccessor
                 ? slotInfo.AccessorSetterSlot
                 : slotInfo.Slot;
-        var fnVal = SlotsArray[setterSlot];
+        var fnVal = SlotRef(setterSlot);
         if (fnVal.IsUndefined)
             return false;
         if (!fnVal.TryGetObject(out var fnObj) || fnObj is not JsFunction fn)
@@ -2636,7 +2758,7 @@ public class JsObject
             return "[Getter]";
         if (hasSetter)
             return "[Setter]";
-        return FormatDisplayValue(SlotsArray[info.Slot], indentSize, depth, visited);
+        return FormatDisplayValue(SlotRef(info.Slot), indentSize, depth, visited);
     }
 
     private string FormatDisplayValue(

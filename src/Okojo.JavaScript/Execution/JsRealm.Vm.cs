@@ -2426,6 +2426,21 @@ public sealed partial class JsRealm
 
     private JsPlainObject CreateConstructReceiver(JsValue newTarget, JsFunction fallbackCtor)
     {
+        // Common `new F()`: ordinary bytecode constructor from this realm with an own data
+        // prototype object. Instances share a per-constructor transition root that learns
+        // their final slot count, so construction allocates storage once.
+        if (
+            fallbackCtor is JsBytecodeFunction
+            && newTarget.TryGetObject(out var directTarget)
+            && ReferenceEquals(directTarget, fallbackCtor)
+            && ReferenceEquals(fallbackCtor.Realm, this)
+            && fallbackCtor.TryGetOwnPrototypeObjectFast(out var fastPrototype)
+        )
+        {
+            var root = fallbackCtor.GetOrCreateConstructRootShape();
+            return JsPlainObject.CreateWithSlots(root, fastPrototype, root.ExpectedSlotCount);
+        }
+
         JsObject? receiverPrototype = Intrinsics.ObjectPrototype;
         var resolved = false;
         if (
@@ -3162,6 +3177,28 @@ public sealed partial class JsRealm
         JsValue rhs
     )
     {
+        // Doubles such as 0xffffffff miss the Int32 fast path; convert finite numbers
+        // directly. (long) truncation then wrap matches ToInt32 for |x| < 2^63.
+        if (
+            lhs.IsNumber
+            && rhs.IsNumber
+            && TryNumberToInt32Bits(lhs, out var fastLeft)
+            && TryNumberToInt32Bits(rhs, out var fastRight)
+        )
+        {
+            var fastShift = (int)fastRight & 0x1F;
+            return op switch
+            {
+                JsOpCode.BitwiseAnd => JsValue.FromInt32((int)(fastLeft & fastRight)),
+                JsOpCode.BitwiseOr => JsValue.FromInt32((int)(fastLeft | fastRight)),
+                JsOpCode.BitwiseXor => JsValue.FromInt32((int)(fastLeft ^ fastRight)),
+                JsOpCode.ShiftLeft => JsValue.FromInt32((int)fastLeft << fastShift),
+                JsOpCode.ShiftRight => JsValue.FromInt32((int)fastLeft >> fastShift),
+                JsOpCode.ShiftRightLogical => ShiftRightLogicalResult(fastLeft, fastShift),
+                _ => throw new NotImplementedException($"Bitwise opcode {op} not implemented."),
+            };
+        }
+
         var leftNumeric = realm.ToNumericSlowPath(lhs);
         var rightNumeric = realm.ToNumericSlowPath(rhs);
         if (leftNumeric.IsBigInt || rightNumeric.IsBigInt)
@@ -3211,6 +3248,27 @@ public sealed partial class JsRealm
             var result = left >> shiftAmount;
             return result <= int.MaxValue ? JsValue.FromInt32((int)result) : new((double)result);
         }
+    }
+
+    /// <summary>ToUint32 bits of a Number when |value| &lt; 2^63; false for NaN/Infinity/huge.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryNumberToInt32Bits(in JsValue value, out uint bits)
+    {
+        if (value.IsInt32)
+        {
+            bits = (uint)value.Int32Value;
+            return true;
+        }
+
+        var number = value.FastNumberValue;
+        if (Math.Abs(number) < 9.2233720368547758E+18)
+        {
+            bits = (uint)(long)number;
+            return true;
+        }
+
+        bits = 0;
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -4032,6 +4090,8 @@ public sealed partial class JsRealm
         [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ToBooleanSlowPath(JsValue v)
         {
+            if (v.IsObject)
+                return true;
             if (v.IsNullOrUndefined)
                 return false;
             if (v.IsNumber)
