@@ -8,6 +8,27 @@ namespace Okojo.Tests;
 public class StringPrototypeTests
 {
     [Test]
+    public void String_Concat_Preserves_Code_Units_And_Coercion_Order()
+    {
+        using var runtime = JsRuntime.Create();
+        var result = runtime.DefaultRealm.Eval(
+            """
+            const small = "a".concat("", "é", "\uD800", "😃");
+            const large = "a".concat("x".repeat(256), "b", "c");
+            let calls = "";
+            const first = { toString() { calls += "1"; return "first"; } };
+            const second = { toString() { calls += "2"; return "second"; } };
+            let threw = false;
+            try { "a".concat("b", first, Symbol(), second); } catch (e) { threw = e instanceof TypeError; }
+            small.length === 5 && small.charCodeAt(2) === 0xD800 &&
+              large.length === 259 && large.slice(-3) === "xbc" &&
+              threw && calls === "1";
+            """
+        );
+        Assert.That(result.IsTrue, Is.True);
+    }
+
+    [Test]
     public void String_Split_RegExp_PreservesTailAndEmptyMatchBoundaries()
     {
         using var runtime = JsRuntime.Create();
